@@ -268,7 +268,7 @@ export default function SignInPage() {
         <div className="absolute -top-32 -right-32 w-96 h-96 bg-blue-400/20 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute bottom-10 left-10 w-80 h-80 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none" />
 
-      
+
         {/* Center Content */}
         <div className="relative z-10 w-full max-w-[500px] mx-auto my-auto space-y-6">
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-xs font-semibold text-blue-100">
