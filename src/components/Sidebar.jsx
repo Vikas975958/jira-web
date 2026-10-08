@@ -16,6 +16,11 @@ export default function Sidebar() {
   const [selectedProject, setSelectedProject] = useState("ATL");
 
   const mainNav = [
+      {
+      name: "Dashboard",
+      icon: LuLayoutGrid,
+      path: "/dashboard",
+    },
     {
       name: "Projects",
       icon: LuFolder,
@@ -28,11 +33,7 @@ export default function Sidebar() {
       path: "/team",
       count: 6,
     },
-    {
-      name: "Dashboard",
-      icon: LuLayoutGrid,
-      path: "/dashboard",
-    },
+  
     {
       name: "Settings",
       icon: LuSlidersVertical,
