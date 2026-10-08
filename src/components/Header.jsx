@@ -19,6 +19,7 @@ import {
 } from "react-icons/fi";
 import JiraLogo from "./JiraLogo";
 import LogoutConfirmModal from "./LogoutConfirmModal";
+import Cookies from "js-cookie";
 import authService from "@/services/authService";
 import { emptyStore } from "@/store/rootReducer";
 import { getNameInitials } from "@/utils/commonFunction";
@@ -56,13 +57,17 @@ export default function Header({ onCreateIssueClick }) {
     setIsLoggingOut(true);
     try {
       await authService.signOut();
+      Cookies.remove("token", { path: "/" });
       dispatch(emptyStore());
       toast.info("You have been signed out.");
       setIsLogoutModalOpen(false);
       router.push("/signin");
     } catch (err) {
       console.error("Logout error:", err);
-      toast.error("Failed to sign out properly.");
+      Cookies.remove("token", { path: "/" });
+      dispatch(emptyStore());
+      setIsLogoutModalOpen(false);
+      router.push("/signin");
     } finally {
       setIsLoggingOut(false);
     }

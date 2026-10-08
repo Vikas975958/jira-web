@@ -2,8 +2,6 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useDispatch } from "react-redux";
 import { toast } from "react-toastify";
 import {
   FiMail,
@@ -12,21 +10,16 @@ import {
   FiEyeOff,
   FiArrowRight,
   FiCheckCircle,
-  FiShield,
-  FiZap,
 } from "react-icons/fi";
 import JiraLogo from "@/components/JiraLogo";
-import authService from "@/services/authService";
-import { logingAuth } from "@/store/slices/authSlices";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function SignInPage() {
-  const router = useRouter();
-  const dispatch = useDispatch();
+  const { signIn, loading } = useAuth();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
   const handleSubmit = async (e) => {
@@ -38,48 +31,14 @@ export default function SignInPage() {
       return;
     }
 
-    setLoading(true);
-
     try {
-      const data = await authService.signIn({ email, password });
-      const user = data?.user;
-      const session = data?.session;
-
-      if (!session) {
-        throw new Error("Unable to obtain session. Please verify your credentials or email.");
-      }
-
-      // Sync state with Redux
-      dispatch(
-        logingAuth({
-          token: session.access_token,
-          userId: user.id,
-          userData: {
-            id: user.id,
-            email: user.email,
-            name:
-              user.user_metadata?.full_name ||
-              user.user_metadata?.name ||
-              user.email?.split("@")[0] ||
-              "Jira User",
-            role: user.user_metadata?.role || "Software Engineer",
-          },
-          role: user.user_metadata?.role || "Software Engineer",
-        })
-      );
-
-      toast.success("Signed in successfully! Welcome to Jira.");
-      router.push("/dashboard");
+      await signIn({ email: email.trim(), password });
     } catch (err) {
-      console.error("Sign-in error:", err);
       const message =
         err?.message === "Invalid login credentials"
           ? "Invalid email or password. Please try again or create an account."
           : err?.message || "Failed to sign in. Please check your credentials.";
       setErrorMsg(message);
-      toast.error(message);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -90,7 +49,7 @@ export default function SignInPage() {
 
   return (
     <div className="h-screen w-full flex bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-100 text-slate-800 overflow-hidden select-none">
-      {/* Left Column: Sign In Form (Increased generous size) */}
+      {/* Left Column: Sign In Form */}
       <div className="w-full lg:w-1/2 h-full flex flex-col justify-between px-6 py-6 sm:px-10 lg:px-14 xl:px-16 overflow-hidden">
         {/* Brand Header */}
         <div className="w-full max-w-[500px] mx-auto flex items-center justify-between shrink-0">
@@ -103,7 +62,7 @@ export default function SignInPage() {
           </Link>
         </div>
 
-        {/* Center Form Container (Generous width and scaled elements) */}
+        {/* Center Form Container */}
         <div className="w-full max-w-[500px] mx-auto my-auto flex flex-col justify-center">
           {/* Form Header */}
           <div className="mb-6">
@@ -247,8 +206,6 @@ export default function SignInPage() {
               </span>
             </div>
           </div>
-
-
         </div>
 
         {/* Footer info */}
@@ -267,7 +224,6 @@ export default function SignInPage() {
         {/* Glows */}
         <div className="absolute -top-32 -right-32 w-96 h-96 bg-blue-400/20 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute bottom-10 left-10 w-80 h-80 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none" />
-
 
         {/* Center Content */}
         <div className="relative z-10 w-full max-w-[500px] mx-auto my-auto space-y-6">

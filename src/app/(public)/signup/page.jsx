@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import {
   FiUser,
   FiMail,
@@ -15,28 +16,44 @@ import {
   FiHash,
   FiLayers,
   FiShield,
+  FiUsers,
   FiZap,
 } from "react-icons/fi";
 import JiraLogo from "@/components/JiraLogo";
 import { useAuth } from "@/hooks/useAuth";
 
-export default function SignUpPage() {
-  const { signUp } = useAuth();
+function SignUpForm() {
+  const searchParams = useSearchParams();
+  const { signUp, loading } = useAuth();
+
+  const urlEmail = searchParams.get("email") || "";
+  const urlOrg = searchParams.get("org") || searchParams.get("organization_name") || "";
+  const urlRole = searchParams.get("role") || "";
+  const urlCreatedBy = searchParams.get("created_by") || "";
+  const isInvited = Boolean(
+    searchParams.get("invited") === "true" ||
+    (urlEmail && (urlRole || urlCreatedBy))
+  );
 
   const [fullName, setFullName] = useState("");
-  const [organizationName, setOrganizationName] = useState("");
+  const [organizationName, setOrganizationName] = useState(urlOrg);
   const [employeeCode, setEmployeeCode] = useState("");
   const [department, setDepartment] = useState("");
   const [jobTitle, setJobTitle] = useState("");
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(urlEmail);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(true);
 
-  const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [successConfirmation, setSuccessConfirmation] = useState(false);
+
+  // Sync state if URL params load asynchronously
+  useEffect(() => {
+    if (urlEmail && !email) setEmail(urlEmail);
+    if (urlOrg && !organizationName) setOrganizationName(urlOrg);
+  }, [urlEmail, urlOrg]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -62,17 +79,17 @@ export default function SignUpPage() {
       return;
     }
 
-    setLoading(true);
-
     try {
       const result = await signUp({
-        email,
+        email: email.trim(),
         password,
         fullName: fullName.trim(),
         organizationName: organizationName.trim(),
         employeeCode: employeeCode.trim() || null,
         department: department.trim() || null,
         jobTitle: jobTitle.trim() || null,
+        role: urlRole || null,
+        createdBy: urlCreatedBy || null,
       });
 
       if (result?.requiresVerification) {
@@ -82,8 +99,6 @@ export default function SignUpPage() {
       console.error("Sign-up error:", err);
       const message = err?.message || "Failed to create account. Please try again.";
       setErrorMsg(message);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -107,12 +122,32 @@ export default function SignUpPage() {
           {/* Form Header */}
           <div className="mb-3">
             <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900">
-              Create your Jira account
+              {isInvited ? "Complete your Jira registration" : "Create your Jira account"}
             </h1>
             <p className="mt-1 text-xs sm:text-sm text-slate-500">
-              Get started with sprint planning, issue tracking, and real-time agility.
+              {isInvited
+                ? "You have been invited to join your team workspace."
+                : "Get started with sprint planning, issue tracking, and real-time agility."}
             </p>
           </div>
+
+          {/* Invitation Banner */}
+          {isInvited && (
+            <div className="mb-3 p-3.5 rounded-xl bg-blue-50 border border-blue-200 text-blue-950 text-xs flex items-center gap-3 animate-fadeIn">
+              <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center shrink-0 font-bold">
+                ✉️
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-bold">Team Workspace Invitation</p>
+                <p className="text-[11px] text-blue-700 mt-0.5">
+                  Joining <b>{organizationName || urlOrg || "Organization"}</b> as a{" "}
+                  <span className="font-semibold uppercase text-blue-800">
+                    {urlRole || "Member"}
+                  </span>
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* Error Message Alert */}
           {errorMsg && (
@@ -194,10 +229,13 @@ export default function SignUpPage() {
                       id="organizationName"
                       type="text"
                       required
+                      disabled={isInvited && Boolean(urlOrg)}
                       value={organizationName}
                       onChange={(e) => setOrganizationName(e.target.value)}
                       placeholder="Acme Corp"
-                      className="w-full h-10 pl-10 pr-3.5 bg-white border border-slate-300 rounded-xl text-slate-900 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all shadow-2xs placeholder:text-slate-400"
+                      className={`w-full h-10 pl-10 pr-3.5 bg-white border border-slate-300 rounded-xl text-slate-900 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all shadow-2xs placeholder:text-slate-400 ${
+                        isInvited && Boolean(urlOrg) ? "bg-slate-50 cursor-not-allowed opacity-80" : ""
+                      }`}
                     />
                   </div>
                 </div>
@@ -279,7 +317,7 @@ export default function SignUpPage() {
                     htmlFor="signup-email"
                     className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1"
                   >
-                  Email <span className="text-red-500">*</span>
+                    Email <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
@@ -289,10 +327,13 @@ export default function SignUpPage() {
                       id="signup-email"
                       type="email"
                       required
+                      disabled={isInvited && Boolean(urlEmail)}
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="name@company.com"
-                      className="w-full h-10 pl-10 pr-3.5 bg-white border border-slate-300 rounded-xl text-slate-900 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all shadow-2xs placeholder:text-slate-400"
+                      className={`w-full h-10 pl-10 pr-3.5 bg-white border border-slate-300 rounded-xl text-slate-900 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all shadow-2xs placeholder:text-slate-400 ${
+                        isInvited && Boolean(urlEmail) ? "bg-slate-50 cursor-not-allowed opacity-80" : ""
+                      }`}
                     />
                   </div>
                 </div>
@@ -385,7 +426,7 @@ export default function SignUpPage() {
                   </>
                 ) : (
                   <>
-                    <span>Create Free Jira Account</span>
+                    <span>{isInvited ? "Complete Registration" : "Create Free Jira Account"}</span>
                     <FiArrowRight className="w-4 h-4" />
                   </>
                 )}
@@ -422,7 +463,6 @@ export default function SignUpPage() {
         <div className="absolute -top-32 -right-32 w-96 h-96 bg-blue-400/20 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute bottom-10 left-10 w-80 h-80 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none" />
 
-    
         <div className="relative z-10 w-full max-w-[500px] mx-auto my-auto space-y-6">
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-xs font-semibold text-blue-100">
             <FiCheck className="w-4 h-4 text-emerald-300" />
@@ -457,5 +497,13 @@ export default function SignUpPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function SignUpPage() {
+  return (
+    <Suspense fallback={<div className="h-screen w-full flex items-center justify-center bg-slate-50 text-slate-500 text-sm">Loading registration...</div>}>
+      <SignUpForm />
+    </Suspense>
   );
 }

@@ -166,7 +166,7 @@ export default function CreateIssueModal() {
 
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
-                Assignee
+                0
               </label>
               <input
                 type="text"
