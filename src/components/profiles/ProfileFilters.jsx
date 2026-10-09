@@ -2,6 +2,7 @@
 
 import React from "react";
 import { FiSearch, FiFilter, FiX } from "react-icons/fi";
+import { MEMBER_ROLE, MANAGER_ROLE } from "@/utils/constants";
 
 /**
  * Filter bar component for profiles table.
@@ -16,8 +17,8 @@ export default function ProfileFilters({
 }) {
   const filterTabs = [
     { key: "all", label: "All Users", count: counts.all },
-    { key: "manager", label: "Managers", count: counts.manager },
-    { key: "member", label: "Members", count: counts.member },
+    { key: MANAGER_ROLE, label: "Managers", count: counts.manager },
+    { key: MEMBER_ROLE, label: "Members", count: counts.member },
   ];
 
   return (

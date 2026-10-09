@@ -25,6 +25,7 @@ import {
 import organizationService, { slugify } from "@/services/organization.service";
 import { OWNER_ROLE } from "@/utils/constants";
 import { useOrganization } from "@/context/OrganizationContext";
+import JiraLogo from "@/components/JiraLogo";
 
 // Industry choices
 const INDUSTRY_OPTIONS = [
@@ -189,7 +190,9 @@ export default function CreateOrganizationPage() {
         role: OWNER_ROLE,
       });
 
-      await refreshOrganizations();
+      if (refreshOrganizations) {
+        await refreshOrganizations();
+      }
 
       toast.success(`Organization "${trimmedName}" created successfully!`);
       router.push("/dashboard");
@@ -209,14 +212,18 @@ export default function CreateOrganizationPage() {
       <div className="max-w-5xl mx-auto space-y-6">
         {/* Navigation & Breadcrumb */}
         <div className="flex items-center justify-between">
-          <button
-            type="button"
-            onClick={() => router.push("/dashboard")}
-            className="inline-flex items-center gap-2 text-sm font-semibold text-slate-600 hover:text-slate-900 transition-colors group cursor-pointer"
-          >
-            <FiArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
-            <span>Back to Dashboard</span>
-          </button>
+          <div className="flex items-center gap-3">
+            <JiraLogo className="w-7 h-7" textColor="text-slate-900" />
+            <div className="h-4 w-px bg-slate-300" />
+            <button
+              type="button"
+              onClick={() => router.push("/dashboard")}
+              className="inline-flex items-center gap-2 text-sm font-semibold text-slate-600 hover:text-slate-900 transition-colors group cursor-pointer"
+            >
+              <FiArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
+              <span>Back to Dashboard</span>
+            </button>
+          </div>
 
           <span className="text-xs font-semibold px-2.5 py-1 bg-blue-50 text-blue-700 rounded-full border border-blue-200">
             Jira Workspace Setup

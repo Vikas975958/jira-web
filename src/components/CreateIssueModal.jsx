@@ -1,39 +1,72 @@
 "use client";
 
 import React, { useState } from "react";
+import { useSelector } from "react-redux";
 import { FiX, FiCheck, FiBookmark, FiAlertCircle, FiCheckSquare } from "react-icons/fi";
-import { useIssues } from "@/context/IssueContext";
 
-export default function CreateIssueModal() {
-  const { isCreateModalOpen, setIsCreateModalOpen, addTicket } = useIssues();
+export default function CreateIssueModal({
+  isOpen,
+  onClose,
+  onAddTicket,
+  organizationName = "Jira Workspace",
+  teamMembers = [],
+  projects = [],
+  selectedProjectId = "",
+}) {
+  const authState = useSelector((state) => state.authSlice);
+  const user = authState?.userData;
 
+  const [projectId, setProjectId] = useState(selectedProjectId || "");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [type, setType] = useState("story");
   const [status, setStatus] = useState("todo");
   const [priority, setPriority] = useState("medium");
   const [storyPoints, setStoryPoints] = useState(3);
-  const [assignee, setAssignee] = useState("Alex Morgan");
+  const [assignee, setAssignee] = useState("");
 
-  if (!isCreateModalOpen) return null;
+  // Sync default projectId when modal opens
+  React.useEffect(() => {
+    if (isOpen) {
+      setProjectId(selectedProjectId || (projects[0]?.id || ""));
+    }
+  }, [isOpen, selectedProjectId, projects]);
+
+  // Set default assignee when modal opens or members load
+  React.useEffect(() => {
+    if (isOpen && !assignee && user) {
+      setAssignee(user.full_name || user.name || "");
+    }
+  }, [isOpen, user, assignee]);
+
+  if (!isOpen) return null;
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!title.trim()) return;
 
-    addTicket({
-      title: title.trim(),
-      description: description.trim(),
-      type,
-      status,
-      priority,
-      storyPoints: Number(storyPoints) || 1,
-      assignee: assignee.trim() || "Unassigned",
-      tags: ["Sprint24"],
-    });
+    const chosenProj = projects.find((p) => p.id === projectId);
+
+    if (onAddTicket) {
+      onAddTicket({
+        title: title.trim(),
+        description: description.trim(),
+        type,
+        status,
+        priority,
+        storyPoints: Number(storyPoints) || 1,
+        assignee: assignee.trim() || user?.full_name || "Unassigned",
+        tags: [],
+        projectId: projectId || null,
+        project_id: projectId || null,
+        projectName: chosenProj?.name || null,
+        project_name: chosenProj?.name || null,
+      });
+    }
 
     setTitle("");
     setDescription("");
+    if (onClose) onClose();
   };
 
   return (
@@ -48,8 +81,8 @@ export default function CreateIssueModal() {
             <h2 className="text-base font-bold text-slate-800">Create Issue</h2>
           </div>
           <button
-            onClick={() => setIsCreateModalOpen(false)}
-            className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+            onClick={onClose}
+            className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
           >
             <FiX className="w-5 h-5" />
           </button>
@@ -57,16 +90,45 @@ export default function CreateIssueModal() {
 
         {/* Modal Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
-          {/* Project & Issue Type */}
-          <div className="grid grid-cols-2 gap-4">
+          {/* Workspace, Project & Issue Type */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
-                Project
+                Workspace
               </label>
-              <div className="px-3 py-2 bg-slate-100 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700">
-                Jira Web Core (JIRA)
+              <div className="px-3 py-2 bg-slate-100 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 truncate">
+                {organizationName}
               </div>
             </div>
+
+            {projects && projects.length > 0 ? (
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
+                  Project
+                </label>
+                <select
+                  value={projectId}
+                  onChange={(e) => setProjectId(e.target.value)}
+                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">General (No Project)</option>
+                  {projects.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
+                  Project
+                </label>
+                <div className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-400 italic">
+                  Default Workspace
+                </div>
+              </div>
+            )}
 
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
@@ -166,15 +228,30 @@ export default function CreateIssueModal() {
 
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
-                0
+                Assignee
               </label>
-              <input
-                type="text"
-                value={assignee}
-                onChange={(e) => setAssignee(e.target.value)}
-                placeholder="Assignee name"
-                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 outline-none focus:ring-2 focus:ring-blue-500"
-              />
+              {teamMembers && teamMembers.length > 0 ? (
+                <select
+                  value={assignee}
+                  onChange={(e) => setAssignee(e.target.value)}
+                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Unassigned</option>
+                  {teamMembers.map((member) => (
+                    <option key={member.user_id || member.email} value={member.full_name || member.email}>
+                      {member.full_name || member.email} ({member.role})
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  type="text"
+                  value={assignee}
+                  onChange={(e) => setAssignee(e.target.value)}
+                  placeholder="Assignee name"
+                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              )}
             </div>
           </div>
 
@@ -182,8 +259,8 @@ export default function CreateIssueModal() {
           <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200">
             <button
               type="button"
-              onClick={() => setIsCreateModalOpen(false)}
-              className="px-4 py-2 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors"
+              onClick={onClose}
+              className="px-4 py-2 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
             >
               Cancel
             </button>

@@ -14,11 +14,13 @@ import {
   FiUserPlus,
 } from "react-icons/fi";
 import { getNameInitials } from "@/utils/commonFunction";
+import { MEMBER_ROLE, MANAGER_ROLE, OWNER_ROLE } from "@/utils/constants";
 
 export default function ProfilesTable({
   profiles = [],
   loading = false,
   error = null,
+  viewerRole = null,
   onRetry,
   onOpenInviteModal,
 }) {
@@ -26,21 +28,21 @@ export default function ProfilesTable({
   const renderRoleBadge = (role) => {
     const normalized = (role || "").toLowerCase();
     switch (normalized) {
-      case "manager":
+      case MANAGER_ROLE:
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold bg-purple-50 text-purple-700 border border-purple-200/70">
             <FiShield className="w-3 h-3 text-purple-600" />
             Manager
           </span>
         );
-      case "owner":
+      case OWNER_ROLE:
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200/70">
             <FiShield className="w-3 h-3 text-amber-600" />
             Owner
           </span>
         );
-      case "member":
+      case MEMBER_ROLE:
       default:
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200/70">
@@ -185,7 +187,9 @@ export default function ProfilesTable({
                         </p>
                         <p className="text-slate-500 text-[11px] truncate flex items-center gap-1 mt-0.5">
                           <FiMail className="w-3 h-3 shrink-0 text-slate-400" />
-                          {profile.email}
+                          {(viewerRole === MANAGER_ROLE || profile.is_owner_protected) && profile.role === OWNER_ROLE
+                            ? "[Protected Owner Account]"
+                            : profile.email}
                         </p>
                       </div>
                     </div>
