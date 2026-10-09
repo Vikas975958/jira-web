@@ -1233,7 +1233,48 @@ export const organizationService = {
         status: m.status === "approved" ? "pending" : m.status,
       }));
 
-      return [...memberInvites, ...managerInvites];
+      // Project invitations
+      let projectInvites = [];
+      try {
+        const { data: pInvites } = await supabase
+          .from("project_invitations")
+          .select("*, organizations(id, name, slug, logo_url), projects(id, name, status)")
+          .eq("email", normalizedEmail)
+          .eq("status", "pending");
+
+        if (pInvites && pInvites.length > 0) {
+          projectInvites = pInvites.map((pi) => ({
+            ...pi,
+            request_type: pi.intended_role || MEMBER_ROLE,
+            is_project_invite: true,
+            project_name: pi.projects?.name,
+          }));
+        }
+      } catch (_) {}
+
+      // Fallback local project invites
+      if (typeof window !== "undefined") {
+        try {
+          const raw = localStorage.getItem("jira_project_invitations_data");
+          if (raw) {
+            const list = JSON.parse(raw);
+            const matches = list.filter(
+              (i) => i.email === normalizedEmail && i.status === "pending"
+            );
+            matches.forEach((pi) => {
+              if (!projectInvites.some((item) => item.id === pi.id)) {
+                projectInvites.push({
+                  ...pi,
+                  request_type: pi.intended_role || MEMBER_ROLE,
+                  is_project_invite: true,
+                });
+              }
+            });
+          }
+        } catch (_) {}
+      }
+
+      return [...memberInvites, ...managerInvites, ...projectInvites];
     } catch (err) {
       console.error("getUserPendingInvitations error:", err);
       return [];
@@ -1357,16 +1398,35 @@ export const organizationService = {
       .maybeSingle();
 
     // Fallback: check by ID if token happens to be UUID or column is missing
-    if (!data && (error?.message?.includes("column") || /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(token))) {
-      const { data: idData } = await supabase
-        .from(tableName)
-        .select("*, organizations(id, name, slug, logo_url, description)")
-        .eq("id", token)
-        .maybeSingle();
-      if (idData) {
-        data = idData;
-        error = null;
-      }
+    // Check in project_invitations if not found in request tables
+    if (!data) {
+      try {
+        const { data: projInvite } = await supabase
+          .from("project_invitations")
+          .select("*, organizations(id, name, slug, logo_url, description)")
+          .eq("invitation_token_hash", tokenHash)
+          .maybeSingle();
+
+        if (projInvite) {
+          data = projInvite;
+          error = null;
+        }
+      } catch (_) {}
+    }
+
+    // Check in local project invites fallback
+    if (!data && typeof window !== "undefined") {
+      try {
+        const raw = localStorage.getItem("jira_project_invitations_data");
+        if (raw) {
+          const list = JSON.parse(raw);
+          const found = list.find((i) => i.invitation_token_hash === tokenHash || i.id === token);
+          if (found) {
+            data = found;
+            error = null;
+          }
+        }
+      } catch (_) {}
     }
 
     if (error || !data) {

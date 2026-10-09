@@ -9,23 +9,43 @@ export default function CreateIssueModal({
   onClose,
   onAddTicket,
   organizationName = "Jira Workspace",
+  teamMembers = [],
+  projects = [],
+  selectedProjectId = "",
 }) {
   const authState = useSelector((state) => state.authSlice);
   const user = authState?.userData;
 
+  const [projectId, setProjectId] = useState(selectedProjectId || "");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [type, setType] = useState("story");
   const [status, setStatus] = useState("todo");
   const [priority, setPriority] = useState("medium");
   const [storyPoints, setStoryPoints] = useState(3);
-  const [assignee, setAssignee] = useState(user?.full_name || user?.name || "");
+  const [assignee, setAssignee] = useState("");
+
+  // Sync default projectId when modal opens
+  React.useEffect(() => {
+    if (isOpen) {
+      setProjectId(selectedProjectId || (projects[0]?.id || ""));
+    }
+  }, [isOpen, selectedProjectId, projects]);
+
+  // Set default assignee when modal opens or members load
+  React.useEffect(() => {
+    if (isOpen && !assignee && user) {
+      setAssignee(user.full_name || user.name || "");
+    }
+  }, [isOpen, user, assignee]);
 
   if (!isOpen) return null;
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!title.trim()) return;
+
+    const chosenProj = projects.find((p) => p.id === projectId);
 
     if (onAddTicket) {
       onAddTicket({
@@ -37,6 +57,10 @@ export default function CreateIssueModal({
         storyPoints: Number(storyPoints) || 1,
         assignee: assignee.trim() || user?.full_name || "Unassigned",
         tags: [],
+        projectId: projectId || null,
+        project_id: projectId || null,
+        projectName: chosenProj?.name || null,
+        project_name: chosenProj?.name || null,
       });
     }
 
@@ -66,8 +90,8 @@ export default function CreateIssueModal({
 
         {/* Modal Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
-          {/* Workspace & Issue Type */}
-          <div className="grid grid-cols-2 gap-4">
+          {/* Workspace, Project & Issue Type */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
                 Workspace
@@ -76,6 +100,35 @@ export default function CreateIssueModal({
                 {organizationName}
               </div>
             </div>
+
+            {projects && projects.length > 0 ? (
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
+                  Project
+                </label>
+                <select
+                  value={projectId}
+                  onChange={(e) => setProjectId(e.target.value)}
+                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">General (No Project)</option>
+                  {projects.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
+                  Project
+                </label>
+                <div className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-400 italic">
+                  Default Workspace
+                </div>
+              </div>
+            )}
 
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
@@ -177,13 +230,28 @@ export default function CreateIssueModal({
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
                 Assignee
               </label>
-              <input
-                type="text"
-                value={assignee}
-                onChange={(e) => setAssignee(e.target.value)}
-                placeholder="Assignee name"
-                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 outline-none focus:ring-2 focus:ring-blue-500"
-              />
+              {teamMembers && teamMembers.length > 0 ? (
+                <select
+                  value={assignee}
+                  onChange={(e) => setAssignee(e.target.value)}
+                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Unassigned</option>
+                  {teamMembers.map((member) => (
+                    <option key={member.user_id || member.email} value={member.full_name || member.email}>
+                      {member.full_name || member.email} ({member.role})
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  type="text"
+                  value={assignee}
+                  onChange={(e) => setAssignee(e.target.value)}
+                  placeholder="Assignee name"
+                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              )}
             </div>
           </div>
 

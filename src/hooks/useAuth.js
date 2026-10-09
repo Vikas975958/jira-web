@@ -8,6 +8,7 @@ import Cookies from "js-cookie";
 import { supabase } from "@/lib/supabaseconfig";
 import authService from "@/services/auth.service";
 import organizationService from "@/services/organization.service";
+import projectService from "@/services/project.service";
 import { logingAuth } from "@/store/slices/authSlices";
 import { emptyStore } from "@/store/rootReducer";
 import { MEMBER_ROLE, MANAGER_ROLE, OWNER_ROLE } from "@/utils/constants";
@@ -22,7 +23,7 @@ export function useAuth() {
   /**
    * Handle user signup
    * 1. Create user in Supabase Auth
-   * 2. If token present, accept invitation (mark request accepted, associate with org)
+   * 2. If token present, accept invitation (mark request accepted, associate with org & project)
    * 3. Insert/update profile record in profiles table
    * 4. Redirect:
    *    - Owner: /dashboard/create-organization
@@ -62,7 +63,7 @@ export function useAuth() {
         throw new Error("No user returned from signup service.");
       }
 
-      // 2. If token is present, securely accept the invitation
+      // 2. If token is present, securely accept the organization or project invitation
       let invitationAcceptResult = null;
       if (token) {
         try {
@@ -79,6 +80,17 @@ export function useAuth() {
           });
         } catch (acceptErr) {
           console.warn("acceptInvitation error during signup:", acceptErr);
+        }
+
+        // Also attempt project invitation acceptance if applicable
+        try {
+          await projectService.acceptProjectInvitation({
+            token,
+            userId: user.id,
+            userEmail: user.email,
+          });
+        } catch (projAcceptErr) {
+          console.warn("acceptProjectInvitation error during signup:", projAcceptErr);
         }
       }
 
