@@ -1,11 +1,17 @@
 "use client";
 
 import React, { useState } from "react";
+import { useSelector } from "react-redux";
 import { FiX, FiCheck, FiBookmark, FiAlertCircle, FiCheckSquare } from "react-icons/fi";
-import { useIssues } from "@/context/IssueContext";
 
-export default function CreateIssueModal() {
-  const { isCreateModalOpen, setIsCreateModalOpen, addTicket } = useIssues();
+export default function CreateIssueModal({
+  isOpen,
+  onClose,
+  onAddTicket,
+  organizationName = "Jira Workspace",
+}) {
+  const authState = useSelector((state) => state.authSlice);
+  const user = authState?.userData;
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -13,27 +19,30 @@ export default function CreateIssueModal() {
   const [status, setStatus] = useState("todo");
   const [priority, setPriority] = useState("medium");
   const [storyPoints, setStoryPoints] = useState(3);
-  const [assignee, setAssignee] = useState("Alex Morgan");
+  const [assignee, setAssignee] = useState(user?.full_name || user?.name || "");
 
-  if (!isCreateModalOpen) return null;
+  if (!isOpen) return null;
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!title.trim()) return;
 
-    addTicket({
-      title: title.trim(),
-      description: description.trim(),
-      type,
-      status,
-      priority,
-      storyPoints: Number(storyPoints) || 1,
-      assignee: assignee.trim() || "Unassigned",
-      tags: ["Sprint24"],
-    });
+    if (onAddTicket) {
+      onAddTicket({
+        title: title.trim(),
+        description: description.trim(),
+        type,
+        status,
+        priority,
+        storyPoints: Number(storyPoints) || 1,
+        assignee: assignee.trim() || user?.full_name || "Unassigned",
+        tags: [],
+      });
+    }
 
     setTitle("");
     setDescription("");
+    if (onClose) onClose();
   };
 
   return (
@@ -48,8 +57,8 @@ export default function CreateIssueModal() {
             <h2 className="text-base font-bold text-slate-800">Create Issue</h2>
           </div>
           <button
-            onClick={() => setIsCreateModalOpen(false)}
-            className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+            onClick={onClose}
+            className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
           >
             <FiX className="w-5 h-5" />
           </button>
@@ -57,14 +66,14 @@ export default function CreateIssueModal() {
 
         {/* Modal Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
-          {/* Project & Issue Type */}
+          {/* Workspace & Issue Type */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
-                Project
+                Workspace
               </label>
-              <div className="px-3 py-2 bg-slate-100 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700">
-                Jira Web Core (JIRA)
+              <div className="px-3 py-2 bg-slate-100 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 truncate">
+                {organizationName}
               </div>
             </div>
 
@@ -166,7 +175,7 @@ export default function CreateIssueModal() {
 
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
-                0
+                Assignee
               </label>
               <input
                 type="text"
@@ -182,8 +191,8 @@ export default function CreateIssueModal() {
           <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200">
             <button
               type="button"
-              onClick={() => setIsCreateModalOpen(false)}
-              className="px-4 py-2 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors"
+              onClick={onClose}
+              className="px-4 py-2 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
             >
               Cancel
             </button>
