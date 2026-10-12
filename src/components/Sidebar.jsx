@@ -11,7 +11,7 @@ import {
   LuSlidersVertical,
   LuPlus,
 } from "react-icons/lu";
-import organizationService from "@/services/organization.service";
+import { useOrganization } from "@/context/OrganizationContext";
 import { MEMBER_ROLE, MANAGER_ROLE, OWNER_ROLE } from "@/utils/constants";
 
 export default function Sidebar() {
@@ -19,50 +19,10 @@ export default function Sidebar() {
   const authState = useSelector((state) => state.authSlice);
   const user = authState?.userData;
 
-  const [organizations, setOrganizations] = useState([]);
-  const [realMembers, setRealMembers] = useState([]);
+  const { currentOrg, organizations, members: realMembers = [] } = useOrganization();
 
-  useEffect(() => {
-    let isMounted = true;
-    const fetchOrgs = async () => {
-      if (!user?.id) {
-        setOrganizations([]);
-        setRealMembers([]);
-        return;
-      }
-      try {
-        const orgs = await organizationService.getUserOrganizations(user.id);
-        if (isMounted) {
-          setOrganizations(orgs || []);
-          if (orgs && orgs.length > 0) {
-            const orgId = orgs[0]?.organizations?.id || orgs[0]?.id;
-            const currentRole = orgs[0]?.role || user?.role || MEMBER_ROLE;
-            if (orgId) {
-              if (currentRole === MEMBER_ROLE) {
-                if (isMounted) setRealMembers([]);
-              } else {
-                const members = await organizationService.getOrganizationMembers(orgId, {
-                  currentUserId: user.id,
-                  currentUserRole: currentRole,
-                });
-                if (isMounted) setRealMembers(members || []);
-              }
-            }
-          }
-        }
-      } catch (err) {
-        console.error("Failed to load sidebar data:", err);
-      }
-    };
-
-    fetchOrgs();
-    return () => {
-      isMounted = false;
-    };
-  }, [user?.id, user?.role]);
-
-  const activeOrg = organizations?.[0]?.organizations || organizations?.[0];
-  const userRole = organizations?.[0]?.role || user?.role || MEMBER_ROLE;
+  const activeOrg = currentOrg?.organizations || currentOrg || organizations?.[0]?.organizations || organizations?.[0];
+  const userRole = currentOrg?.role || organizations?.[0]?.role || user?.role || MEMBER_ROLE;
   const isMember = userRole === MEMBER_ROLE;
 
   const mainNav = [

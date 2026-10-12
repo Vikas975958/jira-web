@@ -23,6 +23,7 @@ import taskService from "@/services/task.service";
 import CreateIssueModal from "@/components/CreateIssueModal";
 import CreateProjectModal from "@/components/CreateProjectModal";
 import ProjectDetailsModal from "@/components/ProjectDetailsModal";
+import { useOrganization } from "@/context/OrganizationContext";
 import { MEMBER_ROLE, MANAGER_ROLE, OWNER_ROLE } from "@/utils/constants";
 
 const COLUMNS = [
@@ -65,19 +66,15 @@ function ProjectsBoardContent() {
     }
   }, [queryProjectId]);
 
-  // Load organization membership
+  const { currentOrg, organizations } = useOrganization();
+
+  // Sync organization membership from OrganizationContext
   useEffect(() => {
-    const fetchOrg = async () => {
-      if (!user?.id) return;
-      try {
-        const orgs = await organizationService.getUserOrganizations(user.id);
-        if (orgs && orgs.length > 0) {
-          setActiveOrgMembership(orgs[0]);
-        }
-      } catch (_) {}
-    };
-    fetchOrg();
-  }, [user?.id]);
+    const org = currentOrg || (organizations && organizations[0]) || null;
+    if (org) {
+      setActiveOrgMembership(org);
+    }
+  }, [currentOrg, organizations]);
 
   // Load projects list
   const loadProjects = useCallback(async () => {
@@ -556,8 +553,10 @@ function ProjectsBoardContent() {
         isOpen={isCreateProjectModalOpen}
         onClose={() => setIsCreateProjectModalOpen(false)}
         organizationId={activeOrg?.id}
+        organizationName={activeOrg?.name}
         currentUserRole={userRole}
         currentUserId={user?.id}
+        existingMembers={teamMembers || []}
         onProjectCreated={() => {
           loadProjects();
           toast.success("Project created successfully!");
