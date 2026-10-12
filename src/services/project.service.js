@@ -177,7 +177,36 @@ export const projectService = {
             }));
           } catch (_) {}
         }
-        return data;
+
+        const assignedManagers = [];
+        const assignedMembers = [];
+        (data.project_members || []).forEach((pm) => {
+          const profile = pm.profiles || {
+            id: pm.user_id,
+            full_name: pm.full_name || "Team Member",
+            email: pm.email || "",
+          };
+          const item = {
+            id: pm.id || pm.user_id,
+            userId: pm.user_id,
+            role: pm.role || MEMBER_ROLE,
+            fullName: profile.full_name || profile.email || "Team Member",
+            email: profile.email || "",
+            profilePhoto: profile.profile_photo || null,
+          };
+          if (pm.role === MANAGER_ROLE) {
+            assignedManagers.push(item);
+          } else {
+            assignedMembers.push(item);
+          }
+        });
+
+        return {
+          ...data,
+          assignedManagers,
+          assignedMembers,
+          totalTeamCount: assignedManagers.length + assignedMembers.length,
+        };
       }
     } catch (_) {}
 

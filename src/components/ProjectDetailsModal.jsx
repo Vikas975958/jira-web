@@ -28,6 +28,49 @@ export default function ProjectDetailsModal({
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState(project?.status || "active");
 
+  const allTeamMembers = React.useMemo(() => {
+    if (!project) return [];
+    const list = [];
+    if (project?.assignedManagers?.length > 0) {
+      project.assignedManagers.forEach((m) => {
+        list.push({
+          id: m.id || m.userId,
+          name: m.fullName || m.name || "Manager",
+          type: "Manager",
+          role: "manager",
+          email: m.email || "No email",
+          profilePhoto: m.profilePhoto,
+        });
+      });
+    }
+    if (project?.assignedMembers?.length > 0) {
+      project.assignedMembers.forEach((m) => {
+        list.push({
+          id: m.id || m.userId,
+          name: m.fullName || m.name || "Member",
+          type: "Member",
+          role: "member",
+          email: m.email || "No email",
+          profilePhoto: m.profilePhoto,
+        });
+      });
+    }
+    if (list.length === 0 && project?.project_members?.length > 0) {
+      project.project_members.forEach((pm) => {
+        const prof = pm.profiles || {};
+        list.push({
+          id: pm.id || pm.user_id,
+          name: prof.full_name || prof.email || "Team Member",
+          type: pm.role === "manager" ? "Manager" : "Member",
+          role: pm.role || "member",
+          email: prof.email || "No email",
+          profilePhoto: prof.profile_photo,
+        });
+      });
+    }
+    return list;
+  }, [project]);
+
   if (!isOpen || !project) return null;
 
   const isOwner = currentUserRole === OWNER_ROLE;
@@ -177,62 +220,76 @@ export default function ProjectDetailsModal({
             </div>
           </div>
 
-          {/* Assigned Managers */}
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <FiShield className="w-4 h-4 text-purple-600" />
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700">
-                Assigned Managers ({(project.assignedManagers || []).length})
-              </h4>
-            </div>
-            {(project.assignedManagers || []).length === 0 ? (
-              <p className="text-xs text-slate-400 italic">No managers assigned to this project.</p>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {project.assignedManagers.map((mgr) => (
-                  <div
-                    key={mgr.id || mgr.userId}
-                    className="p-2.5 bg-purple-50/50 border border-purple-200 rounded-xl flex items-center gap-2.5 text-xs"
-                  >
-                    <div className="w-7 h-7 rounded-lg bg-purple-600 text-white font-bold flex items-center justify-center shrink-0">
-                      {mgr.fullName?.charAt(0)?.toUpperCase() || "M"}
-                    </div>
-                    <div className="truncate">
-                      <p className="font-bold text-slate-900 truncate">{mgr.fullName}</p>
-                      <p className="text-[10px] text-slate-500 font-mono truncate">{mgr.email}</p>
-                    </div>
-                  </div>
-                ))}
+          {/* Total Team List with Name, Type and Email */}
+          <div className="space-y-3 pt-2 border-t border-slate-100">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <FiUsers className="w-4 h-4 text-blue-600" />
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                  Total Team List ({allTeamMembers.length})
+                </h4>
               </div>
-            )}
-          </div>
-
-          {/* Assigned Members */}
-          <div className="space-y-2 pt-2 border-t border-slate-100">
-            <div className="flex items-center gap-2">
-              <FiUsers className="w-4 h-4 text-blue-600" />
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700">
-                Assigned Team Members ({(project.assignedMembers || []).length})
-              </h4>
+              <span className="text-[11px] text-slate-400 font-medium">
+                Name • Type • Email
+              </span>
             </div>
-            {(project.assignedMembers || []).length === 0 ? (
-              <p className="text-xs text-slate-400 italic">No members assigned to this project.</p>
+
+            {allTeamMembers.length === 0 ? (
+              <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-xl text-center text-xs text-slate-400 italic">
+                No team members assigned to this project yet.
+              </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {project.assignedMembers.map((mem) => (
-                  <div
-                    key={mem.id || mem.userId}
-                    className="p-2.5 bg-blue-50/50 border border-blue-200 rounded-xl flex items-center gap-2.5 text-xs"
-                  >
-                    <div className="w-7 h-7 rounded-lg bg-blue-600 text-white font-bold flex items-center justify-center shrink-0">
-                      {mem.fullName?.charAt(0)?.toUpperCase() || "U"}
+              <div className="rounded-xl border border-slate-200/80 overflow-hidden bg-white shadow-2xs">
+                <div className="grid grid-cols-12 px-3 py-2 bg-slate-50 text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100">
+                  <div className="col-span-5">Name</div>
+                  <div className="col-span-3">Type</div>
+                  <div className="col-span-4">Email</div>
+                </div>
+                <div className="divide-y divide-slate-100 max-h-56 overflow-y-auto">
+                  {allTeamMembers.map((member) => (
+                    <div
+                      key={member.id}
+                      className="grid grid-cols-12 px-3 py-2.5 items-center text-xs hover:bg-slate-50/70 transition-colors gap-2"
+                    >
+                      {/* Name with Avatar */}
+                      <div className="col-span-5 flex items-center gap-2 min-w-0">
+                        <div
+                          className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${
+                            member.role === "manager"
+                              ? "bg-purple-100 text-purple-700"
+                              : "bg-blue-100 text-blue-700"
+                          }`}
+                        >
+                          {member.name?.charAt(0)?.toUpperCase() || "U"}
+                        </div>
+                        <span className="font-semibold text-slate-900 truncate">
+                          {member.name}
+                        </span>
+                      </div>
+
+                      {/* Type Badge */}
+                      <div className="col-span-3">
+                        <span
+                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold capitalize ${
+                            member.role === "manager"
+                              ? "bg-purple-50 text-purple-700 border border-purple-200"
+                              : "bg-blue-50 text-blue-700 border border-blue-200"
+                          }`}
+                        >
+                          {member.type}
+                        </span>
+                      </div>
+
+                      {/* Email */}
+                      <div className="col-span-4 flex items-center gap-1.5 min-w-0 text-slate-600">
+                        <FiMail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <span className="truncate text-[11px] font-mono" title={member.email}>
+                          {member.email}
+                        </span>
+                      </div>
                     </div>
-                    <div className="truncate">
-                      <p className="font-bold text-slate-900 truncate">{mem.fullName}</p>
-                      <p className="text-[10px] text-slate-500 font-mono truncate">{mem.email}</p>
-                    </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             )}
           </div>
