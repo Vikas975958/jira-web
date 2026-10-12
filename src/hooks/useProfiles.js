@@ -5,23 +5,17 @@ import profileService from "@/services/profile.service";
 
 /**
  * Custom hook for fetching and managing profiles from Supabase.
- * Supports role filtering ('all', 'manager', 'member') and re-fetching.
- *
- * @param {string} initialRole - Initial role filter (defaults to 'all')
  */
-export function useProfiles(initialRole = "all") {
+export function useProfiles() {
   const [profiles, setProfiles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [roleFilter, setRoleFilter] = useState(initialRole);
 
-  const fetchProfiles = useCallback(async (role = roleFilter) => {
+  const fetchProfiles = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await profileService.fetchProfiles({
-        role: role === "all" ? undefined : role,
-      });
+      const data = await profileService.fetchProfiles();
       setProfiles(data || []);
       return data;
     } catch (err) {
@@ -32,26 +26,20 @@ export function useProfiles(initialRole = "all") {
     } finally {
       setLoading(false);
     }
-  }, [roleFilter]);
+  }, []);
 
   useEffect(() => {
-    fetchProfiles(roleFilter);
-  }, [roleFilter, fetchProfiles]);
-
-  const handleRoleChange = (newRole) => {
-    setRoleFilter(newRole);
-  };
+    fetchProfiles();
+  }, [fetchProfiles]);
 
   const refetch = useCallback(() => {
-    return fetchProfiles(roleFilter);
-  }, [fetchProfiles, roleFilter]);
+    return fetchProfiles();
+  }, [fetchProfiles]);
 
   return {
     profiles,
     loading,
     error,
-    roleFilter,
-    setRoleFilter: handleRoleChange,
     refetch,
     fetchProfiles,
   };

@@ -1,37 +1,45 @@
 "use client";
 
 import React from "react";
+import { usePathname } from "next/navigation";
 import Header from "@/components/Header";
 import Sidebar from "@/components/Sidebar";
-import CreateIssueModal from "@/components/CreateIssueModal";
-import { IssueProvider, useIssues } from "@/context/IssueContext";
+import {
+  OrganizationProvider,
+  useOrganization,
+} from "@/context/OrganizationContext";
 
 function PrivateLayoutContent({ children }) {
-  const { setIsCreateModalOpen } = useIssues();
+  const pathname = usePathname();
+  const { hasOrganization, loadingOrgs } = useOrganization();
+
+  // Hide sidebar and header on the create-organization onboarding page
+  const isCreateOrg = pathname?.includes("/dashboard/create-organization");
+
+  // Only show Header & Sidebar when user has an active organization
+  // and is not on the create-organization onboarding flow
+  const showNav = !isCreateOrg && !loadingOrgs && hasOrganization;
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-100 text-slate-800">
       {/* Top Jira Header */}
-      <Header onCreateIssueClick={() => setIsCreateModalOpen(true)} />
+      {showNav && <Header />}
 
       {/* Main Container with Sidebar + Content */}
       <div className="flex-1 flex overflow-hidden">
-        <Sidebar />
-        <main className="flex-1 overflow-y-auto bg-white">
+        {showNav && <Sidebar />}
+        <main className="flex-1 overflow-y-auto bg-white min-h-0">
           {children}
         </main>
       </div>
-
-      {/* Global Jira Issue Creation Modal */}
-      <CreateIssueModal />
     </div>
   );
 }
 
-export default function RootLayout({ children }) {
+export default function PrivateLayout({ children }) {
   return (
-    <IssueProvider>
+    <OrganizationProvider>
       <PrivateLayoutContent>{children}</PrivateLayoutContent>
-    </IssueProvider>
+    </OrganizationProvider>
   );
 }

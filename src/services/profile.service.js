@@ -1,112 +1,61 @@
 import { supabase } from "@/lib/supabaseconfig";
+import { MEMBER_ROLE, MANAGER_ROLE, OWNER_ROLE } from "@/utils/constants";
 
 export const profileService = {
   /**
-   * Fetch all profiles from Supabase 'profiles' table with optional role filter.
-   * @param {Object} options
-   * @param {string} [options.role] - Optional role filter ('manager', 'member', etc.)
+   * Fetch all profiles from Supabase 'profiles' table.
+   * Protects owner private details from managers and limits members to self.
+   * @param {Object} [context] - { currentUserId, currentUserRole }
    * @returns {Promise<Array>} List of user profiles
    */
-  async fetchProfiles({ role } = {}) {
-    let query = supabase
+  async fetchProfiles(context = {}) {
+    const { currentUserId, currentUserRole } = context;
+
+    const { data, error } = await supabase
       .from("profiles")
       .select("*")
       .order("created_at", { ascending: false });
-
-    if (role && role !== "all") {
-      query = query.eq("role", role.toLowerCase());
-    }
-
-    const { data, error } = await query;
 
     if (error) {
       console.error("fetchProfiles error:", error);
       throw error;
     }
 
-    return data || [];
-  },
+    let profiles = data || [];
 
-  /**
-   * Invite a new user via Supabase Edge Function 'invite-user'.
-   * If the Edge Function is not deployed yet (404), seamlessly falls back
-   * to generating the invitation link with preserved metadata.
-   *
-   * @param {Object} payload
-   * @param {string} payload.email
-   * @param {'manager'|'member'} payload.role
-   * @param {string} payload.organizationName
-   * @param {string} payload.createdBy - User ID of the inviter
-   * @returns {Promise<Object>} Response with invite data and inviteLink
-   */
-  async inviteUser({ email, role, organizationName, createdBy }) {
-    const normalizedEmail = (email || "").trim().toLowerCase();
-    const normalizedRole = (role || "member").toLowerCase();
-    const trimmedOrg = (organizationName || "").trim();
-
-    const baseUrl =
-      typeof window !== "undefined"
-        ? window.location.origin
-        : "http://localhost:3000";
-
-    const inviteLink = `${baseUrl}/signup?invited=true&email=${encodeURIComponent(
-      normalizedEmail
-    )}&role=${encodeURIComponent(normalizedRole)}&org=${encodeURIComponent(
-      trimmedOrg
-    )}&created_by=${encodeURIComponent(createdBy || "")}`;
-
-    try {
-      const { data, error } = await supabase.functions.invoke("invite-user", {
-        body: {
-          email: normalizedEmail,
-          role: normalizedRole,
-          organizationName: trimmedOrg,
-          createdBy,
-        },
+    // Managers cannot see original owner's private profile details
+    if (currentUserRole === MANAGER_ROLE) {
+      profiles = profiles.map((p) => {
+        if (p.role === OWNER_ROLE) {
+          return {
+            ...p,
+            full_name: p.full_name || "Workspace Owner",
+            email: "[Protected Owner Account]",
+            phone: null,
+            is_owner_protected: true,
+          };
+        }
+        return p;
       });
-
-      if (error) {
-        // If Edge function is not yet deployed on Supabase project (404 NOT_FOUND),
-        // fallback gracefully to generating the invite link.
-        console.warn(
-          "Supabase Edge Function returned an error (likely not deployed yet). Falling back to direct invitation link.",
-          error
-        );
-
-        return {
-          success: true,
-          isFallback: true,
-          inviteLink,
-          message: `Invitation generated successfully for ${normalizedEmail}`,
-        };
-      }
-
-      return {
-        success: true,
-        ...(data || {}),
-        inviteLink: data?.inviteLink || inviteLink,
-      };
-    } catch (err) {
-      console.warn(
-        "Edge function invoke exception, using client invitation fallback:",
-        err
-      );
-      return {
-        success: true,
-        isFallback: true,
-        inviteLink,
-        message: `Invitation generated successfully for ${normalizedEmail}`,
-      };
     }
+
+    // Members see only themselves
+    if (currentUserRole === MEMBER_ROLE && currentUserId) {
+      profiles = profiles.filter((p) => p.id === currentUserId);
+    }
+
+    return profiles;
   },
 
   /**
    * Fetch a single user profile by ID.
    * @param {string} userId
+   * @param {Object} [context] - { currentUserId, currentUserRole }
    * @returns {Promise<Object|null>}
    */
-  async getProfileById(userId) {
+  async getProfileById(userId, context = {}) {
     if (!userId) return null;
+    const { currentUserRole } = context;
 
     const { data, error } = await supabase
       .from("profiles")
@@ -119,13 +68,25 @@ export const profileService = {
       throw error;
     }
 
+    if (!data) return null;
+
+    if (currentUserRole === MANAGER_ROLE && data.role === OWNER_ROLE) {
+      return {
+        ...data,
+        full_name: data.full_name || "Workspace Owner",
+        email: "[Protected Owner Account]",
+        phone: null,
+        is_owner_protected: true,
+      };
+    }
+
     return data;
   },
 
   /**
-   * Update profile record
+   * Update profile record.
    * @param {string} userId
-   * @param {Object} updates
+   * @param {Object} updates - Fields to update (full_name, phone, profile_photo, etc.)
    * @returns {Promise<Object>}
    */
   async updateProfile(userId, updates) {

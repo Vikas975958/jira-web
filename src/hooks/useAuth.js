@@ -6,10 +6,12 @@ import { useDispatch, useSelector } from "react-redux";
 import { toast } from "react-toastify";
 import Cookies from "js-cookie";
 import { supabase } from "@/lib/supabaseconfig";
-import authService from "@/services/authService";
+import authService from "@/services/auth.service";
+import organizationService from "@/services/organization.service";
+import projectService from "@/services/project.service";
 import { logingAuth } from "@/store/slices/authSlices";
 import { emptyStore } from "@/store/rootReducer";
-import { OWNER_ROLE } from "@/utils/constants";
+import { MEMBER_ROLE, MANAGER_ROLE, OWNER_ROLE } from "@/utils/constants";
 
 export function useAuth() {
   const router = useRouter();
@@ -20,31 +22,27 @@ export function useAuth() {
 
   /**
    * Handle user signup
-   * 1. Call authService.signUp with payload
-   * 2. Upsert / insert profile into public.profiles
-   * 3. Fetch profile from profiles table
-   * 4. Dispatch profile details to Redux
+   * 1. Create user in Supabase Auth
+   * 2. If token present, accept invitation (mark request accepted, associate with org & project)
+   * 3. Insert/update profile record in profiles table
+   * 4. Redirect:
+   *    - Owner: /dashboard/create-organization
+   *    - Invited member/manager: /dashboard
    */
   const signUp = async (payload) => {
     setLoading(true);
     setError(null);
 
     try {
-      const {
-        email,
-        password,
-        fullName,
-        organizationName,
-        employeeCode = null,
-        department = null,
-        jobTitle = null,
-        role = null,
-        createdBy = null,
-      } = payload;
+      const { email, password, fullName, phone = null, token = null, employeeDetails = {} } = payload;
 
-      const userRole = role || OWNER_ROLE;
+      // Determine validated role: default to 'owner' if no authorized invitation token
+      let assignedRole = OWNER_ROLE;
+      if (token && (payload.role === MEMBER_ROLE || payload.role === MANAGER_ROLE)) {
+        assignedRole = payload.role;
+      }
 
-      // 1. Call authService signUp
+      // 1. Create user in Supabase Auth
       const data = await authService.signUp({
         email,
         password,
@@ -52,12 +50,8 @@ export function useAuth() {
           data: {
             full_name: fullName,
             name: fullName,
-            organization_name: organizationName,
-            employee_code: employeeCode,
-            department: department,
-            job_title: jobTitle,
-            role: userRole,
-            created_by: createdBy || undefined,
+            phone: phone,
+            role: assignedRole,
           },
         },
       });
@@ -69,47 +63,70 @@ export function useAuth() {
         throw new Error("No user returned from signup service.");
       }
 
-      const finalRole =
-        role ||
-        user.user_metadata?.role ||
-        user.app_metadata?.role ||
-        OWNER_ROLE;
+      // 2. If token is present, securely accept the organization or project invitation
+      let invitationAcceptResult = null;
+      if (token) {
+        try {
+          invitationAcceptResult = await organizationService.acceptInvitation({
+            token,
+            role: assignedRole,
+            userId: user.id,
+            userEmail: user.email,
+            employeeDetails: {
+              ...employeeDetails,
+              full_name: fullName,
+              phone: phone,
+            },
+          });
+        } catch (acceptErr) {
+          console.warn("acceptInvitation error during signup:", acceptErr);
+        }
 
-      const finalOrg =
-        organizationName ||
-        user.user_metadata?.organization_name ||
-        user.app_metadata?.organization_name ||
-        "";
+        // Also attempt project invitation acceptance if applicable
+        try {
+          await projectService.acceptProjectInvitation({
+            token,
+            userId: user.id,
+            userEmail: user.email,
+          });
+        } catch (projAcceptErr) {
+          console.warn("acceptProjectInvitation error during signup:", projAcceptErr);
+        }
+      }
 
-      const finalCreatedBy =
-        createdBy ||
-        user.user_metadata?.created_by ||
-        user.app_metadata?.created_by ||
-        user.id;
-
-      // 2. Insert or update user's profile record in profiles table
+      // 3. Upsert profile in profiles table
       const profileData = {
         id: user.id,
         full_name: fullName || "",
         email: email,
-        organization_name: finalOrg,
-        employee_code: employeeCode || null,
-        department: department || null,
-        job_title: jobTitle || null,
-        role: finalRole,
-        status: "active",
-        created_by: finalCreatedBy,
+        phone: phone || null,
+        role: assignedRole,
+        department: employeeDetails?.department || null,
+        employee_type: employeeDetails?.employee_type || null,
+        job_title: employeeDetails?.job_title || null,
+        company_name: employeeDetails?.company_name || null,
+        organization_id: invitationAcceptResult?.organization_id || employeeDetails?.organization_id || null,
       };
 
-      const { error: profileUpsertError } = await supabase
+      const { error: profileInsertError } = await supabase
         .from("profiles")
         .upsert(profileData, { onConflict: "id" });
 
-      if (profileUpsertError) {
-        console.warn("Profile upsert notice:", profileUpsertError.message);
+      if (profileInsertError) {
+        // Fallback to essential columns if new employee columns aren't in remote schema yet
+        await supabase.from("profiles").upsert(
+          {
+            id: user.id,
+            full_name: fullName || "",
+            email: email,
+            phone: phone || null,
+            role: assignedRole,
+          },
+          { onConflict: "id" }
+        );
       }
 
-      // 3. Fetch profile details from profiles table
+      // 4. Fetch updated profile from profiles table
       let profile = null;
       const { data: fetchedProfile, error: fetchProfileError } = await supabase
         .from("profiles")
@@ -121,22 +138,19 @@ export function useAuth() {
         profile = fetchedProfile;
       }
 
-      // 4. If session is available (auto-login), set token cookie & dispatch to Redux
+      // 5. If session is available (auto-login), set token & dispatch to Redux
       if (session?.access_token) {
         Cookies.set("token", session.access_token, { expires: 7, path: "/" });
 
         const userData = {
           id: user.id,
           email: user.email,
-          name: profile?.full_name || fullName || user.email?.split("@")[0] || "User",
           full_name: profile?.full_name || fullName || "",
-          organization_name: profile?.organization_name || organizationName || "",
-          employee_code: profile?.employee_code || employeeCode || null,
-          department: profile?.department || department || null,
-          job_title: profile?.job_title || jobTitle || null,
-          role: profile?.role || userRole,
-          profile_image_url: profile?.profile_image_url || null,
-          ...(profile || {}),
+          name: profile?.full_name || fullName || user.email?.split("@")[0] || "User",
+          phone: profile?.phone || phone || null,
+          role: profile?.role || assignedRole,
+          profile_photo: profile?.profile_photo || null,
+          organization_id: profile?.organization_id || null,
         };
 
         dispatch(
@@ -144,15 +158,20 @@ export function useAuth() {
             token: session.access_token,
             userId: user.id,
             userData: userData,
-            role: userData.role,
           })
         );
 
-        toast.success("Account created successfully! Welcome to Jira.");
-        router.push("/dashboard");
+        if (assignedRole === OWNER_ROLE) {
+          toast.success("Account created! Let's set up your organization.");
+          router.push("/dashboard/create-organization");
+        } else {
+          toast.success(`Welcome to the team as ${assignedRole === MANAGER_ROLE ? "Manager" : "Member"}!`);
+          router.push("/dashboard");
+        }
+
         return { success: true, session, user, profile: userData };
       } else {
-        toast.success("Account created successfully! Please check your email for confirmation.");
+        toast.success("Account created! Please check your email for confirmation.");
         return { success: true, session: null, user, requiresVerification: true };
       }
     } catch (err) {
@@ -168,9 +187,9 @@ export function useAuth() {
 
   /**
    * Handle user signin
-   * 1. Call authService.signIn with payload
-   * 2. Fetch user profile from profiles table
-   * 3. Dispatch profile details to Redux
+   * 1. Authenticate with Supabase Auth
+   * 2. Fetch user profile
+   * 3. Dispatch to Redux & redirect to dashboard
    */
   const signIn = async (payload) => {
     setLoading(true);
@@ -179,7 +198,7 @@ export function useAuth() {
     try {
       const { email, password } = payload;
 
-      // 1. Call authService signIn
+      // 1. Authenticate
       const data = await authService.signIn({ email, password });
       const user = data?.user;
       const session = data?.session;
@@ -205,29 +224,31 @@ export function useAuth() {
         profile = fetchedProfile;
       }
 
-      // 3. Prepare user details and dispatch to Redux
-      const userRole =
-        profile?.role ||
-        user.user_metadata?.role ||
-        "member";
+      // 3. Sync any approved invitations matching this user's email
+      try {
+        await organizationService.syncUserWithPendingRequests(user.email, user.id);
+      } catch (e) {
+        console.warn("syncUserWithPendingRequests notice:", e);
+      }
 
+      // 4. Prepare user details and dispatch to Redux
       const userData = {
         id: user.id,
         email: user.email,
+        full_name:
+          profile?.full_name ||
+          user.user_metadata?.full_name ||
+          user.user_metadata?.name ||
+          "",
         name:
           profile?.full_name ||
           user.user_metadata?.full_name ||
           user.user_metadata?.name ||
           user.email?.split("@")[0] ||
           "Jira User",
-        full_name: profile?.full_name || user.user_metadata?.full_name || "",
-        organization_name: profile?.organization_name || user.user_metadata?.organization_name || "",
-        employee_code: profile?.employee_code || user.user_metadata?.employee_code || null,
-        department: profile?.department || user.user_metadata?.department || null,
-        job_title: profile?.job_title || user.user_metadata?.job_title || null,
-        role: userRole,
-        profile_image_url: profile?.profile_image_url || null,
-        ...(profile || {}),
+        phone: profile?.phone || null,
+        role: profile?.role || OWNER_ROLE,
+        profile_photo: profile?.profile_photo || null,
       };
 
       dispatch(
@@ -235,7 +256,6 @@ export function useAuth() {
           token: session.access_token,
           userId: user.id,
           userData: userData,
-          role: userRole,
         })
       );
 

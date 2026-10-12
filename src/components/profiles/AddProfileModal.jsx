@@ -16,6 +16,7 @@ import {
   FiExternalLink,
 } from "react-icons/fi";
 import profileService from "@/services/profile.service";
+import { MEMBER_ROLE, MANAGER_ROLE } from "@/utils/constants";
 
 export default function AddProfileModal({
   isOpen,
@@ -26,7 +27,7 @@ export default function AddProfileModal({
   const currentUser = authState?.userData;
 
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState("member");
+  const [role, setRole] = useState(MEMBER_ROLE);
   const [organizationName, setOrganizationName] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
@@ -40,7 +41,7 @@ export default function AddProfileModal({
         setOrganizationName(currentUser.organization_name);
       }
       setEmail("");
-      setRole("member");
+      setRole(MEMBER_ROLE);
       setErrorMessage("");
       setInviteSuccessData(null);
       setCopied(false);
@@ -79,7 +80,7 @@ export default function AddProfileModal({
       return;
     }
 
-    if (!role || !["manager", "member"].includes(role)) {
+    if (!role || ![MANAGER_ROLE, MEMBER_ROLE].includes(role)) {
       setErrorMessage("Please select a valid role (Manager or Member).");
       return;
     }
@@ -116,7 +117,7 @@ export default function AddProfileModal({
 
   const handleResetForAnother = () => {
     setEmail("");
-    setRole("member");
+    setRole(MEMBER_ROLE);
     setErrorMessage("");
     setInviteSuccessData(null);
     setCopied(false);
@@ -266,7 +267,7 @@ export default function AddProfileModal({
                 {/* Member Card */}
                 <label
                   className={`relative flex flex-col p-3.5 rounded-xl border-2 cursor-pointer transition-all ${
-                    role === "member"
+                    role === MEMBER_ROLE
                       ? "border-blue-600 bg-blue-50/50"
                       : "border-slate-200 hover:border-slate-300 bg-white"
                   }`}
@@ -274,9 +275,9 @@ export default function AddProfileModal({
                   <input
                     type="radio"
                     name="role"
-                    value="member"
-                    checked={role === "member"}
-                    onChange={() => setRole("member")}
+                    value={MEMBER_ROLE}
+                    checked={role === MEMBER_ROLE}
+                    onChange={() => setRole(MEMBER_ROLE)}
                     className="sr-only"
                   />
                   <div className="flex items-center justify-between mb-1">
@@ -284,7 +285,7 @@ export default function AddProfileModal({
                       <FiUsers className="w-4 h-4 text-blue-600" />
                       Member
                     </div>
-                    {role === "member" && (
+                    {role === MEMBER_ROLE && (
                       <FiCheckCircle className="w-4 h-4 text-blue-600" />
                     )}
                   </div>
@@ -296,7 +297,7 @@ export default function AddProfileModal({
                 {/* Manager Card */}
                 <label
                   className={`relative flex flex-col p-3.5 rounded-xl border-2 cursor-pointer transition-all ${
-                    role === "manager"
+                    role === MANAGER_ROLE
                       ? "border-purple-600 bg-purple-50/50"
                       : "border-slate-200 hover:border-slate-300 bg-white"
                   }`}
@@ -304,9 +305,9 @@ export default function AddProfileModal({
                   <input
                     type="radio"
                     name="role"
-                    value="manager"
-                    checked={role === "manager"}
-                    onChange={() => setRole("manager")}
+                    value={MANAGER_ROLE}
+                    checked={role === MANAGER_ROLE}
+                    onChange={() => setRole(MANAGER_ROLE)}
                     className="sr-only"
                   />
                   <div className="flex items-center justify-between mb-1">
@@ -314,7 +315,7 @@ export default function AddProfileModal({
                       <FiShield className="w-4 h-4 text-purple-600" />
                       Manager
                     </div>
-                    {role === "manager" && (
+                    {role === MANAGER_ROLE && (
                       <FiCheckCircle className="w-4 h-4 text-purple-600" />
                     )}
                   </div>
