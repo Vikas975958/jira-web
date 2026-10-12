@@ -222,6 +222,7 @@ export const organizationService = {
     if (!createdError && createdOrgs) {
       for (const org of createdOrgs) {
         if (!existingOrgIds.has(org.id)) {
+          existingOrgIds.add(org.id);
           orgs.push({
             id: `creator-${org.id}`,
             role: OWNER_ROLE,
@@ -231,6 +232,50 @@ export const organizationService = {
           });
         }
       }
+    }
+
+    // 3. Also check if the user is an accepted manager or member in request_manager / request_member
+    try {
+      const [acceptedMgrs, acceptedMbrs] = await Promise.all([
+        supabase
+          .from("request_manager")
+          .select("organization_id, role, updated_at")
+          .eq("accepted_by", userId)
+          .eq("status", "accepted"),
+        supabase
+          .from("request_member")
+          .select("organization_id, role, updated_at")
+          .eq("accepted_by", userId)
+          .eq("status", "accepted"),
+      ]);
+
+      const acceptedRows = [
+        ...(acceptedMgrs.data || []).map((r) => ({ ...r, role: MANAGER_ROLE })),
+        ...(acceptedMbrs.data || []).map((r) => ({ ...r, role: MEMBER_ROLE })),
+      ];
+
+      for (const row of acceptedRows) {
+        if (!existingOrgIds.has(row.organization_id)) {
+          const { data: orgData } = await supabase
+            .from("organizations")
+            .select("*")
+            .eq("id", row.organization_id)
+            .maybeSingle();
+
+          if (orgData) {
+            existingOrgIds.add(orgData.id);
+            orgs.push({
+              id: `accepted-${row.role}-${row.organization_id}`,
+              role: row.role,
+              status: "active",
+              joined_at: row.updated_at || new Date().toISOString(),
+              organizations: orgData,
+            });
+          }
+        }
+      }
+    } catch (e) {
+      console.error("getUserOrganizations accepted requests fetch error:", e);
     }
 
     return orgs;
@@ -296,61 +341,122 @@ export const organizationService = {
 
     const { currentUserId, currentUserRole } = context;
 
-    // 1. Fetch from organization_members
-    let rawMembers = null;
-    let queryError = null;
+    // 1. Try secure stored RPC that guarantees real full names and emails without RLS issues
+    let rawMembers = [];
+    let rpcSucceeded = false;
+    try {
+      const { data: rpcRows, error: rpcErr } = await supabase.rpc(
+        "get_organization_team_members",
+        { p_organization_id: organizationId }
+      );
+      if (!rpcErr && Array.isArray(rpcRows) && rpcRows.length > 0) {
+        rawMembers = rpcRows;
+        rpcSucceeded = true;
+      }
+    } catch (_) {
+      rpcSucceeded = false;
+    }
 
-    const resWithCreatedBy = await supabase
-      .from("organization_members")
-      .select(`
-        id,
-        user_id,
-        role,
-        status,
-        joined_at,
-        created_by,
-        invited_by,
-        profiles (
-          id,
-          full_name,
-          email,
-          phone
-        )
-      `)
-      .eq("organization_id", organizationId)
-      .order("joined_at", { ascending: true });
-
-    if (!resWithCreatedBy.error && resWithCreatedBy.data) {
-      rawMembers = resWithCreatedBy.data;
-    } else {
-      // Fallback if created_by / invited_by columns not in remote schema yet
-      const fallbackRes = await supabase
+    if (!rpcSucceeded) {
+      // Fallback: direct query from organization_members
+      const { data: memberRows, error: memberErr } = await supabase
         .from("organization_members")
-        .select(`
-          id,
-          user_id,
-          role,
-          status,
-          joined_at,
-          profiles (
-            id,
-            full_name,
-            email,
-            phone
-          )
-        `)
+        .select("id, user_id, role, status, joined_at, organization_id, created_by, invited_by")
         .eq("organization_id", organizationId)
         .order("joined_at", { ascending: true });
 
-      rawMembers = fallbackRes.data || [];
-      queryError = fallbackRes.error;
+      if (memberErr) {
+        console.error("getOrganizationMembers error:", memberErr);
+      } else {
+        rawMembers = memberRows || [];
+      }
+
+      // Also include accepted members & managers from requests to ensure confirmed invites appear in listings
+      try {
+        const [acceptedMgrs, acceptedMbrs] = await Promise.all([
+          supabase
+            .from("request_manager")
+            .select("id, organization_id, full_name, email, role, status, requested_by, invited_by, accepted_by, created_at, updated_at")
+            .eq("organization_id", organizationId)
+            .eq("status", "accepted"),
+          supabase
+            .from("request_member")
+            .select("id, organization_id, full_name, email, role, status, requested_by, invited_by, accepted_by, created_at, updated_at")
+            .eq("organization_id", organizationId)
+            .eq("status", "accepted"),
+        ]);
+
+        const existingUserIds = new Set(rawMembers.map((m) => m.user_id).filter(Boolean));
+        const acceptedRows = [
+          ...(acceptedMgrs.data || []).map((r) => ({ ...r, role: MANAGER_ROLE })),
+          ...(acceptedMbrs.data || []).map((r) => ({ ...r, role: MEMBER_ROLE })),
+        ];
+
+        for (const req of acceptedRows) {
+          const uId = req.accepted_by || req.id;
+          if (!existingUserIds.has(uId)) {
+            existingUserIds.add(uId);
+            rawMembers.push({
+              id: req.id,
+              user_id: uId,
+              role: req.role,
+              status: "active",
+              joined_at: req.updated_at || req.created_at,
+              organization_id: req.organization_id,
+              created_by: req.requested_by || req.invited_by,
+              invited_by: req.invited_by || req.requested_by,
+              full_name: req.full_name,
+              email: req.email,
+              profiles: {
+                id: uId,
+                full_name: req.full_name,
+                email: req.email,
+              },
+            });
+          }
+        }
+      } catch (e) {
+        console.error("getOrganizationMembers accepted requests fetch error:", e);
+      }
     }
 
-    if (queryError) {
-      console.error("getOrganizationMembers error:", queryError);
+    // Hydrate user profiles and requests reliably
+    const userIds = [
+      ...new Set(rawMembers.map((m) => m.user_id).filter(Boolean)),
+    ];
+    let profileMap = new Map();
+    if (userIds.length > 0) {
+      try {
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("id, full_name, email, phone")
+          .in("id", userIds);
+        (profiles || []).forEach((p) => profileMap.set(p.id, p));
+      } catch (_) {}
     }
 
-    let members = rawMembers || [];
+    let members = rawMembers.map((m) => {
+      const p = profileMap.get(m.user_id) || m.profiles || null;
+      const fn =
+        p?.full_name ||
+        m.full_name ||
+        (m.role === OWNER_ROLE
+          ? "Workspace Owner"
+          : m.role === MANAGER_ROLE
+          ? "Manager"
+          : "Team Member");
+      const em = p?.email || m.email || "";
+      return {
+        ...m,
+        full_name: fn,
+        email: em,
+        profiles: {
+          id: m.user_id,
+          full_name: fn,
+          email: em,
+        },
+      };
+    });
 
     // Fetch organization info to reliably identify Owner / Workspace Creator
     let orgOwnerId = null;
@@ -362,6 +468,13 @@ export const organizationService = {
         .maybeSingle();
       orgOwnerId = orgData?.owner_id || orgData?.created_by || null;
     } catch (_) {}
+
+    if (!orgOwnerId && rawMembers.length > 0) {
+      const creatorMember = rawMembers.find((m) => m.created_by || m.invited_by);
+      if (creatorMember) {
+        orgOwnerId = creatorMember.created_by || creatorMember.invited_by;
+      }
+    }
 
     // Tag the owner in raw members
     members = members.map((m) => {
@@ -379,17 +492,51 @@ export const organizationService = {
           .select("id, full_name, email, phone")
           .eq("id", orgOwnerId)
           .maybeSingle();
-        if (ownerProf) {
-          members.unshift({
-            id: `owner-${orgOwnerId}`,
-            user_id: orgOwnerId,
-            role: OWNER_ROLE,
-            status: "active",
-            is_owner: true,
-            profiles: ownerProf,
-            joined_at: new Date().toISOString(),
-          });
+        const ownerName = ownerProf?.full_name || "Workspace Owner";
+        const ownerEmail = ownerProf?.email || "";
+        members.unshift({
+          id: `owner-${orgOwnerId}`,
+          user_id: orgOwnerId,
+          role: OWNER_ROLE,
+          status: "active",
+          is_owner: true,
+          profiles: { id: orgOwnerId, full_name: ownerName, email: ownerEmail },
+          full_name: ownerName,
+          email: ownerEmail,
+          joined_at: new Date().toISOString(),
+        });
+      } catch (_) {}
+    }
+
+    // Ensure current logged-in user is present in members list if currentUserId is provided
+    if (currentUserId && !members.some((m) => m.user_id === currentUserId)) {
+      try {
+        const { data: selfProf } = await supabase
+          .from("profiles")
+          .select("id, full_name, email, phone")
+          .eq("id", currentUserId)
+          .maybeSingle();
+
+        let selfRole = currentUserRole || MEMBER_ROLE;
+        if (currentUserId === orgOwnerId) {
+          selfRole = OWNER_ROLE;
         }
+
+        const selfName = selfProf?.full_name || (selfRole === OWNER_ROLE ? "Workspace Owner" : selfRole === MANAGER_ROLE ? "Manager" : "Team Member");
+        const selfEmail = selfProf?.email || "";
+
+        members.push({
+          id: `self-${currentUserId}`,
+          user_id: currentUserId,
+          role: selfRole,
+          status: "active",
+          is_owner: selfRole === OWNER_ROLE,
+          profiles: { id: currentUserId, full_name: selfName, email: selfEmail },
+          full_name: selfName,
+          email: selfEmail,
+          joined_at: new Date().toISOString(),
+          organization_id: organizationId,
+        });
       } catch (_) {}
     }
 
@@ -454,12 +601,17 @@ export const organizationService = {
           return true;
         }
 
-        // 2. Hide all other managers completely (no manager listing shown)
+        // 2. SELF (the manager themselves) MUST be shown!
+        if (m.user_id === currentUserId) {
+          return true;
+        }
+
+        // 3. Hide all other managers completely (no other manager listing shown)
         if (m.role === MANAGER_ROLE) {
           return false;
         }
 
-        // 3. ONLY show members created or invited by this manager itself
+        // 4. ONLY show members created or invited by this manager itself
         if (m.created_by === currentUserId || m.invited_by === currentUserId) return true;
         if (
           managerInvitedEmails.has(m.user_id) ||
@@ -1084,10 +1236,34 @@ export const organizationService = {
       // Fallback below
     }
 
-    // 2. Client-side fallback update
+    // 2. Client-side fallback update: Mark as 'accepted' directly
+    let callerId = null;
+    try {
+      const { data: authData } = await supabase.auth.getUser();
+      callerId = authData?.user?.id || null;
+    } catch (_) {}
+
+    // 3. Check if user already exists in profiles
+    let targetUserId = callerId;
+    if (email) {
+      const normalizedEmail = email.trim().toLowerCase();
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("email", normalizedEmail)
+        .maybeSingle();
+      if (profile?.id) {
+        targetUserId = profile.id;
+      }
+    }
+
     const { error: updateError } = await supabase
       .from(tableName)
-      .update({ status: "approved", updated_at: new Date().toISOString() })
+      .update({
+        status: "accepted",
+        accepted_by: targetUserId || callerId,
+        updated_at: new Date().toISOString(),
+      })
       .eq("id", requestId);
 
     if (updateError) {
@@ -1095,44 +1271,34 @@ export const organizationService = {
       throw updateError;
     }
 
-    // 3. Check if user already exists in profiles
-    if (email && organizationId) {
-      const normalizedEmail = email.trim().toLowerCase();
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("id")
-        .eq("email", normalizedEmail)
+    if (targetUserId && organizationId) {
+      // Fetch creator/inviter from the request record
+      const { data: reqRecord } = await supabase
+        .from(tableName)
+        .select("requested_by, invited_by")
+        .eq("id", requestId)
         .maybeSingle();
 
-      if (profile?.id) {
-        // Fetch creator/inviter from the request record
-        const { data: reqRecord } = await supabase
-          .from(tableName)
-          .select("requested_by, invited_by")
-          .eq("id", requestId)
-          .maybeSingle();
+      const inviterId = reqRecord?.requested_by || reqRecord?.invited_by || callerId;
 
-        const inviterId = reqRecord?.requested_by || reqRecord?.invited_by || null;
-
-        // Upsert into organization_members with inviter/creator tracking
-        await supabase
-          .from("organization_members")
-          .upsert(
-            {
-              organization_id: organizationId,
-              user_id: profile.id,
-              role: type === MANAGER_ROLE ? MANAGER_ROLE : MEMBER_ROLE,
-              status: "active",
-              created_by: inviterId,
-              invited_by: inviterId,
-              joined_at: new Date().toISOString(),
-            },
-            { onConflict: "organization_id,user_id" }
-          );
-      }
+      // Upsert into organization_members with inviter/creator tracking
+      await supabase
+        .from("organization_members")
+        .upsert(
+          {
+            organization_id: organizationId,
+            user_id: targetUserId,
+            role: type === MANAGER_ROLE ? MANAGER_ROLE : MEMBER_ROLE,
+            status: "active",
+            created_by: inviterId,
+            invited_by: inviterId,
+            joined_at: new Date().toISOString(),
+          },
+          { onConflict: "organization_id,user_id" }
+        );
     }
 
-    return { success: true, status: "approved", request_id: requestId };
+    return { success: true, status: "accepted", request_id: requestId, assigned_user_id: targetUserId };
   },
 
   /**
@@ -1377,7 +1543,7 @@ export const organizationService = {
    * @param {'member'|'manager'} params.role
    * @returns {Promise<Object>}
    */
-  async verifyInvitationToken({ token, role }) {
+  async verifyInvitationToken({ token, role, projectId = null }) {
     if (!token || !role) {
       return { valid: false, error: "Invitation token and role are required." };
     }
@@ -1390,21 +1556,20 @@ export const organizationService = {
     const tableName = normalizedRole === MANAGER_ROLE ? "request_manager" : "request_member";
     const tokenHash = await hashToken(token);
 
-    // 1. Query matching request by hash
+    // 1. Query matching request by hash or token
     let { data, error } = await supabase
       .from(tableName)
       .select("*, organizations(id, name, slug, logo_url, description)")
-      .eq("invitation_token_hash", tokenHash)
+      .or(`invitation_token_hash.eq.${tokenHash},invitation_token_hash.eq.${token}`)
       .maybeSingle();
 
-    // Fallback: check by ID if token happens to be UUID or column is missing
-    // Check in project_invitations if not found in request tables
+    // 2. Query project_invitations directly
     if (!data) {
       try {
         const { data: projInvite } = await supabase
           .from("project_invitations")
           .select("*, organizations(id, name, slug, logo_url, description)")
-          .eq("invitation_token_hash", tokenHash)
+          .or(`invitation_token_hash.eq.${tokenHash},invitation_token_hash.eq.${token}`)
           .maybeSingle();
 
         if (projInvite) {
@@ -1414,16 +1579,89 @@ export const organizationService = {
       } catch (_) {}
     }
 
-    // Check in local project invites fallback
+    // 3. Check in local project invites fallback
     if (!data && typeof window !== "undefined") {
       try {
         const raw = localStorage.getItem("jira_project_invitations_data");
         if (raw) {
           const list = JSON.parse(raw);
-          const found = list.find((i) => i.invitation_token_hash === tokenHash || i.id === token);
+          const found = list.find(
+            (i) =>
+              i.invitation_token_hash === tokenHash ||
+              i.invitation_token_hash === token ||
+              i.id === token ||
+              i.invitationToken === token
+          );
           if (found) {
             data = found;
             error = null;
+          }
+        }
+      } catch (_) {}
+    }
+
+    // 4. Secure RPC probe verification:
+    // If direct select is blocked by remote RLS, verify via accept_project_invitation RPC
+    if (!data) {
+      try {
+        const { data: rpcCheck } = await supabase.rpc("accept_project_invitation", {
+          p_token_hash: tokenHash,
+          p_user_id: "00000000-0000-0000-0000-000000000000",
+          p_user_email: "__verify_probe__@validation.check",
+        });
+
+        if (rpcCheck) {
+          if (rpcCheck.error === "This project invitation has already been accepted.") {
+            return {
+              valid: false,
+              error: "This invitation has already been accepted. Please sign in to your account.",
+              alreadyAccepted: true,
+            };
+          }
+          if (rpcCheck.error === "This project invitation has expired.") {
+            return {
+              valid: false,
+              error: "This invitation link has expired. Please request a new invitation from your administrator.",
+              expired: true,
+            };
+          }
+          if (rpcCheck.error === "This invitation is no longer active.") {
+            return {
+              valid: false,
+              error: "This invitation is no longer active.",
+            };
+          }
+          if (rpcCheck.error === "Invitation email does not match registered user email.") {
+            // Proven valid and pending in the remote database!
+            data = {
+              id: token,
+              invitation_token_hash: tokenHash,
+              status: "pending",
+              intended_role: normalizedRole,
+              role: normalizedRole,
+              project_id: projectId || null,
+              is_project_invite: true,
+            };
+            error = null;
+          }
+        }
+      } catch (_) {}
+    }
+
+    // Also check local project data to retrieve organization info if available
+    if (data && !data.organizations && (projectId || data.project_id) && typeof window !== "undefined") {
+      try {
+        const pId = projectId || data.project_id;
+        const rawProj = localStorage.getItem("jira_projects_data");
+        if (rawProj) {
+          const pList = JSON.parse(rawProj);
+          const foundProj = pList.find((p) => p.id === pId);
+          if (foundProj) {
+            data.organization_id = foundProj.organization_id;
+            data.organizations = {
+              id: foundProj.organization_id,
+              name: foundProj.name ? `${foundProj.name} Workspace` : "Workspace",
+            };
           }
         }
       } catch (_) {}

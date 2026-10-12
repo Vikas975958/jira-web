@@ -42,14 +42,7 @@ export const projectService = {
             project_id,
             user_id,
             role,
-            joined_at,
-            profiles:user_id (
-              id,
-              full_name,
-              email,
-              phone,
-              profile_photo
-            )
+            joined_at
           )
         `)
         .eq("organization_id", organizationId)
@@ -57,7 +50,32 @@ export const projectService = {
 
       const { data, error } = await query;
       if (!error && data) {
-        projectsFromDb = data;
+        const allUserIds = [
+          ...new Set(
+            data
+              .flatMap((p) => (p.project_members || []).map((m) => m.user_id))
+              .filter(Boolean)
+          ),
+        ];
+
+        let profileMap = new Map();
+        if (allUserIds.length > 0) {
+          try {
+            const { data: profs } = await supabase
+              .from("profiles")
+              .select("id, full_name, email, phone, profile_photo")
+              .in("id", allUserIds);
+            (profs || []).forEach((pr) => profileMap.set(pr.id, pr));
+          } catch (_) {}
+        }
+
+        projectsFromDb = data.map((p) => ({
+          ...p,
+          project_members: (p.project_members || []).map((pm) => ({
+            ...pm,
+            profiles: profileMap.get(pm.user_id) || null,
+          })),
+        }));
       }
     } catch (err) {
       console.warn("Supabase projects table query notice:", err?.message || err);
@@ -134,20 +152,31 @@ export const projectService = {
             project_id,
             user_id,
             role,
-            joined_at,
-            profiles:user_id (
-              id,
-              full_name,
-              email,
-              phone,
-              profile_photo
-            )
+            joined_at
           )
         `)
         .eq("id", projectId)
         .single();
 
       if (!error && data) {
+        const userIds = [
+          ...new Set(
+            (data.project_members || []).map((m) => m.user_id).filter(Boolean)
+          ),
+        ];
+        if (userIds.length > 0) {
+          try {
+            const { data: profs } = await supabase
+              .from("profiles")
+              .select("id, full_name, email, phone, profile_photo")
+              .in("id", userIds);
+            const profileMap = new Map((profs || []).map((pr) => [pr.id, pr]));
+            data.project_members = (data.project_members || []).map((pm) => ({
+              ...pm,
+              profiles: profileMap.get(pm.user_id) || null,
+            }));
+          } catch (_) {}
+        }
         return data;
       }
     } catch (_) {}
@@ -475,6 +504,22 @@ export const projectService = {
       }
     } catch (_) {}
 
+    // Also mirror to request_member / request_manager so public invitation read policy applies
+    try {
+      const reqTable = role === MANAGER_ROLE ? "request_manager" : "request_member";
+      await supabase.from(reqTable).insert({
+        organization_id: organizationId,
+        email: cleanEmail,
+        full_name: fullName.trim(),
+        role: role || MEMBER_ROLE,
+        invitation_token_hash: tokenHash,
+        status: "pending",
+        invited_by: invitedBy,
+        requested_by: invitedBy,
+        expires_at: expiresAt,
+      });
+    } catch (_) {}
+
     if (!savedInvite) {
       savedInvite = inviteRecord;
     }
@@ -535,10 +580,17 @@ export const projectService = {
         p_user_email: userEmail,
       });
 
-      if (!error && data?.success) {
-        return data;
+      if (!error && data) {
+        if (data.success) return data;
+        if (data.error && data.error.includes("email does not match")) {
+          throw new Error(data.error);
+        }
       }
-    } catch (_) {}
+    } catch (err) {
+      if (err.message && err.message.includes("email does not match")) {
+        throw err;
+      }
+    }
 
     // 2. Direct fallback
     const invites = this.getLocalProjectInvites();

@@ -49,6 +49,7 @@ function SignUpForm() {
 
   const roleParam = searchParams.get("role");
   const tokenParam = searchParams.get("token");
+  const projectIdParam = searchParams.get("projectId");
 
   // Invitation state
   const isInvitation = Boolean(tokenParam && roleParam);
@@ -88,6 +89,7 @@ function SignUpForm() {
         const result = await organizationService.verifyInvitationToken({
           token: tokenParam,
           role: roleParam,
+          projectId: projectIdParam,
         });
 
         if (!isMounted) return;
