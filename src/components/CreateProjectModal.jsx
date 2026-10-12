@@ -58,11 +58,35 @@ export default function CreateProjectModal({
   const isManager = currentUserRole === MANAGER_ROLE;
   const canManageManagers = isOwner;
 
+  // Local members state that syncs with props and auto-fetches if empty
+  const [internalMembers, setInternalMembers] = useState(existingMembers || []);
+
+  useEffect(() => {
+    if (existingMembers && existingMembers.length > 0) {
+      setInternalMembers(existingMembers);
+    }
+  }, [existingMembers]);
+
+  useEffect(() => {
+    if (isOpen && organizationId) {
+      import("@/services/organization.service")
+        .then((mod) => (mod.default || mod.organizationService).getOrganizationMembers(organizationId, { currentUserId, currentUserRole }))
+        .then((data) => {
+          if (data && data.length > 0) {
+            setInternalMembers(data);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [isOpen, organizationId, currentUserId, currentUserRole]);
+
+  const activeMembers = internalMembers.length > 0 ? internalMembers : (existingMembers || []);
+
   // Separate org members into managers and members
-  const orgManagers = existingMembers.filter(
+  const orgManagers = activeMembers.filter(
     (m) => m.role === MANAGER_ROLE || m.role === OWNER_ROLE
   );
-  const orgMembers = existingMembers.filter((m) => m.role === MEMBER_ROLE);
+  const orgMembers = activeMembers.filter((m) => m.role === MEMBER_ROLE);
 
   useEffect(() => {
     if (isOpen) {
@@ -99,15 +123,35 @@ export default function CreateProjectModal({
   };
 
   const toggleManager = (id) => {
+    if (!id) return;
     setSelectedManagerIds((prev) =>
       prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
     );
   };
 
   const toggleMember = (id) => {
+    if (!id) return;
     setSelectedMemberIds((prev) =>
       prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
     );
+  };
+
+  const handleSelectAllManagers = () => {
+    const allIds = orgManagers.map((m) => m.user_id || m.id).filter(Boolean);
+    if (selectedManagerIds.length === allIds.length && allIds.length > 0) {
+      setSelectedManagerIds([]);
+    } else {
+      setSelectedManagerIds(allIds);
+    }
+  };
+
+  const handleSelectAllMembers = () => {
+    const allIds = orgMembers.map((m) => m.user_id || m.id).filter(Boolean);
+    if (selectedMemberIds.length === allIds.length && allIds.length > 0) {
+      setSelectedMemberIds([]);
+    } else {
+      setSelectedMemberIds(allIds);
+    }
   };
 
   const handleAddInvite = (e) => {
@@ -440,57 +484,127 @@ export default function CreateProjectModal({
                     </span>
                   </div>
 
-                  {/* Managers Listing */}
-                  <div className="space-y-2">
+                  {/* Managers Section */}
+                  <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <h4 className="text-xs font-bold uppercase tracking-wider text-purple-700 flex items-center gap-1.5">
                         <FiShield className="w-3.5 h-3.5" />
                         <span>Organization Managers ({orgManagers.length})</span>
                       </h4>
-                      <span className="text-[11px] text-slate-500">
-                        {selectedManagerIds.length} selected
-                      </span>
+                      <div className="flex items-center gap-2">
+                        {orgManagers.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={handleSelectAllManagers}
+                            className="text-[11px] font-bold text-purple-600 hover:text-purple-800 transition-colors cursor-pointer"
+                          >
+                            {selectedManagerIds.length === orgManagers.length ? "Deselect All" : "Select All"}
+                          </button>
+                        )}
+                        <span className="text-[11px] text-purple-700 bg-purple-50 px-2 py-0.5 rounded-full font-bold border border-purple-200">
+                          {selectedManagerIds.length} selected
+                        </span>
+                      </div>
                     </div>
+
+                    {orgManagers.length > 0 && (
+                      <div className="relative">
+                        <select
+                          value=""
+                          onChange={(e) => {
+                            if (e.target.value) toggleManager(e.target.value);
+                          }}
+                          className="w-full px-3.5 py-2.5 text-xs font-medium bg-white border border-purple-200 rounded-xl outline-none focus:ring-2 focus:ring-purple-500 text-slate-800 cursor-pointer shadow-2xs hover:border-purple-300 transition-all"
+                        >
+                          <option value="">➕ Select a manager from dropdown...</option>
+                          {orgManagers.map((mgr) => {
+                            const mgrId = mgr.user_id || mgr.id;
+                            const isSelected = selectedManagerIds.includes(mgrId);
+                            const profile = mgr.profiles || mgr;
+                            const displayName =
+                              mgr.full_name ||
+                              profile?.full_name ||
+                              mgr.email ||
+                              profile?.email ||
+                              "Manager";
+                            const displayEmail = mgr.email || profile?.email || "";
+                            return (
+                              <option key={`opt-mgr-${mgrId}`} value={mgrId}>
+                                {isSelected ? "✓ [Assigned] " : ""}{displayName}{displayEmail ? ` (${displayEmail})` : ""}
+                              </option>
+                            );
+                          })}
+                        </select>
+                      </div>
+                    )}
 
                     {orgManagers.length === 0 ? (
                       <p className="text-xs text-slate-400 italic bg-slate-50 p-3 rounded-xl border border-slate-200">
                         No additional managers found in this organization.
                       </p>
                     ) : (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-44 overflow-y-auto p-1">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-48 overflow-y-auto p-1">
                         {orgManagers.map((mgr) => {
-                          const isSelected = selectedManagerIds.includes(mgr.user_id);
+                          const mgrId = mgr.user_id || mgr.id;
+                          const isSelected = selectedManagerIds.includes(mgrId);
+                          const profile = mgr.profiles || mgr;
+                          const displayName =
+                            mgr.full_name ||
+                            profile?.full_name ||
+                            mgr.email ||
+                            profile?.email ||
+                            "Manager";
+                          const displayEmail = mgr.email || profile?.email || "";
+                          const initials =
+                            displayName
+                              .split(" ")
+                              .map((w) => w[0])
+                              .join("")
+                              .toUpperCase()
+                              .slice(0, 2) || "M";
+                          const isSelf =
+                            currentUserId &&
+                            (mgr.user_id === currentUserId || mgr.id === currentUserId);
+
                           return (
                             <div
-                              key={mgr.user_id}
-                              onClick={() => toggleManager(mgr.user_id)}
+                              key={mgrId}
+                              onClick={() => toggleManager(mgrId)}
                               className={`p-2.5 rounded-xl border text-xs flex items-center justify-between cursor-pointer transition-all ${
                                 isSelected
-                                  ? "bg-purple-50/80 border-purple-300 shadow-2xs"
-                                  : "bg-white border-slate-200 hover:border-slate-300"
+                                  ? "bg-purple-50/90 border-purple-400 ring-1 ring-purple-400/20 shadow-2xs"
+                                  : "bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50/50"
                               }`}
                             >
-                              <div className="flex items-center gap-2.5 truncate">
-                                <div className="w-7 h-7 rounded-lg bg-purple-100 text-purple-700 font-bold flex items-center justify-center shrink-0 text-xs">
-                                  {mgr.full_name?.charAt(0)?.toUpperCase() || "M"}
+                              <div className="flex items-center gap-2.5 min-w-0 flex-1 mr-2">
+                                <div className="w-8 h-8 rounded-lg bg-purple-100 text-purple-700 font-bold flex items-center justify-center shrink-0 text-xs">
+                                  {initials}
                                 </div>
-                                <div className="truncate">
-                                  <p className="font-bold text-slate-900 truncate">
-                                    {mgr.full_name || mgr.email}
-                                  </p>
-                                  <p className="text-[10px] text-slate-500 font-mono truncate">
-                                    {mgr.email}
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <p className="font-bold text-slate-900 truncate">
+                                      {displayName}
+                                    </p>
+                                    {isSelf && (
+                                      <span className="text-[9px] font-bold text-purple-700 bg-purple-100 px-1 py-0.2 rounded border border-purple-200">
+                                        You
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="text-[11px] text-slate-500 font-medium truncate flex items-center gap-1 mt-0.5">
+                                    <FiMail className="w-3 h-3 text-slate-400 shrink-0" />
+                                    <span>{displayEmail || "No email"}</span>
                                   </p>
                                 </div>
                               </div>
                               <div
-                                className={`w-4 h-4 rounded-md flex items-center justify-center shrink-0 border ${
+                                className={`w-4 h-4 rounded-md flex items-center justify-center shrink-0 border transition-all ${
                                   isSelected
                                     ? "bg-purple-600 border-purple-600 text-white"
                                     : "border-slate-300 bg-white"
                                 }`}
                               >
-                                {isSelected && <FiCheck className="w-3 h-3" />}
+                                {isSelected && <FiCheck className="w-3 h-3 stroke-[3]" />}
                               </div>
                             </div>
                           );
@@ -499,17 +613,59 @@ export default function CreateProjectModal({
                     )}
                   </div>
 
-                  {/* Members Listing */}
-                  <div className="space-y-2 pt-2 border-t border-slate-100">
+                  {/* Members Section */}
+                  <div className="space-y-3 pt-3 border-t border-slate-100">
                     <div className="flex items-center justify-between">
                       <h4 className="text-xs font-bold uppercase tracking-wider text-blue-700 flex items-center gap-1.5">
                         <FiUsers className="w-3.5 h-3.5" />
                         <span>Organization Members ({orgMembers.length})</span>
                       </h4>
-                      <span className="text-[11px] text-slate-500">
-                        {selectedMemberIds.length} selected
-                      </span>
+                      <div className="flex items-center gap-2">
+                        {orgMembers.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={handleSelectAllMembers}
+                            className="text-[11px] font-bold text-blue-600 hover:text-blue-800 transition-colors cursor-pointer"
+                          >
+                            {selectedMemberIds.length === orgMembers.length ? "Deselect All" : "Select All"}
+                          </button>
+                        )}
+                        <span className="text-[11px] text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full font-bold border border-blue-200">
+                          {selectedMemberIds.length} selected
+                        </span>
+                      </div>
                     </div>
+
+                    {orgMembers.length > 0 && (
+                      <div className="relative">
+                        <select
+                          value=""
+                          onChange={(e) => {
+                            if (e.target.value) toggleMember(e.target.value);
+                          }}
+                          className="w-full px-3.5 py-2.5 text-xs font-medium bg-white border border-blue-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 cursor-pointer shadow-2xs hover:border-blue-300 transition-all"
+                        >
+                          <option value="">➕ Select a team member from dropdown...</option>
+                          {orgMembers.map((mem) => {
+                            const memId = mem.user_id || mem.id;
+                            const isSelected = selectedMemberIds.includes(memId);
+                            const profile = mem.profiles || mem;
+                            const displayName =
+                              mem.full_name ||
+                              profile?.full_name ||
+                              mem.email ||
+                              profile?.email ||
+                              "Team Member";
+                            const displayEmail = mem.email || profile?.email || "";
+                            return (
+                              <option key={`opt-mem-${memId}`} value={memId}>
+                                {isSelected ? "✓ [Assigned] " : ""}{displayName}{displayEmail ? ` (${displayEmail})` : ""}
+                              </option>
+                            );
+                          })}
+                        </select>
+                      </div>
+                    )}
 
                     {orgMembers.length === 0 ? (
                       <p className="text-xs text-slate-400 italic bg-slate-50 p-3 rounded-xl border border-slate-200">
@@ -518,38 +674,66 @@ export default function CreateProjectModal({
                     ) : (
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-48 overflow-y-auto p-1">
                         {orgMembers.map((mem) => {
-                          const isSelected = selectedMemberIds.includes(mem.user_id);
+                          const memId = mem.user_id || mem.id;
+                          const isSelected = selectedMemberIds.includes(memId);
+                          const profile = mem.profiles || mem;
+                          const displayName =
+                            mem.full_name ||
+                            profile?.full_name ||
+                            mem.email ||
+                            profile?.email ||
+                            "Team Member";
+                          const displayEmail = mem.email || profile?.email || "";
+                          const initials =
+                            displayName
+                              .split(" ")
+                              .map((w) => w[0])
+                              .join("")
+                              .toUpperCase()
+                              .slice(0, 2) || "U";
+                          const isSelf =
+                            currentUserId &&
+                            (mem.user_id === currentUserId || mem.id === currentUserId);
+
                           return (
                             <div
-                              key={mem.user_id}
-                              onClick={() => toggleMember(mem.user_id)}
+                              key={memId}
+                              onClick={() => toggleMember(memId)}
                               className={`p-2.5 rounded-xl border text-xs flex items-center justify-between cursor-pointer transition-all ${
                                 isSelected
-                                  ? "bg-blue-50/80 border-blue-300 shadow-2xs"
-                                  : "bg-white border-slate-200 hover:border-slate-300"
+                                  ? "bg-blue-50/90 border-blue-400 ring-1 ring-blue-400/20 shadow-2xs"
+                                  : "bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50/50"
                               }`}
                             >
-                              <div className="flex items-center gap-2.5 truncate">
-                                <div className="w-7 h-7 rounded-lg bg-blue-100 text-blue-700 font-bold flex items-center justify-center shrink-0 text-xs">
-                                  {mem.full_name?.charAt(0)?.toUpperCase() || "U"}
+                              <div className="flex items-center gap-2.5 min-w-0 flex-1 mr-2">
+                                <div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-700 font-bold flex items-center justify-center shrink-0 text-xs">
+                                  {initials}
                                 </div>
-                                <div className="truncate">
-                                  <p className="font-bold text-slate-900 truncate">
-                                    {mem.full_name || mem.email}
-                                  </p>
-                                  <p className="text-[10px] text-slate-500 font-mono truncate">
-                                    {mem.email}
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <p className="font-bold text-slate-900 truncate">
+                                      {displayName}
+                                    </p>
+                                    {isSelf && (
+                                      <span className="text-[9px] font-bold text-blue-700 bg-blue-100 px-1 py-0.2 rounded border border-blue-200">
+                                        You
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="text-[11px] text-slate-500 font-medium truncate flex items-center gap-1 mt-0.5">
+                                    <FiMail className="w-3 h-3 text-slate-400 shrink-0" />
+                                    <span>{displayEmail || "No email"}</span>
                                   </p>
                                 </div>
                               </div>
                               <div
-                                className={`w-4 h-4 rounded-md flex items-center justify-center shrink-0 border ${
+                                className={`w-4 h-4 rounded-md flex items-center justify-center shrink-0 border transition-all ${
                                   isSelected
                                     ? "bg-blue-600 border-blue-600 text-white"
                                     : "border-slate-300 bg-white"
                                 }`}
                               >
-                                {isSelected && <FiCheck className="w-3 h-3" />}
+                                {isSelected && <FiCheck className="w-3 h-3 stroke-[3]" />}
                               </div>
                             </div>
                           );

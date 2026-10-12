@@ -356,6 +356,30 @@ function OrganizationDashboardContent({
     loadRequests();
   }, [loadRequests]);
 
+  // Handle Approve / Accept Request
+  const handleApproveRequest = async (req) => {
+    if (!isAuthorizedAdmin) return;
+
+    setProcessingRequestId(req.id);
+    try {
+      await organizationService.approveRequest({
+        requestId: req.id,
+        type: req.request_type,
+        organizationId: org?.id,
+        email: req.email,
+      });
+      toast.success(`${req.full_name || req.email} accepted into workspace!`);
+      await Promise.all([
+        loadRequests(),
+        onRefresh ? onRefresh() : Promise.resolve(),
+      ]);
+    } catch (err) {
+      toast.error(err?.message || "Failed to accept request.");
+    } finally {
+      setProcessingRequestId(null);
+    }
+  };
+
   // Handle Delete Request
   const handleDeleteRequest = async (req) => {
     if (!isAuthorizedAdmin) return;
@@ -384,21 +408,20 @@ function OrganizationDashboardContent({
     }
   };
 
-  // Filtered requests - Managers NEVER see manager requests
+  // Filtered requests - Strictly pending only; Managers NEVER see manager requests
   const filteredRequests = useMemo(() => {
     return requests.filter((r) => {
+      if (r.status !== "pending") return false;
       if (userRole === MANAGER_ROLE && r.request_type === MANAGER_ROLE) return false;
       const matchesType =
         requestTypeFilter === "all" || r.request_type === requestTypeFilter;
-      const matchesStatus =
-        requestStatusFilter === "all" || r.status === requestStatusFilter;
       const matchesQuery =
         !requestSearch ||
         r.full_name?.toLowerCase().includes(requestSearch.toLowerCase()) ||
         r.email?.toLowerCase().includes(requestSearch.toLowerCase());
-      return matchesType && matchesStatus && matchesQuery;
+      return matchesType && matchesQuery;
     });
-  }, [requests, requestTypeFilter, requestStatusFilter, requestSearch, userRole]);
+  }, [requests, requestTypeFilter, requestSearch, userRole]);
 
   const pendingRequestsCount = useMemo(() => {
     return requests.filter(
@@ -833,9 +856,7 @@ function OrganizationDashboardContent({
               </span>
             ) : (
               <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-semibold">
-                {userRole === MANAGER_ROLE
-                  ? requests.filter((r) => r.request_type !== MANAGER_ROLE).length
-                  : requests.length}
+                0
               </span>
             )}
           </button>
@@ -1164,9 +1185,16 @@ function OrganizationDashboardContent({
                                 {initials}
                               </div>
                               <div>
-                                <p className="font-bold text-slate-900">
-                                  {profile?.full_name || "Manager"}
-                                </p>
+                                <div className="flex items-center gap-1.5">
+                                  <p className="font-bold text-slate-900">
+                                    {profile?.full_name || "Manager"}
+                                  </p>
+                                  {m.user_id === currentUserId && (
+                                    <span className="text-[10px] text-purple-700 font-bold bg-purple-50 px-1.5 py-0.2 rounded border border-purple-200">
+                                      (You)
+                                    </span>
+                                  )}
+                                </div>
                                 <span className="text-[10px] uppercase font-bold text-purple-700 bg-purple-50 px-1.5 py-0.2 rounded border border-purple-200">
                                   {m.role || "Manager"}
                                 </span>
@@ -1317,12 +1345,16 @@ function OrganizationDashboardContent({
                                 {initials}
                               </div>
                               <div>
-                                <p className="font-bold text-slate-900">
-                                  {profile?.full_name || "Team Member"}
-                                </p>
-                                {m.user_id === currentUserId && (
-                                  <span className="text-[10px] text-blue-600 font-semibold">(You)</span>
-                                )}
+                                <div className="flex items-center gap-1.5">
+                                  <p className="font-bold text-slate-900">
+                                    {profile?.full_name || "Team Member"}
+                                  </p>
+                                  {m.user_id === currentUserId && (
+                                    <span className="text-[10px] text-blue-700 font-bold bg-blue-50 px-1.5 py-0.2 rounded border border-blue-200">
+                                      (You)
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                             </div>
                           </td>
@@ -1464,41 +1496,10 @@ function OrganizationDashboardContent({
                   </div>
                 )}
 
-                {/* Status Filter */}
-                <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl text-xs">
-                  <button
-                    type="button"
-                    onClick={() => setRequestStatusFilter("all")}
-                    className={`px-2.5 py-1 rounded-lg font-semibold transition-all cursor-pointer ${
-                      requestStatusFilter === "all"
-                        ? "bg-white text-slate-900 shadow-2xs"
-                        : "text-slate-600 hover:text-slate-900"
-                    }`}
-                  >
-                    All Status
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setRequestStatusFilter("pending")}
-                    className={`px-2.5 py-1 rounded-lg font-semibold transition-all cursor-pointer ${
-                      requestStatusFilter === "pending"
-                        ? "bg-white text-amber-800 shadow-2xs"
-                        : "text-slate-600 hover:text-slate-900"
-                    }`}
-                  >
-                    Pending
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setRequestStatusFilter("accepted")}
-                    className={`px-2.5 py-1 rounded-lg font-semibold transition-all cursor-pointer ${
-                      requestStatusFilter === "accepted"
-                        ? "bg-white text-emerald-800 shadow-2xs"
-                        : "text-slate-600 hover:text-slate-900"
-                    }`}
-                  >
-                    Accepted
-                  </button>
+                {/* Status Indicator - Pending Requests Only */}
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                  <span>Pending</span>
                 </div>
               </div>
             </div>
@@ -1601,14 +1602,26 @@ function OrganizationDashboardContent({
                             {isProcessing ? (
                               <div className="inline-block w-4 h-4 border-2 border-slate-300 border-t-blue-600 rounded-full animate-spin" />
                             ) : isAuthorizedAdmin ? (
-                              <button
-                                type="button"
-                                onClick={() => handleDeleteRequest(req)}
-                                className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
-                                title={isPending ? "Cancel invitation" : "Delete request record"}
-                              >
-                                <FiTrash2 className="w-3.5 h-3.5" />
-                              </button>
+                              <div className="flex items-center justify-end gap-1.5">
+                                {isPending && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleApproveRequest(req)}
+                                    className="p-1.5 rounded-lg text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 transition-colors cursor-pointer"
+                                    title="Accept into workspace"
+                                  >
+                                    <FiCheckCircle className="w-4 h-4" />
+                                  </button>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteRequest(req)}
+                                  className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+                                  title={isPending ? "Cancel invitation" : "Delete request record"}
+                                >
+                                  <FiTrash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
                             ) : (
                               <span className="text-slate-400 text-[11px]">—</span>
                             )}
@@ -1623,8 +1636,8 @@ function OrganizationDashboardContent({
                   <FiClock className="w-8 h-8 mx-auto text-slate-300" />
                   <p>
                     {userRole === MANAGER_ROLE
-                      ? "No member requests found matching your filters."
-                      : "No member or manager requests found matching your filters."}
+                      ? "No pending member requests found."
+                      : "No pending member or manager requests found."}
                   </p>
                   <div className="flex items-center justify-center gap-3 pt-1">
                     <button
@@ -2628,58 +2641,36 @@ export default function DashboardPage() {
   const dispatch = useDispatch();
   const authState = useSelector((state) => state.authSlice);
   const user = authState?.userData;
-  const [orgMemberships, setOrgMemberships] = useState([]);
-  const [userInvitations, setUserInvitations] = useState([]);
-  const [loadingOrgs, setLoadingOrgs] = useState(true);
-  const [members, setMembers] = useState([]);
 
-  const fetchOrgs = useCallback(async () => {
-    if (!user?.id) {
-      setLoadingOrgs(false);
+  const {
+    organizations: orgMemberships,
+    currentOrg,
+    loadingOrgs,
+    members,
+    refreshOrganizations,
+    refreshMembers,
+  } = useOrganization();
+
+  const [userInvitations, setUserInvitations] = useState([]);
+
+  const fetchInvites = useCallback(async () => {
+    if (!user?.email) {
+      setUserInvitations([]);
       return;
     }
     try {
-      setLoadingOrgs(true);
-      const [orgs, invites] = await Promise.all([
-        organizationService.getUserOrganizations(user.id),
-        user.email ? organizationService.getUserPendingInvitations(user.email) : Promise.resolve([]),
-      ]);
-      setOrgMemberships(orgs || []);
+      const invites = await organizationService.getUserPendingInvitations(
+        user.email
+      );
       setUserInvitations(invites || []);
     } catch (err) {
-      console.error("fetchOrgs error:", err);
-    } finally {
-      setLoadingOrgs(false);
+      console.error("fetchInvites error:", err);
     }
-  }, [user?.id, user?.email]);
+  }, [user?.email]);
 
   useEffect(() => {
-    fetchOrgs();
-  }, [fetchOrgs]);
-
-  // Fetch members of the current active organization
-  const fetchMembers = useCallback(async () => {
-    if (orgMemberships && orgMemberships.length > 0) {
-      const orgId =
-        orgMemberships[0]?.organizations?.id || orgMemberships[0]?.id;
-      const userRole = orgMemberships[0]?.role || user?.role || MEMBER_ROLE;
-      if (orgId) {
-        try {
-          const orgMembers = await organizationService.getOrganizationMembers(
-            orgId,
-            { currentUserId: user?.id, currentUserRole: userRole }
-          );
-          setMembers(orgMembers);
-        } catch (err) {
-          console.error("Failed to fetch members in DashboardPage:", err);
-        }
-      }
-    }
-  }, [orgMemberships, user?.id, user?.role]);
-
-  useEffect(() => {
-    fetchMembers();
-  }, [fetchMembers]);
+    fetchInvites();
+  }, [fetchInvites]);
 
   const handleLogout = async () => {
     try {
@@ -2699,6 +2690,8 @@ export default function DashboardPage() {
     return <DashboardSkeleton />;
   }
 
+  const activeMembership = currentOrg || orgMemberships[0];
+
   // User has no organization: show prompt / Create Organization flow
   if (!orgMemberships || orgMemberships.length === 0) {
     return (
@@ -2709,20 +2702,24 @@ export default function DashboardPage() {
         onCreateOrg={handleCreateOrg}
         onLogout={handleLogout}
         user={user}
-        onRefresh={fetchOrgs}
+        onRefresh={async () => {
+          await refreshOrganizations();
+          await fetchInvites();
+        }}
       />
     );
   }
 
   // If active user role is Member, render MemberTasksView (task details only!)
-  const activeUserRole = orgMemberships[0]?.role || user?.role || MEMBER_ROLE;
+  const activeUserRole = activeMembership?.role || user?.role || MEMBER_ROLE;
   if (activeUserRole === MEMBER_ROLE) {
     return (
       <MemberTasksView
-        membership={orgMemberships[0]}
+        membership={activeMembership}
         user={user}
         onRefresh={async () => {
-          await fetchOrgs();
+          await refreshOrganizations();
+          await fetchInvites();
         }}
       />
     );
@@ -2731,12 +2728,13 @@ export default function DashboardPage() {
   // User has organization(s) and is Owner or Manager: show full Organization Dashboard
   return (
     <OrganizationDashboardContent
-      membership={orgMemberships[0]}
+      membership={activeMembership}
       members={members}
       currentUserId={user?.id}
       onRefresh={async () => {
-        await fetchOrgs();
-        await fetchMembers();
+        await refreshOrganizations();
+        await refreshMembers();
+        await fetchInvites();
       }}
     />
   );

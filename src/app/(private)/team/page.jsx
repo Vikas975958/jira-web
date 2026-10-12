@@ -17,13 +17,15 @@ import {
 } from "react-icons/fi";
 import organizationService from "@/services/organization.service";
 import AddMemberModal from "@/components/AddMemberModal";
+import { useOrganization } from "@/context/OrganizationContext";
 import { MEMBER_ROLE, MANAGER_ROLE, OWNER_ROLE } from "@/utils/constants";
 
 export default function TeamPage() {
   const authState = useSelector((state) => state.authSlice);
   const user = authState?.userData;
 
-  const [activeOrgMembership, setActiveOrgMembership] = useState(null);
+  const { currentOrg, organizations } = useOrganization();
+  const activeOrgMembership = currentOrg || (organizations && organizations[0]) || null;
   const activeOrg = activeOrgMembership?.organizations || activeOrgMembership;
   const userRole = activeOrgMembership?.role || user?.role || MEMBER_ROLE;
   const isMember = userRole === MEMBER_ROLE;
@@ -41,51 +43,40 @@ export default function TeamPage() {
   const [processingId, setProcessingId] = useState(null);
 
   const loadTeamData = useCallback(async () => {
-    if (!user?.id) {
+    if (!orgId || !user?.id) {
       setLoading(false);
       return;
     }
 
     try {
       setLoading(true);
-      const orgs = await organizationService.getUserOrganizations(user.id);
-      if (orgs && orgs.length > 0) {
-        const membership = orgs[0];
-        setActiveOrgMembership(membership);
-        const orgData = membership?.organizations || membership;
-        const currentRole = membership?.role || user?.role || MEMBER_ROLE;
+      const currentRole = userRole;
 
-        const [membersData, requestsData, leadershipData] = await Promise.all([
-          organizationService.getOrganizationMembers(orgData.id, {
-            currentUserId: user.id,
-            currentUserRole: currentRole,
-          }),
-          currentRole === MEMBER_ROLE
-            ? Promise.resolve([])
-            : organizationService.getAllRequests(orgData.id, {
-                currentUserId: user.id,
-                currentUserRole: currentRole,
-              }),
-          organizationService.getOrganizationLeadership(orgData.id, {
-            currentUserId: user.id,
-            currentUserRole: currentRole,
-          }),
-        ]);
-        setMembers(membersData || []);
-        setRequests(requestsData || []);
-        setLeadership(leadershipData || { owner: null, manager: null });
-      } else {
-        setActiveOrgMembership(null);
-        setMembers([]);
-        setRequests([]);
-        setLeadership({ owner: null, manager: null });
-      }
+      const [membersData, requestsData, leadershipData] = await Promise.all([
+        organizationService.getOrganizationMembers(orgId, {
+          currentUserId: user.id,
+          currentUserRole: currentRole,
+        }),
+        currentRole === MEMBER_ROLE
+          ? Promise.resolve([])
+          : organizationService.getAllRequests(orgId, {
+              currentUserId: user.id,
+              currentUserRole: currentRole,
+            }),
+        organizationService.getOrganizationLeadership(orgId, {
+          currentUserId: user.id,
+          currentUserRole: currentRole,
+        }),
+      ]);
+      setMembers(membersData || []);
+      setRequests(requestsData || []);
+      setLeadership(leadershipData || { owner: null, manager: null });
     } catch (err) {
       console.error("loadTeamData error:", err);
     } finally {
       setLoading(false);
     }
-  }, [user?.id, user?.role]);
+  }, [orgId, user?.id, userRole]);
 
   useEffect(() => {
     loadTeamData();
@@ -109,8 +100,8 @@ export default function TeamPage() {
   };
 
   const filteredMembers = members.filter((m) => {
-    // Managers see listing of members only who they created themselves
-    if (userRole === MANAGER_ROLE && m.role !== MEMBER_ROLE) return false;
+    // Managers see listing of members only who they created themselves (plus self)
+    if (userRole === MANAGER_ROLE && m.role !== MEMBER_ROLE && m.user_id !== user?.id) return false;
     const name = m.profiles?.full_name?.toLowerCase() || "";
     const email = m.profiles?.email?.toLowerCase() || "";
     const role = m.role?.toLowerCase() || "";
@@ -119,6 +110,8 @@ export default function TeamPage() {
   });
 
   const filteredRequests = requests.filter((r) => {
+    // Only pending requests are shown in requests list
+    if (r.status !== "pending") return false;
     // Managers and members should never see manager requests or listings
     if (userRole === MANAGER_ROLE && r.request_type === MANAGER_ROLE) return false;
     const name = r.full_name?.toLowerCase() || "";
