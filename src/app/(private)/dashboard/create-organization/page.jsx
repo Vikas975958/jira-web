@@ -225,16 +225,16 @@ export default function CreateOrganizationPage() {
             </button>
           </div>
 
-          <span className="text-xs font-semibold px-2.5 py-1 bg-blue-50 text-blue-700 rounded-full border border-blue-200">
-            Jira Workspace Setup
+          <span className="text-xs font-semibold px-2.5 py-1 bg-teal-50 text-[#0F766E] rounded-lg border border-teal-200">
+            WorkGrid Workspace Setup
           </span>
         </div>
 
         {/* Page Title & Intro */}
-        <div className="bg-white rounded-2xl border border-slate-200/80 p-6 sm:p-8 shadow-xs">
+        <div className="bg-white rounded-lg border border-slate-200/80 p-6 sm:p-8 shadow-xs">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#0052CC] to-[#0747A6] flex items-center justify-center text-white shadow-lg shadow-blue-500/25 shrink-0">
+              <div className="w-14 h-14 rounded-lg bg-gradient-to-br from-[#0F766E] to-teal-800 flex items-center justify-center text-white shadow-lg shadow-teal-900/20 shrink-0">
                 <FiGlobe className="w-7 h-7" />
               </div>
               <div>
@@ -246,32 +246,12 @@ export default function CreateOrganizationPage() {
                 </p>
               </div>
             </div>
-
-            {/* Quick Create shortcut */}
-            <button
-              type="button"
-              disabled={loading || !formData.name.trim()}
-              onClick={() => handleSubmit()}
-              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-[#0052CC] hover:bg-[#0747A6] active:scale-[0.98] text-white text-sm font-bold rounded-xl shadow-md shadow-blue-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer self-start md:self-auto shrink-0"
-            >
-              {loading ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  <span>Creating...</span>
-                </>
-              ) : (
-                <>
-                  <FiCheck className="w-4 h-4" />
-                  <span>Create Organization</span>
-                </>
-              )}
-            </button>
           </div>
         </div>
 
         {/* Error Alert */}
         {errorMsg && (
-          <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm flex items-start gap-3 animate-fadeIn">
+          <div className="p-4 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm flex items-start gap-3 animate-fadeIn">
             <span className="text-base mt-0.5">⚠️</span>
             <div className="flex-1">
               <p className="font-bold">Error creating organization</p>
@@ -285,13 +265,13 @@ export default function CreateOrganizationPage() {
           {/* Left Form: Tabs & Fields */}
           <div className="lg:col-span-2 space-y-6">
             {/* Step Tabs */}
-            <div className="flex border-b border-slate-200 bg-white rounded-t-2xl px-3 pt-2">
+            <div className="flex border-b border-slate-200 bg-white rounded-t-lg px-3 pt-2">
               <button
                 type="button"
                 onClick={() => setActiveTab("general")}
                 className={`flex items-center gap-2 px-4 py-3 text-xs sm:text-sm font-bold border-b-2 transition-all cursor-pointer ${
                   activeTab === "general"
-                    ? "border-blue-600 text-blue-600"
+                    ? "border-[#0F766E] text-[#0F766E]"
                     : "border-transparent text-slate-500 hover:text-slate-800"
                 }`}
               >
@@ -304,7 +284,7 @@ export default function CreateOrganizationPage() {
                 onClick={() => setActiveTab("company")}
                 className={`flex items-center gap-2 px-4 py-3 text-xs sm:text-sm font-bold border-b-2 transition-all cursor-pointer ${
                   activeTab === "company"
-                    ? "border-blue-600 text-blue-600"
+                    ? "border-[#0F766E] text-[#0F766E]"
                     : "border-transparent text-slate-500 hover:text-slate-800"
                 }`}
               >
@@ -317,7 +297,7 @@ export default function CreateOrganizationPage() {
                 onClick={() => setActiveTab("location")}
                 className={`flex items-center gap-2 px-4 py-3 text-xs sm:text-sm font-bold border-b-2 transition-all cursor-pointer ${
                   activeTab === "location"
-                    ? "border-blue-600 text-blue-600"
+                    ? "border-[#0F766E] text-[#0F766E]"
                     : "border-transparent text-slate-500 hover:text-slate-800"
                 }`}
               >
@@ -327,7 +307,7 @@ export default function CreateOrganizationPage() {
             </div>
 
             {/* Form Container */}
-            <form onSubmit={handleSubmit} className="bg-white rounded-b-2xl border border-t-0 border-slate-200/80 p-6 sm:p-8 space-y-6 shadow-xs">
+            <form onSubmit={handleSubmit} className="bg-white rounded-b-lg border border-t-0 border-slate-200/80 p-6 sm:p-8 space-y-6 shadow-xs">
               {/* TAB 1: GENERAL INFO */}
               {activeTab === "general" && (
                 <div className="space-y-5 animate-fadeIn">
@@ -352,7 +332,7 @@ export default function CreateOrganizationPage() {
                         value={formData.name}
                         onChange={handleChange}
                         placeholder="e.g. Acme Corporation"
-                        className="w-full h-11 pl-10 pr-4 bg-white border border-slate-300 rounded-xl text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all placeholder:text-slate-400"
+                        className="w-full h-11 pl-10 pr-4 bg-white border border-slate-300 rounded-lg text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-[#0F766E] focus:border-transparent transition-all placeholder:text-slate-400"
                       />
                     </div>
                   </div>
@@ -365,9 +345,9 @@ export default function CreateOrganizationPage() {
                     >
                       Organization Slug (Workspace URL) <span className="text-red-500">*</span>
                     </label>
-                    <div className="flex rounded-xl shadow-2xs border border-slate-300 overflow-hidden focus-within:ring-2 focus-within:ring-blue-600 focus-within:border-transparent">
+                    <div className="flex rounded-lg shadow-2xs border border-slate-300 overflow-hidden focus-within:ring-2 focus-within:ring-[#0F766E] focus-within:border-transparent">
                       <span className="inline-flex items-center px-3.5 bg-slate-50 text-slate-500 text-xs font-mono border-r border-slate-200">
-                        jira.web/org/
+                        workgrid.web/org/
                       </span>
                       <input
                         id="org-slug"
@@ -405,7 +385,7 @@ export default function CreateOrganizationPage() {
                         value={formData.logo_url}
                         onChange={handleChange}
                         placeholder="https://example.com/logo.png"
-                        className="w-full h-11 pl-10 pr-4 bg-white border border-slate-300 rounded-xl text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all placeholder:text-slate-400"
+                        className="w-full h-11 pl-10 pr-4 bg-white border border-slate-300 rounded-lg text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-[#0F766E] focus:border-transparent transition-all placeholder:text-slate-400"
                       />
                     </div>
                     <p className="mt-1 text-xs text-slate-400">
@@ -429,20 +409,27 @@ export default function CreateOrganizationPage() {
                         value={formData.description}
                         onChange={handleChange}
                         placeholder="Brief summary of your company, mission, or projects..."
-                        className="w-full p-3.5 bg-white border border-slate-300 rounded-xl text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all placeholder:text-slate-400 resize-none"
+                        className="w-full p-3.5 bg-white border border-slate-300 rounded-lg text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-[#0F766E] focus:border-transparent transition-all placeholder:text-slate-400 resize-none"
                       />
                     </div>
                   </div>
 
-                  {/* Forward button */}
-                  <div className="pt-2 flex justify-end">
+                  {/* Actions: Direct Create or Continue */}
+                  <div className="pt-3 flex items-center justify-between border-t border-slate-100">
                     <button
                       type="button"
                       onClick={() => setActiveTab("company")}
-                      className="inline-flex items-center gap-2 px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl transition-all cursor-pointer"
+                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-[#0F766E] transition-colors cursor-pointer"
                     >
-                      <span>Continue to Company Details</span>
-                      <FiArrowRight className="w-3.5 h-3.5" />
+                      <span>Configure Company Details →</span>
+                    </button>
+
+                    <button
+                      type="submit"
+                      disabled={loading || !formData.name.trim()}
+                      className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#0F766E] hover:bg-[#0D655E] active:bg-[#115E59] active:scale-[0.98] text-white text-xs sm:text-sm font-bold rounded-lg shadow-md shadow-teal-900/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                    >
+                      {loading ? "Creating..." : "Create Organization"}
                     </button>
                   </div>
                 </div>
@@ -465,7 +452,7 @@ export default function CreateOrganizationPage() {
                         name="industry"
                         value={formData.industry}
                         onChange={handleChange}
-                        className="w-full h-11 px-3 bg-white border border-slate-300 rounded-xl text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all"
+                        className="w-full h-11 px-3 bg-white border border-slate-300 rounded-lg text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-[#0F766E] focus:border-transparent transition-all"
                       >
                         {INDUSTRY_OPTIONS.map((ind) => (
                           <option key={ind} value={ind}>
@@ -488,7 +475,7 @@ export default function CreateOrganizationPage() {
                         name="company_size"
                         value={formData.company_size}
                         onChange={handleChange}
-                        className="w-full h-11 px-3 bg-white border border-slate-300 rounded-xl text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all"
+                        className="w-full h-11 px-3 bg-white border border-slate-300 rounded-lg text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-[#0F766E] focus:border-transparent transition-all"
                       >
                         {COMPANY_SIZE_OPTIONS.map((size) => (
                           <option key={size} value={size}>
@@ -518,7 +505,7 @@ export default function CreateOrganizationPage() {
                         value={formData.website}
                         onChange={handleChange}
                         placeholder="https://acme.com"
-                        className="w-full h-11 pl-10 pr-4 bg-white border border-slate-300 rounded-xl text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all placeholder:text-slate-400"
+                        className="w-full h-11 pl-10 pr-4 bg-white border border-slate-300 rounded-lg text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-[#0F766E] focus:border-transparent transition-all placeholder:text-slate-400"
                       />
                     </div>
                   </div>
@@ -543,7 +530,7 @@ export default function CreateOrganizationPage() {
                           value={formData.email}
                           onChange={handleChange}
                           placeholder="contact@acme.com"
-                          className="w-full h-11 pl-10 pr-4 bg-white border border-slate-300 rounded-xl text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all placeholder:text-slate-400"
+                          className="w-full h-11 pl-10 pr-4 bg-white border border-slate-300 rounded-lg text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-[#0F766E] focus:border-transparent transition-all placeholder:text-slate-400"
                         />
                       </div>
                     </div>
@@ -567,7 +554,7 @@ export default function CreateOrganizationPage() {
                           value={formData.phone}
                           onChange={handleChange}
                           placeholder="+1 (555) 000-0000"
-                          className="w-full h-11 pl-10 pr-4 bg-white border border-slate-300 rounded-xl text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all placeholder:text-slate-400"
+                          className="w-full h-11 pl-10 pr-4 bg-white border border-slate-300 rounded-lg text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-[#0F766E] focus:border-transparent transition-all placeholder:text-slate-400"
                         />
                       </div>
                     </div>
@@ -585,7 +572,7 @@ export default function CreateOrganizationPage() {
                     <button
                       type="button"
                       onClick={() => setActiveTab("location")}
-                      className="inline-flex items-center gap-2 px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl transition-all cursor-pointer"
+                      className="inline-flex items-center gap-2 px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-lg transition-all cursor-pointer"
                     >
                       <span>Continue to Localization</span>
                       <FiArrowRight className="w-3.5 h-3.5" />
@@ -616,7 +603,7 @@ export default function CreateOrganizationPage() {
                         value={formData.address}
                         onChange={handleChange}
                         placeholder="100 Market St, Suite 400"
-                        className="w-full h-11 pl-10 pr-4 bg-white border border-slate-300 rounded-xl text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all placeholder:text-slate-400"
+                        className="w-full h-11 pl-10 pr-4 bg-white border border-slate-300 rounded-lg text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-[#0F766E] focus:border-transparent transition-all placeholder:text-slate-400"
                       />
                     </div>
                   </div>
@@ -637,7 +624,7 @@ export default function CreateOrganizationPage() {
                         value={formData.city}
                         onChange={handleChange}
                         placeholder="San Francisco"
-                        className="w-full h-11 px-3 bg-white border border-slate-300 rounded-xl text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all placeholder:text-slate-400"
+                        className="w-full h-11 px-3 bg-white border border-slate-300 rounded-lg text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-[#0F766E] focus:border-transparent transition-all placeholder:text-slate-400"
                       />
                     </div>
 
@@ -655,7 +642,7 @@ export default function CreateOrganizationPage() {
                         value={formData.state}
                         onChange={handleChange}
                         placeholder="CA"
-                        className="w-full h-11 px-3 bg-white border border-slate-300 rounded-xl text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all placeholder:text-slate-400"
+                        className="w-full h-11 px-3 bg-white border border-slate-300 rounded-lg text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-[#0F766E] focus:border-transparent transition-all placeholder:text-slate-400"
                       />
                     </div>
 
@@ -673,7 +660,7 @@ export default function CreateOrganizationPage() {
                         value={formData.country}
                         onChange={handleChange}
                         placeholder="United States"
-                        className="w-full h-11 px-3 bg-white border border-slate-300 rounded-xl text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all placeholder:text-slate-400"
+                        className="w-full h-11 px-3 bg-white border border-slate-300 rounded-lg text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-[#0F766E] focus:border-transparent transition-all placeholder:text-slate-400"
                       />
                     </div>
 
@@ -691,7 +678,7 @@ export default function CreateOrganizationPage() {
                         value={formData.postal_code}
                         onChange={handleChange}
                         placeholder="94105"
-                        className="w-full h-11 px-3 bg-white border border-slate-300 rounded-xl text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all placeholder:text-slate-400"
+                        className="w-full h-11 px-3 bg-white border border-slate-300 rounded-lg text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-[#0F766E] focus:border-transparent transition-all placeholder:text-slate-400"
                       />
                     </div>
                   </div>
@@ -712,7 +699,7 @@ export default function CreateOrganizationPage() {
                           name="timezone"
                           value={formData.timezone}
                           onChange={handleChange}
-                          className="w-full h-11 px-3 bg-white border border-slate-300 rounded-xl text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all"
+                          className="w-full h-11 px-3 bg-white border border-slate-300 rounded-lg text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-[#0F766E] focus:border-transparent transition-all"
                         >
                           {TIMEZONE_OPTIONS.map((tz) => (
                             <option key={tz.value} value={tz.value}>
@@ -740,7 +727,7 @@ export default function CreateOrganizationPage() {
                           name="currency"
                           value={formData.currency}
                           onChange={handleChange}
-                          className="w-full h-11 px-3 bg-white border border-slate-300 rounded-xl text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all"
+                          className="w-full h-11 px-3 bg-white border border-slate-300 rounded-lg text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-[#0F766E] focus:border-transparent transition-all"
                         >
                           {CURRENCY_OPTIONS.map((c) => (
                             <option key={c.code} value={c.code}>
@@ -767,7 +754,7 @@ export default function CreateOrganizationPage() {
                     <button
                       type="submit"
                       disabled={loading || !formData.name.trim()}
-                      className="inline-flex items-center gap-2 px-6 py-3 bg-[#0052CC] hover:bg-[#0747A6] active:scale-[0.98] text-white text-sm font-bold rounded-xl shadow-md shadow-blue-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                      className="inline-flex items-center gap-2 px-6 py-3 bg-[#0F766E] hover:bg-[#0D655E] active:scale-[0.98] text-white text-sm font-bold rounded-lg shadow-md shadow-teal-900/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                     >
                       {loading ? (
                         <>
@@ -789,10 +776,10 @@ export default function CreateOrganizationPage() {
 
           {/* Right Column: Live Workspace Preview Card */}
           <div className="lg:col-span-1 space-y-5">
-            <div className="sticky top-20 bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+            <div className="sticky top-20 bg-white rounded-lg border border-slate-200/80 shadow-xs overflow-hidden">
               {/* Card Header Banner */}
-              <div className="h-20 bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 relative p-4 flex items-end">
-                <span className="text-[10px] uppercase font-bold text-white/80 tracking-wider bg-black/20 px-2.5 py-0.5 rounded-full backdrop-blur-xs">
+              <div className="h-20 bg-gradient-to-r from-[#0F766E] via-teal-700 to-teal-800 relative p-4 flex items-end">
+                <span className="text-[10px] uppercase font-bold text-white/80 tracking-wider bg-black/20 px-2.5 py-0.5 rounded-lg backdrop-blur-xs">
                   Live Preview
                 </span>
               </div>
@@ -800,7 +787,7 @@ export default function CreateOrganizationPage() {
               {/* Avatar & Org Info */}
               <div className="px-6 pb-6 pt-0 relative">
                 <div className="-mt-10 mb-3 flex items-end justify-between">
-                  <div className="w-18 h-18 rounded-2xl bg-white p-1 border border-slate-200 shadow-md">
+                  <div className="w-18 h-18 rounded-lg bg-white p-1 border border-slate-200 shadow-md">
                     {formData.logo_url ? (
                       <img
                         src={formData.logo_url}
@@ -808,15 +795,15 @@ export default function CreateOrganizationPage() {
                         onError={(e) => {
                           e.target.style.display = "none";
                         }}
-                        className="w-full h-full object-cover rounded-xl"
+                        className="w-full h-full object-cover rounded-lg"
                       />
                     ) : (
-                      <div className="w-full h-full rounded-xl bg-gradient-to-br from-[#0052CC] to-[#0747A6] flex items-center justify-center text-white text-2xl font-black">
+                      <div className="w-full h-full rounded-lg bg-gradient-to-br from-[#0F766E] to-teal-800 flex items-center justify-center text-white text-2xl font-black">
                         {formData.name?.charAt(0)?.toUpperCase() || "O"}
                       </div>
                     )}
                   </div>
-                  <span className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-700 border border-emerald-200">
+                  <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-700 border border-emerald-200">
                     Active
                   </span>
                 </div>
@@ -824,8 +811,8 @@ export default function CreateOrganizationPage() {
                 <h3 className="text-lg font-black text-slate-900 leading-tight">
                   {formData.name || "Acme Corporation"}
                 </h3>
-                <p className="text-xs font-mono text-blue-600 mt-0.5">
-                  jira.web/org/{formData.slug || "acme-corp"}
+                <p className="text-xs font-mono text-[#0F766E] mt-0.5">
+                  workgrid.web/org/{formData.slug || "acme-corp"}
                 </p>
 
                 {formData.description ? (
@@ -898,7 +885,7 @@ export default function CreateOrganizationPage() {
                         <FiGlobe className="w-3.5 h-3.5" />
                         Website
                       </span>
-                      <span className="font-semibold text-blue-600 truncate max-w-[150px]">
+                      <span className="font-semibold text-[#0F766E] truncate max-w-[150px]">
                         {formData.website.replace(/^https?:\/\//, "")}
                       </span>
                     </div>
@@ -908,7 +895,7 @@ export default function CreateOrganizationPage() {
                 {/* Creator badge */}
                 <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
                   <span>Organization Creator</span>
-                  <span className="font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
+                  <span className="font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-200">
                     Owner Role
                   </span>
                 </div>
@@ -916,7 +903,7 @@ export default function CreateOrganizationPage() {
             </div>
 
             {/* Included Features */}
-            <div className="bg-slate-50 rounded-2xl border border-slate-200/60 p-4 space-y-3">
+            <div className="bg-slate-50 rounded-lg border border-slate-200/60 p-4 space-y-3">
               <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700">
                 Included in Your Workspace
               </h4>

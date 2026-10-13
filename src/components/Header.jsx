@@ -91,8 +91,8 @@ export default function Header({ onCreateIssueClick }) {
           <FiSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
             type="text"
-            placeholder="Search Jira..."
-            className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-100 hover:bg-slate-200/70 focus:bg-white border border-transparent focus:border-blue-500 rounded-md outline-none transition-all placeholder:text-slate-400"
+            placeholder="Search WorkGrid..."
+            className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-100 hover:bg-slate-200/70 focus:bg-white border border-transparent focus:border-[#0F766E] rounded-lg outline-none transition-all placeholder:text-slate-400"
           />
         </div>
 
@@ -103,28 +103,27 @@ export default function Header({ onCreateIssueClick }) {
           title="Notifications"
         >
           <FiBell className="w-4 h-4" />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-blue-600 ring-2 ring-white" />
+          <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#0F766E] ring-2 ring-white" />
         </button>
 
         {/* Settings button */}
-        <button
-          onClick={() =>
-            toast.info("Settings modal opens project configuration.")
-          }
-          className="p-2 rounded-full hover:bg-slate-100 text-slate-600 transition-colors hidden sm:block cursor-pointer"
+        <Link
+          href="/settings"
+          className="p-2 rounded-full hover:bg-slate-100 text-slate-600 transition-colors hidden sm:flex items-center justify-center cursor-pointer"
           title="Settings"
         >
           <FiSettings className="w-4 h-4" />
-        </button>
+        </Link>
 
         {/* Help button */}
         <button
+          type="button"
           onClick={() =>
             toast.info(
-              "Jira Documentation & Keyboard Shortcuts (Press '?' anytime)",
+              "WorkGrid Documentation & Keyboard Shortcuts (Press '?' anytime)",
             )
           }
-          className="p-2 rounded-full hover:bg-slate-100 text-slate-600 transition-colors hidden sm:block cursor-pointer"
+          className="p-2 rounded-full hover:bg-slate-100 text-slate-600 transition-colors hidden sm:flex items-center justify-center cursor-pointer"
           title="Help"
         >
           <FiHelpCircle className="w-4 h-4" />
@@ -134,25 +133,25 @@ export default function Header({ onCreateIssueClick }) {
         <div className="relative">
           <button
             onClick={() => setDropdownOpen(!dropdownOpen)}
-            className="flex items-center gap-2 p-1 rounded-full hover:ring-2 hover:ring-blue-400 transition-all cursor-pointer"
+            className="flex items-center gap-2 p-1 rounded-full hover:ring-2 hover:ring-[#0F766E]/40 transition-all cursor-pointer"
           >
-            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-700 to-indigo-500 text-white font-bold text-xs flex items-center justify-center shadow-xs">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#0F766E] to-teal-500 text-white font-bold text-xs flex items-center justify-center shadow-xs">
               {userInitials}
             </div>
           </button>
 
           {/* User Menu Dropdown */}
           {dropdownOpen && (
-            <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-slate-200 py-2 z-50 animate-fadeIn text-xs">
+            <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-xl border border-slate-200 py-2 z-50 animate-fadeIn text-xs">
               {/* Profile Card */}
               <div className="px-4 py-3 border-b border-slate-100">
                 <p className="font-bold text-sm text-slate-900 truncate">
                   {userName}
                 </p>
                 <p className="text-slate-500 truncate text-[11px]">
-                  {user?.email || "developer@jira.internal"}
+                  {user?.email || "developer@workgrid.internal"}
                 </p>
-                <div className="mt-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 font-medium text-[10px]">
+                <div className="mt-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-teal-50 text-[#0F766E] font-medium text-[10px]">
                   <FiCheck className="w-3 h-3" />
                   {userRole}
                 </div>
@@ -160,26 +159,14 @@ export default function Header({ onCreateIssueClick }) {
 
               {/* Menu items */}
               <div className="py-1">
-                <button
-                  onClick={() => {
-                    toast.info(`Viewing profile for ${userName}`);
-                    setDropdownOpen(false);
-                  }}
+                <Link
+                  href="/settings"
+                  onClick={() => setDropdownOpen(false)}
                   className="w-full text-left px-4 py-2 hover:bg-slate-50 flex items-center gap-2.5 text-slate-700"
                 >
                   <FiUser className="w-4 h-4 text-slate-400" />
-                  <span>Profile</span>
-                </button>
-                {/* <button
-                  onClick={() => {
-                    toast.info("Connected via Supabase Authentication");
-                    setDropdownOpen(false);
-                  }}
-                  className="w-full text-left px-4 py-2 hover:bg-slate-50 flex items-center gap-2.5 text-slate-700"
-                >
-                  <FiGrid className="w-4 h-4 text-slate-400" />
-                  <span>Supabase Auth Session</span>
-                </button> */}
+                  <span>Profile & Settings</span>
+                </Link>
               </div>
 
               {/* Logout Button */}
@@ -189,7 +176,7 @@ export default function Header({ onCreateIssueClick }) {
                   className="w-full text-left px-4 py-2 hover:bg-red-50 text-red-600 flex items-center gap-2.5 font-semibold transition-colors cursor-pointer"
                 >
                   <FiLogOut className="w-4 h-4" />
-                  <span>Log out of Jira</span>
+                  <span>Log out of WorkGrid</span>
                 </button>
               </div>
             </div>

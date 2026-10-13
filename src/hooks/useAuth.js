@@ -245,7 +245,7 @@ export function useAuth() {
           user.user_metadata?.full_name ||
           user.user_metadata?.name ||
           user.email?.split("@")[0] ||
-          "Jira User",
+          "WorkGrid User",
         phone: profile?.phone || null,
         role: profile?.role || OWNER_ROLE,
         profile_photo: profile?.profile_photo || null,
@@ -259,7 +259,7 @@ export function useAuth() {
         })
       );
 
-      toast.success("Signed in successfully! Welcome to Jira.");
+      toast.success("Signed in successfully! Welcome to WorkGrid.");
       router.push("/dashboard");
       return { success: true, session, user, profile: userData };
     } catch (err) {

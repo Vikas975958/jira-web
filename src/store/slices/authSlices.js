@@ -1,5 +1,5 @@
 import { createSlice } from "@reduxjs/toolkit";
-import { emptyStore } from "../rootReducer";
+import { emptyStore } from "../actions";
 
 const initialisation = {
   token: null,

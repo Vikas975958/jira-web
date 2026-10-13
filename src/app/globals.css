@@ -4,14 +4,71 @@
 :root {
   --background: #f8fafc;
   --foreground: #0f172a;
+  --primary: #0F766E;
+  --primary-hover: #0D655E;
+  --primary-active: #115E59;
+  --primary-light: #F0FDFA;
+  --primary-border: #99F6E4;
+  --primary-ring: rgba(15, 118, 110, 0.25);
+  --primary-shadow: rgba(15, 118, 110, 0.2);
+  --border-radius: 8px;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-active: var(--primary-active);
+  --color-primary-light: var(--primary-light);
+  --color-primary-border: var(--primary-border);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
   --font-serif: var(--font-playfair);
+  --radius-lg: var(--border-radius);
+  --radius-md: var(--border-radius);
+  --radius-xl: var(--border-radius);
+  --radius-2xl: var(--border-radius);
+  --radius-3xl: var(--border-radius);
+  --radius: var(--border-radius);
+}
+
+/* Centralized Primary Button Utility Classes */
+.btn-primary {
+  background-color: var(--primary);
+  color: #ffffff;
+  font-weight: 700;
+  border-radius: var(--border-radius, 8px);
+  box-shadow: 0 4px 12px 0 var(--primary-shadow);
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background-color: var(--primary-hover);
+}
+
+.btn-primary:active:not(:disabled) {
+  background-color: var(--primary-active);
+  transform: scale(0.98);
+}
+
+.btn-primary:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 3px var(--primary-ring);
+}
+
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
 }
 
 body {
@@ -23,11 +80,9 @@ body {
 @keyframes fadeIn {
   from {
     opacity: 0;
-    transform: translateY(4px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
   }
 }
 

@@ -12,15 +12,15 @@ export default function JiraLogo({ className = "w-8 h-8", showText = true, textC
         >
           <path
             d="M45.6 23.36L25.28 3.04C24.8 2.56 24.16 2.24 23.44 2.24C22.72 2.24 22.08 2.56 21.6 3.04L13.76 10.88L24.8 21.92L31.68 15.04L45.6 23.36Z"
-            fill="#0052CC"
+            fill="#0F766E"
           />
           <path
             d="M31.68 15.04L24.8 21.92L10.88 35.84C10.4 36.32 9.76 36.64 9.04 36.64C8.32 36.64 7.68 36.32 7.2 35.84L2.4 31.04C1.92 30.56 1.6 29.92 1.6 29.2C1.6 28.48 1.92 27.84 2.4 27.36L21.6 8.16L31.68 15.04Z"
-            fill="#2684FF"
+            fill="#14B8A6"
           />
           <path
             d="M24.8 21.92L13.76 32.96L21.6 40.8C22.08 41.28 22.72 41.6 23.44 41.6C24.16 41.6 24.8 41.28 25.28 40.8L45.6 20.48L31.68 15.04L24.8 21.92Z"
-            fill="#0052CC"
+            fill="#0F766E"
           />
         </svg>
       </div>
@@ -28,9 +28,9 @@ export default function JiraLogo({ className = "w-8 h-8", showText = true, textC
         <div className="flex flex-col">
           <div className="flex items-center gap-1.5">
             <span className={`text-xl font-bold tracking-tight ${textColor}`}>
-              Jira
+              WorkGrid
             </span>
-            <span className="text-xs px-1.5 py-0.5 rounded font-semibold bg-blue-100 text-blue-700 uppercase tracking-wider">
+            <span className="text-xs px-1.5 py-0.5 rounded-lg font-semibold bg-teal-100 text-[#0F766E] uppercase tracking-wider">
               Cloud
             </span>
           </div>
@@ -39,3 +39,5 @@ export default function JiraLogo({ className = "w-8 h-8", showText = true, textC
     </div>
   );
 }
+
+export const WorkGridLogo = JiraLogo;

@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import Cookies from "js-cookie";
 import { toast } from "react-toastify";
 import {
@@ -57,20 +58,20 @@ function DashboardSkeleton() {
     <div className="min-h-full bg-slate-50/50 p-6 sm:p-8 space-y-6 animate-pulse select-none">
       <div className="flex items-start justify-between">
         <div className="space-y-2">
-          <div className="h-8 bg-slate-200 rounded-xl w-64" />
+          <div className="h-8 bg-slate-200 rounded-lg w-64" />
           <div className="h-4 bg-slate-200 rounded-lg w-96" />
         </div>
         <div className="flex gap-3">
-          <div className="h-10 w-28 bg-slate-200 rounded-xl" />
-          <div className="h-10 w-28 bg-slate-200 rounded-xl" />
+          <div className="h-10 w-28 bg-slate-200 rounded-lg" />
+          <div className="h-10 w-28 bg-slate-200 rounded-lg" />
         </div>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {[...Array(4)].map((_, i) => (
-          <div key={i} className="h-24 bg-white rounded-2xl border border-slate-200/80" />
+          <div key={i} className="h-24 bg-white rounded-lg border border-slate-200/80" />
         ))}
       </div>
-      <div className="h-96 bg-white rounded-2xl border border-slate-200/80" />
+      <div className="h-96 bg-white rounded-lg border border-slate-200/80" />
     </div>
   );
 }
@@ -81,7 +82,7 @@ function DashboardSkeleton() {
 // ─────────────────────────────────────────────────────────
 function NoOrganizationView({ userName, userEmail, userInvitations, onCreateOrg, onLogout, user, onRefresh }) {
   return (
-    <div className="min-h-screen w-full bg-gradient-to-br from-slate-50 via-blue-50/20 to-slate-100 p-6 sm:p-10 flex flex-col justify-between items-center">
+    <div className="min-h-screen w-full bg-gradient-to-br from-slate-50 via-teal-50/20 to-slate-100 p-6 sm:p-10 flex flex-col justify-between items-center">
       {/* Top minimal header bar */}
       <div className="w-full max-w-4xl flex items-center justify-between py-2">
         <div className="flex items-center gap-2">
@@ -109,9 +110,9 @@ function NoOrganizationView({ userName, userEmail, userInvitations, onCreateOrg,
       <div className="w-full max-w-2xl space-y-8 animate-fadeIn my-auto">
         {/* Pending Invitations Banner if invited */}
         {userInvitations && userInvitations.length > 0 && (
-          <div className="bg-amber-50/90 border border-amber-200 rounded-2xl p-5 shadow-xs space-y-3">
+          <div className="bg-amber-50/90 border border-amber-200 rounded-lg p-5 shadow-xs space-y-3">
             <div className="flex items-start gap-3">
-              <div className="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center font-bold shrink-0">
+              <div className="w-9 h-9 rounded-lg bg-amber-500 text-white flex items-center justify-center font-bold shrink-0">
                 <FiClock className="w-5 h-5" />
               </div>
               <div className="flex-1">
@@ -128,7 +129,7 @@ function NoOrganizationView({ userName, userEmail, userInvitations, onCreateOrg,
               {userInvitations.map((inv) => (
                 <div
                   key={inv.id}
-                  className="bg-white/95 p-3.5 rounded-xl border border-amber-200/70 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-2xs"
+                  className="bg-white/95 p-3.5 rounded-lg border border-amber-200/70 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-2xs"
                 >
                   <div className="space-y-1">
                     <div className="flex items-center gap-2 flex-wrap">
@@ -136,11 +137,11 @@ function NoOrganizationView({ userName, userEmail, userInvitations, onCreateOrg,
                         {inv.organizations?.name || "Organization"}
                       </span>
                       {inv.project_name && (
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 border border-blue-200">
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-teal-100 text-[#0F766E] border border-teal-200">
                           Project: {inv.project_name}
                         </span>
                       )}
-                      <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">
+                      <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-lg bg-purple-100 text-purple-700">
                         Role: {inv.request_type}
                       </span>
                     </div>
@@ -152,7 +153,7 @@ function NoOrganizationView({ userName, userEmail, userInvitations, onCreateOrg,
                   </div>
 
                   <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-[11px] font-semibold text-amber-700 bg-amber-100 px-2.5 py-0.5 rounded-full">
+                    <span className="text-[11px] font-semibold text-amber-700 bg-amber-100 px-2.5 py-0.5 rounded-lg">
                       Status: {inv.status}
                     </span>
                     <button
@@ -179,7 +180,7 @@ function NoOrganizationView({ userName, userEmail, userInvitations, onCreateOrg,
                           toast.error(err?.message || "Failed to accept invitation.");
                         }
                       }}
-                      className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer"
+                      className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer"
                     >
                       Accept & Join
                     </button>
@@ -191,71 +192,36 @@ function NoOrganizationView({ userName, userEmail, userInvitations, onCreateOrg,
         )}
 
         {/* Main Welcome & Create Organization Card */}
-        <div className="bg-white rounded-3xl border border-slate-200/80 p-8 sm:p-10 text-center shadow-sm space-y-6">
-          <div className="mx-auto w-20 h-20 rounded-2xl bg-gradient-to-br from-[#0052CC] to-[#0747A6] flex items-center justify-center text-white shadow-xl shadow-blue-500/25">
+        <div className="bg-white rounded-lg border border-slate-200/80 p-8 sm:p-10 text-center shadow-sm space-y-6">
+          <div className="mx-auto w-20 h-20 rounded-lg bg-gradient-to-br from-[#0F766E] to-teal-800 flex items-center justify-center text-white shadow-xl shadow-teal-900/25">
             <FiGlobe className="w-10 h-10" />
           </div>
 
           <div className="space-y-2">
             <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-              Welcome to Jira, {userName || "there"}!
+              Welcome to WorkGrid, {userName || "there"}!
             </h1>
             <p className="text-sm text-slate-500 max-w-md mx-auto leading-relaxed">
               You haven&apos;t created or joined an organization yet. Set up your organization to start collaborating with members and managers on agile sprints.
             </p>
           </div>
 
-          <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+          <div className="pt-2 flex items-center justify-center">
             <button
               type="button"
               onClick={onCreateOrg}
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3.5 bg-[#0052CC] hover:bg-[#0747A6] active:scale-[0.98] text-white font-bold rounded-xl shadow-lg shadow-blue-500/25 transition-all cursor-pointer text-sm"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3.5 bg-[#0F766E] hover:bg-[#0D655E] active:bg-[#115E59] active:scale-[0.98] text-white font-bold rounded-lg shadow-lg shadow-teal-900/25 transition-all cursor-pointer text-sm"
             >
               <FiPlus className="w-5 h-5" />
               <span>Create Organization</span>
             </button>
-            {onLogout && (
-              <button
-                type="button"
-                onClick={onLogout}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl transition-all cursor-pointer text-sm"
-              >
-                <FiLogOut className="w-4 h-4" />
-                <span>Sign Out</span>
-              </button>
-            )}
-          </div>
-
-          {/* Features highlight */}
-          <div className="grid grid-cols-3 gap-4 pt-6 border-t border-slate-100 text-slate-600 text-xs">
-            <div className="space-y-1">
-              <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center mx-auto">
-                <FiLayers className="w-4 h-4" />
-              </div>
-              <p className="font-bold text-slate-800">Issue Tracking</p>
-              <p className="text-[11px] text-slate-400">Custom sprint workflows</p>
-            </div>
-            <div className="space-y-1">
-              <div className="w-8 h-8 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center mx-auto">
-                <FiUsers className="w-4 h-4" />
-              </div>
-              <p className="font-bold text-slate-800">Team Control</p>
-              <p className="text-[11px] text-slate-400">Members & Managers</p>
-            </div>
-            <div className="space-y-1">
-              <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto">
-                <FiShield className="w-4 h-4" />
-              </div>
-              <p className="font-bold text-slate-800">RLS Security</p>
-              <p className="text-[11px] text-slate-400">Multi-tenant protection</p>
-            </div>
           </div>
         </div>
       </div>
 
       {/* Footer */}
       <div className="py-2 text-center text-xs text-slate-400">
-        Jira Cloud • Workspace Onboarding
+        WorkGrid Cloud • Workspace Onboarding
       </div>
     </div>
   );
@@ -519,7 +485,7 @@ function OrganizationDashboardContent({
   const roleBadgeClasses = {
     owner: "bg-amber-100 text-amber-800 border-amber-200",
     manager: "bg-purple-100 text-purple-800 border-purple-200",
-    member: "bg-blue-100 text-blue-800 border-blue-200",
+    member: "bg-teal-50 text-teal-800 border-teal-200",
   };
 
   const statusBadgeClasses = {
@@ -532,16 +498,16 @@ function OrganizationDashboardContent({
       {/* ───────────────────────────────────────────────────── */}
       {/* 1. Header Card with Org Details & Primary Action Buttons */}
       {/* ───────────────────────────────────────────────────── */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 p-5 sm:p-6 shadow-xs">
+      <div className="bg-white rounded-lg border border-slate-200/80 p-5 sm:p-6 shadow-xs">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
           {/* Org Identity */}
           <div className="flex items-start sm:items-center gap-4">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#0052CC] to-[#0747A6] flex items-center justify-center text-white text-2xl font-black shadow-lg shadow-blue-500/20 shrink-0">
+            <div className="w-16 h-16 rounded-lg bg-gradient-to-br from-[#0F766E] to-teal-800 flex items-center justify-center text-white text-2xl font-black shadow-lg shadow-teal-900/20 shrink-0">
               {org?.logo_url ? (
                 <img
                   src={org.logo_url}
                   alt={org.name}
-                  className="w-full h-full object-cover rounded-2xl"
+                  className="w-full h-full object-cover rounded-lg"
                 />
               ) : (
                 org?.name?.charAt(0)?.toUpperCase() || "O"
@@ -554,14 +520,14 @@ function OrganizationDashboardContent({
                   {org?.name || "Organization"}
                 </h1>
                 <span
-                  className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
+                  className={`px-2.5 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wider border ${
                     roleBadgeClasses[userRole] || roleBadgeClasses.member
                   }`}
                 >
                   Your Role: {userRole}
                 </span>
                 {org?.status === "active" && (
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-700 border border-emerald-200">
+                  <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-700 border border-emerald-200">
                     Active
                   </span>
                 )}
@@ -572,7 +538,7 @@ function OrganizationDashboardContent({
                   <button
                     type="button"
                     onClick={handleCopyOrgLink}
-                    className="inline-flex items-center gap-1 font-mono text-slate-600 hover:text-blue-600 transition-colors cursor-pointer"
+                    className="inline-flex items-center gap-1 font-mono text-slate-600 hover:text-[#0F766E] transition-colors cursor-pointer"
                     title="Copy workspace slug"
                   >
                     <span>slug: {org?.slug || "—"}</span>
@@ -588,7 +554,7 @@ function OrganizationDashboardContent({
                       href={org.website}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-blue-600 hover:underline"
+                      className="inline-flex items-center gap-1 text-[#0F766E] hover:underline"
                     >
                       <span>Website</span>
                       <FiExternalLink className="w-3 h-3" />
@@ -599,57 +565,27 @@ function OrganizationDashboardContent({
             </div>
           </div>
 
-          {/* Action Buttons: Create Project, Add Member & Add Manager */}
-          <div className="flex flex-wrap items-center gap-3 self-stretch lg:self-center">
-            {/* Create Project Button (Owner & Manager) */}
-            {isAuthorizedAdmin && (
-              <button
-                type="button"
-                onClick={() => setIsCreateProjectModalOpen(true)}
-                className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-[#0052CC] hover:bg-[#0747A6] active:scale-[0.98] text-white text-xs sm:text-sm font-bold rounded-xl shadow-md shadow-blue-500/20 transition-all cursor-pointer"
-              >
-                <FiFolderPlus className="w-4 h-4" />
-                <span>Create Project</span>
-              </button>
-            )}
-
-            {/* Add Member Button */}
-            <button
-              type="button"
-              onClick={() => {
-                setInviteModalRole(MEMBER_ROLE);
-                setIsInviteModalOpen(true);
-              }}
-              className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-700 active:scale-[0.98] text-xs sm:text-sm font-bold rounded-xl transition-all cursor-pointer border border-blue-200/80"
-            >
-              <FiUserPlus className="w-4 h-4" />
-              <span>Add Member</span>
-            </button>
-
-            {/* Add Manager Button - Owner Only */}
+          {/* Top Actions: Refresh and Settings */}
+          <div className="flex items-center gap-2 self-start lg:self-center">
             {userRole === OWNER_ROLE && (
-              <button
-                type="button"
-                onClick={() => {
-                  setInviteModalRole(MANAGER_ROLE);
-                  setIsInviteModalOpen(true);
-                }}
-                className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-gradient-to-r from-purple-700 to-indigo-700 hover:from-purple-800 hover:to-indigo-800 active:scale-[0.98] text-white text-xs sm:text-sm font-bold rounded-xl shadow-md shadow-purple-500/20 transition-all cursor-pointer"
+              <Link
+                href="/settings"
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200/70 transition-colors"
+                title="Workspace Settings"
               >
-                <FiShield className="w-4 h-4" />
-                <span>Add Manager</span>
-              </button>
+                <FiSettings className="w-3.5 h-3.5" />
+                <span>Settings</span>
+              </Link>
             )}
 
-            {/* Refresh Button */}
             <button
               type="button"
               onClick={() => {
                 loadRequests();
                 onRefresh();
-                toast.info("Refreshed organization data.");
+                toast.info("Refreshed workspace data.");
               }}
-              className="p-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-600 transition-colors cursor-pointer"
+              className="p-2 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600 transition-colors cursor-pointer"
               title="Refresh data"
             >
               <FiRefreshCw className="w-4 h-4" />
@@ -662,9 +598,9 @@ function OrganizationDashboardContent({
       {/* Workspace Owner Presentation Card (for Manager)       */}
       {/* ───────────────────────────────────────────────────── */}
       {userRole === MANAGER_ROLE && ownerMember && (
-        <div className="bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-white border border-amber-200/80 rounded-2xl p-4 sm:p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-white border border-amber-200/80 rounded-lg p-4 sm:p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3.5">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-amber-600 text-white font-black text-lg flex items-center justify-center shadow-md shadow-amber-500/20 shrink-0">
+            <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-amber-500 to-amber-600 text-white font-black text-lg flex items-center justify-center shadow-md shadow-amber-500/20 shrink-0">
               {ownerMember.profiles?.full_name?.charAt(0)?.toUpperCase() || "O"}
             </div>
             <div className="space-y-0.5">
@@ -672,7 +608,7 @@ function OrganizationDashboardContent({
                 <span className="text-sm font-black text-slate-900">
                   {ownerMember.profiles?.full_name || "Workspace Owner"}
                 </span>
-                <span className="text-[10px] font-bold text-amber-800 bg-amber-100 px-2.5 py-0.5 rounded-full border border-amber-300">
+                <span className="text-[10px] font-bold text-amber-800 bg-amber-100 px-2.5 py-0.5 rounded-lg border border-amber-300">
                   Workspace Creator
                 </span>
               </div>
@@ -681,7 +617,7 @@ function OrganizationDashboardContent({
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2 text-xs font-semibold text-amber-900 bg-amber-50 px-3 py-1.5 rounded-xl border border-amber-200/60 w-fit">
+          <div className="flex items-center gap-2 text-xs font-semibold text-amber-900 bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-200/60 w-fit">
             <FiShield className="w-3.5 h-3.5 text-amber-600" />
             <span>Workspace Created & Owned By This Administrator</span>
           </div>
@@ -695,11 +631,11 @@ function OrganizationDashboardContent({
         {/* Total Projects */}
         <div
           onClick={() => setActiveTab("projects")}
-          className={`p-4 bg-white rounded-2xl border transition-all cursor-pointer shadow-xs hover:shadow-md flex items-center gap-3.5 ${
-            activeTab === "projects" ? "border-blue-500 ring-2 ring-blue-500/20" : "border-slate-200/80"
+          className={`p-4 bg-white rounded-lg border transition-all cursor-pointer shadow-xs hover:shadow-md flex items-center gap-3.5 ${
+            activeTab === "projects" ? "border-[#0F766E] ring-2 ring-[#0F766E]/20" : "border-slate-200/80"
           }`}
         >
-          <div className="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+          <div className="w-11 h-11 rounded-lg bg-teal-50 text-[#0F766E] flex items-center justify-center shrink-0">
             <FiFolder className="w-5 h-5" />
           </div>
           <div>
@@ -715,11 +651,11 @@ function OrganizationDashboardContent({
         {/* Total Managers */}
         <div
           onClick={() => setActiveTab("managers")}
-          className={`p-4 bg-white rounded-2xl border transition-all cursor-pointer shadow-xs hover:shadow-md flex items-center gap-3.5 ${
+          className={`p-4 bg-white rounded-lg border transition-all cursor-pointer shadow-xs hover:shadow-md flex items-center gap-3.5 ${
             activeTab === "managers" ? "border-purple-500 ring-2 ring-purple-500/20" : "border-slate-200/80"
           }`}
         >
-          <div className="w-11 h-11 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
+          <div className="w-11 h-11 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
             <FiShield className="w-5 h-5" />
           </div>
           <div>
@@ -735,11 +671,11 @@ function OrganizationDashboardContent({
         {/* Total Active Members */}
         <div
           onClick={() => setActiveTab("members")}
-          className={`p-4 bg-white rounded-2xl border transition-all cursor-pointer shadow-xs hover:shadow-md flex items-center gap-3.5 ${
+          className={`p-4 bg-white rounded-lg border transition-all cursor-pointer shadow-xs hover:shadow-md flex items-center gap-3.5 ${
             activeTab === "members" ? "border-indigo-500 ring-2 ring-indigo-500/20" : "border-slate-200/80"
           }`}
         >
-          <div className="w-11 h-11 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+          <div className="w-11 h-11 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
             <FiUsers className="w-5 h-5" />
           </div>
           <div>
@@ -758,11 +694,11 @@ function OrganizationDashboardContent({
             setActiveTab("requests");
             setRequestStatusFilter("pending");
           }}
-          className={`p-4 bg-white rounded-2xl border transition-all cursor-pointer shadow-xs hover:shadow-md flex items-center gap-3.5 ${
+          className={`p-4 bg-white rounded-lg border transition-all cursor-pointer shadow-xs hover:shadow-md flex items-center gap-3.5 ${
             activeTab === "requests" ? "border-amber-500 ring-2 ring-amber-500/20" : "border-slate-200/80"
           }`}
         >
-          <div className="w-11 h-11 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+          <div className="w-11 h-11 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
             <FiClock className="w-5 h-5" />
           </div>
           <div>
@@ -784,7 +720,7 @@ function OrganizationDashboardContent({
       {/* ───────────────────────────────────────────────────── */}
       {/* 3. Navigation Tabs: Projects, Managers, Members, Requests, Org Info */}
       {/* ───────────────────────────────────────────────────── */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+      <div className="bg-white rounded-lg border border-slate-200/80 shadow-xs overflow-hidden">
         {/* Tab Headers */}
         <div className="flex border-b border-slate-200 px-4 pt-2 gap-2 overflow-x-auto">
           {/* Projects Tab */}
@@ -793,13 +729,13 @@ function OrganizationDashboardContent({
             onClick={() => setActiveTab("projects")}
             className={`flex items-center gap-2 px-4 py-3 text-xs sm:text-sm font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
               activeTab === "projects"
-                ? "border-blue-600 text-blue-600"
+                ? "border-[#0F766E] text-[#0F766E]"
                 : "border-transparent text-slate-500 hover:text-slate-900"
             }`}
           >
             <FiFolder className="w-4 h-4" />
             <span>Projects</span>
-            <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-semibold">
+            <span className="text-[10px] px-2 py-0.5 rounded-lg bg-slate-100 text-slate-600 font-semibold">
               {projects.length}
             </span>
           </button>
@@ -810,13 +746,13 @@ function OrganizationDashboardContent({
             onClick={() => setActiveTab("managers")}
             className={`flex items-center gap-2 px-4 py-3 text-xs sm:text-sm font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
               activeTab === "managers"
-                ? "border-purple-600 text-purple-600"
+                ? "border-[#0F766E] text-[#0F766E]"
                 : "border-transparent text-slate-500 hover:text-slate-900"
             }`}
           >
             <FiShield className="w-4 h-4" />
             <span>Managers</span>
-            <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-semibold">
+            <span className="text-[10px] px-2 py-0.5 rounded-lg bg-slate-100 text-slate-600 font-semibold">
               {managerCount}
             </span>
           </button>
@@ -827,13 +763,13 @@ function OrganizationDashboardContent({
             onClick={() => setActiveTab("members")}
             className={`flex items-center gap-2 px-4 py-3 text-xs sm:text-sm font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
               activeTab === "members"
-                ? "border-indigo-600 text-indigo-600"
+                ? "border-[#0F766E] text-[#0F766E]"
                 : "border-transparent text-slate-500 hover:text-slate-900"
             }`}
           >
             <FiUsers className="w-4 h-4" />
             <span>Members</span>
-            <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-semibold">
+            <span className="text-[10px] px-2 py-0.5 rounded-lg bg-slate-100 text-slate-600 font-semibold">
               {memberCount}
             </span>
           </button>
@@ -844,18 +780,18 @@ function OrganizationDashboardContent({
             onClick={() => setActiveTab("requests")}
             className={`flex items-center gap-2 px-4 py-3 text-xs sm:text-sm font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
               activeTab === "requests"
-                ? "border-amber-600 text-amber-600"
+                ? "border-[#0F766E] text-[#0F766E]"
                 : "border-transparent text-slate-500 hover:text-slate-900"
             }`}
           >
             <FiClock className="w-4 h-4" />
-            <span>{userRole === MANAGER_ROLE ? "Member Requests" : "Member & Manager Requests"}</span>
+            <span>{userRole === MANAGER_ROLE ? "Member Requests" : "Requests"}</span>
             {pendingRequestsCount > 0 ? (
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-bold border border-amber-200">
+              <span className="text-[10px] px-2 py-0.5 rounded-lg bg-amber-100 text-amber-800 font-bold border border-amber-200">
                 {pendingRequestsCount} Pending
               </span>
             ) : (
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-semibold">
+              <span className="text-[10px] px-2 py-0.5 rounded-lg bg-slate-100 text-slate-600 font-semibold">
                 0
               </span>
             )}
@@ -868,7 +804,7 @@ function OrganizationDashboardContent({
               onClick={() => setActiveTab("details")}
               className={`flex items-center gap-2 px-4 py-3 text-xs sm:text-sm font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
                 activeTab === "details"
-                  ? "border-blue-600 text-blue-600"
+                  ? "border-[#0F766E] text-[#0F766E]"
                   : "border-transparent text-slate-500 hover:text-slate-900"
               }`}
             >
@@ -896,7 +832,7 @@ function OrganizationDashboardContent({
                       setProjectPage(1);
                     }}
                     placeholder="Search projects by name or description..."
-                    className="w-full h-9 pl-9 pr-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all"
+                    className="w-full h-9 pl-9 pr-3 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0F766E] focus:border-transparent transition-all"
                   />
                 </div>
 
@@ -907,7 +843,7 @@ function OrganizationDashboardContent({
                     setProjectStatusFilter(e.target.value);
                     setProjectPage(1);
                   }}
-                  className="h-9 px-3 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-600 font-semibold text-slate-700"
+                  className="h-9 px-3 text-xs bg-slate-50 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-[#0F766E] font-semibold text-slate-700"
                 >
                   <option value="all">All Statuses</option>
                   <option value="planning">📋 Planning</option>
@@ -921,7 +857,7 @@ function OrganizationDashboardContent({
                 <button
                   type="button"
                   onClick={() => setIsCreateProjectModalOpen(true)}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#0052CC] hover:bg-[#0747A6] text-white text-xs font-bold rounded-xl shadow-xs transition-all cursor-pointer whitespace-nowrap"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#0F766E] hover:bg-[#0D655E] active:bg-[#115E59] active:scale-[0.98] text-white text-xs font-bold rounded-lg shadow-md shadow-teal-900/20 transition-all cursor-pointer whitespace-nowrap"
                 >
                   <FiFolderPlus className="w-4 h-4" />
                   <span>Create Project</span>
@@ -949,7 +885,7 @@ function OrganizationDashboardContent({
                         planning: "bg-slate-100 text-slate-700 border-slate-200",
                         active: "bg-emerald-100 text-emerald-800 border-emerald-200",
                         on_hold: "bg-amber-100 text-amber-800 border-amber-200",
-                        completed: "bg-blue-100 text-blue-800 border-blue-200",
+                        completed: "bg-teal-100 text-teal-800 border-teal-200",
                       };
 
                       return (
@@ -960,11 +896,11 @@ function OrganizationDashboardContent({
                         >
                           <td className="py-3 px-3">
                             <div className="flex items-start gap-3">
-                              <div className="w-9 h-9 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-sm shrink-0 mt-0.5">
+                              <div className="w-9 h-9 rounded-lg bg-teal-100 text-[#0F766E] flex items-center justify-center font-bold text-sm shrink-0 mt-0.5">
                                 {p.name?.charAt(0)?.toUpperCase() || "P"}
                               </div>
                               <div className="max-w-xs">
-                                <p className="font-bold text-slate-900 group-hover:text-blue-600 transition-colors">
+                                <p className="font-bold text-slate-900 group-hover:text-[#0F766E] transition-colors">
                                   {p.name}
                                 </p>
                                 {p.description && (
@@ -983,7 +919,7 @@ function OrganizationDashboardContent({
                                 {(p.assignedManagers || []).slice(0, 3).map((mgr) => (
                                   <span
                                     key={mgr.id || mgr.userId}
-                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-100 text-purple-800 border border-purple-200"
+                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-semibold bg-purple-100 text-purple-800 border border-purple-200"
                                     title={mgr.email}
                                   >
                                     <span className="w-1.5 h-1.5 rounded-full bg-purple-500" />
@@ -1008,10 +944,10 @@ function OrganizationDashboardContent({
                                 {(p.assignedMembers || []).slice(0, 3).map((mem) => (
                                   <span
                                     key={mem.id || mem.userId}
-                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-100 text-blue-800 border border-blue-200"
+                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-semibold bg-teal-50 text-teal-800 border border-teal-200"
                                     title={mem.email}
                                   >
-                                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                                    <span className="w-1.5 h-1.5 rounded-full bg-[#0F766E]" />
                                     <span>{mem.fullName}</span>
                                   </span>
                                 ))}
@@ -1029,7 +965,7 @@ function OrganizationDashboardContent({
                           {/* Status */}
                           <td className="py-3 px-3">
                             <span
-                              className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
+                              className={`px-2.5 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wider border ${
                                 statusBadges[p.status] || statusBadges.active
                               }`}
                             >
@@ -1060,8 +996,8 @@ function OrganizationDashboardContent({
                               </button>
                               <button
                                 type="button"
-                                onClick={() => router.push("/projects")}
-                                className="px-2.5 py-1 text-[11px] font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors cursor-pointer"
+                                onClick={() => router.push(`/projects?projectId=${p.id}`)}
+                                className="px-2.5 py-1 text-[11px] font-bold text-[#0F766E] bg-teal-50 hover:bg-teal-100 rounded-lg transition-colors cursor-pointer"
                               >
                                 Board →
                               </button>
@@ -1133,7 +1069,7 @@ function OrganizationDashboardContent({
                     setManagerPage(1);
                   }}
                   placeholder="Search managers by name or email..."
-                  className="w-full h-9 pl-9 pr-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-600 focus:border-transparent transition-all"
+                  className="w-full h-9 pl-9 pr-3 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-600 focus:border-transparent transition-all"
                 />
               </div>
 
@@ -1144,7 +1080,7 @@ function OrganizationDashboardContent({
                     setInviteModalRole(MANAGER_ROLE);
                     setIsInviteModalOpen(true);
                   }}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-purple-700 hover:bg-purple-800 text-white text-xs font-bold rounded-xl shadow-xs transition-all cursor-pointer whitespace-nowrap"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-purple-700 hover:bg-purple-800 text-white text-xs font-bold rounded-lg shadow-xs transition-all cursor-pointer whitespace-nowrap"
                 >
                   <FiShield className="w-4 h-4" />
                   <span>Add Manager</span>
@@ -1190,12 +1126,12 @@ function OrganizationDashboardContent({
                                     {profile?.full_name || "Manager"}
                                   </p>
                                   {m.user_id === currentUserId && (
-                                    <span className="text-[10px] text-purple-700 font-bold bg-purple-50 px-1.5 py-0.2 rounded border border-purple-200">
+                                    <span className="text-[10px] text-purple-700 font-bold bg-purple-50 px-1.5 py-0.2 rounded-lg border border-purple-200">
                                       (You)
                                     </span>
                                   )}
                                 </div>
-                                <span className="text-[10px] uppercase font-bold text-purple-700 bg-purple-50 px-1.5 py-0.2 rounded border border-purple-200">
+                                <span className="text-[10px] uppercase font-bold text-purple-700 bg-purple-50 px-1.5 py-0.2 rounded-lg border border-purple-200">
                                   {m.role || "Manager"}
                                 </span>
                               </div>
@@ -1214,7 +1150,7 @@ function OrganizationDashboardContent({
                                   <span
                                     key={p.id}
                                     onClick={() => setSelectedProject(p)}
-                                    className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 cursor-pointer"
+                                    className="px-2 py-0.5 rounded-lg text-[10px] font-semibold bg-teal-50 text-[#0F766E] border border-teal-200 hover:bg-teal-100 cursor-pointer"
                                   >
                                     {p.name}
                                   </span>
@@ -1295,7 +1231,7 @@ function OrganizationDashboardContent({
                     setMemberPage(1);
                   }}
                   placeholder="Search members by name or email..."
-                  className="w-full h-9 pl-9 pr-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:border-transparent transition-all"
+                  className="w-full h-9 pl-9 pr-3 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:border-transparent transition-all"
                 />
               </div>
 
@@ -1305,7 +1241,7 @@ function OrganizationDashboardContent({
                   setInviteModalRole(MEMBER_ROLE);
                   setIsInviteModalOpen(true);
                 }}
-                className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-xs transition-all cursor-pointer whitespace-nowrap"
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#0F766E] hover:bg-[#0D655E] active:bg-[#115E59] active:scale-[0.98] text-white text-xs font-bold rounded-lg shadow-md shadow-teal-900/20 transition-all cursor-pointer whitespace-nowrap"
               >
                 <FiUserPlus className="w-4 h-4" />
                 <span>Add Member</span>
@@ -1350,7 +1286,7 @@ function OrganizationDashboardContent({
                                     {profile?.full_name || "Team Member"}
                                   </p>
                                   {m.user_id === currentUserId && (
-                                    <span className="text-[10px] text-blue-700 font-bold bg-blue-50 px-1.5 py-0.2 rounded border border-blue-200">
+                                    <span className="text-[10px] text-[#0F766E] font-bold bg-teal-50 px-1.5 py-0.2 rounded-lg border border-teal-200">
                                       (You)
                                     </span>
                                   )}
@@ -1371,7 +1307,7 @@ function OrganizationDashboardContent({
                                   <span
                                     key={p.id}
                                     onClick={() => setSelectedProject(p)}
-                                    className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 cursor-pointer"
+                                    className="px-2 py-0.5 rounded-lg text-[10px] font-semibold bg-teal-50 text-[#0F766E] border border-teal-200 hover:bg-teal-100 cursor-pointer"
                                   >
                                     {p.name}
                                   </span>
@@ -1451,7 +1387,7 @@ function OrganizationDashboardContent({
                   value={requestSearch}
                   onChange={(e) => setRequestSearch(e.target.value)}
                   placeholder="Search requests by name or email..."
-                  className="w-full h-9 pl-9 pr-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all"
+                  className="w-full h-9 pl-9 pr-3 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0F766E] focus:border-transparent transition-all"
                 />
               </div>
 
@@ -1459,7 +1395,7 @@ function OrganizationDashboardContent({
               <div className="flex flex-wrap items-center gap-2">
                 {/* Type Filter - Hidden for Managers as they only have member requests */}
                 {userRole !== MANAGER_ROLE && (
-                  <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl text-xs">
+                  <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg text-xs">
                     <button
                       type="button"
                       onClick={() => setRequestTypeFilter("all")}
@@ -1476,7 +1412,7 @@ function OrganizationDashboardContent({
                       onClick={() => setRequestTypeFilter(MEMBER_ROLE)}
                       className={`px-2.5 py-1 rounded-lg font-semibold transition-all cursor-pointer ${
                         requestTypeFilter === MEMBER_ROLE
-                          ? "bg-white text-blue-700 shadow-2xs"
+                          ? "bg-white text-[#0F766E] shadow-2xs"
                           : "text-slate-600 hover:text-slate-900"
                       }`}
                     >
@@ -1497,7 +1433,7 @@ function OrganizationDashboardContent({
                 )}
 
                 {/* Status Indicator - Pending Requests Only */}
-                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200">
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200">
                   <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
                   <span>Pending</span>
                 </div>
@@ -1508,7 +1444,7 @@ function OrganizationDashboardContent({
             <div className="overflow-x-auto">
               {loadingRequests ? (
                 <div className="py-12 text-center text-slate-400 text-xs flex items-center justify-center gap-2">
-                  <div className="w-4 h-4 border-2 border-slate-300 border-t-blue-600 rounded-full animate-spin" />
+                  <div className="w-4 h-4 border-2 border-slate-300 border-t-[#0F766E] rounded-full animate-spin" />
                   <span>Loading request records...</span>
                 </div>
               ) : filteredRequests && filteredRequests.length > 0 ? (
@@ -1540,7 +1476,7 @@ function OrganizationDashboardContent({
                                 className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs shrink-0 ${
                                   req.request_type === MANAGER_ROLE
                                     ? "bg-purple-100 text-purple-700"
-                                    : "bg-blue-100 text-blue-700"
+                                    : "bg-teal-100 text-[#0F766E]"
                                 }`}
                               >
                                 {req.full_name?.charAt(0)?.toUpperCase() || "?"}
@@ -1558,10 +1494,10 @@ function OrganizationDashboardContent({
                           {userRole !== MANAGER_ROLE && (
                             <td className="py-3 px-3">
                               <span
-                                className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
+                                className={`px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wider border ${
                                   req.request_type === MANAGER_ROLE
                                     ? "bg-purple-50 text-purple-700 border-purple-200"
-                                    : "bg-blue-50 text-blue-700 border-blue-200"
+                                    : "bg-teal-50 text-[#0F766E] border border-teal-200"
                                 }`}
                               >
                                 {req.request_type}
@@ -1571,7 +1507,7 @@ function OrganizationDashboardContent({
 
                           <td className="py-3 px-3">
                             <span
-                              className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
+                              className={`px-2.5 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wider border ${
                                 statusBadgeClasses[req.status] ||
                                 statusBadgeClasses.pending
                               }`}
@@ -1600,7 +1536,7 @@ function OrganizationDashboardContent({
 
                           <td className="py-3 px-3 text-right whitespace-nowrap">
                             {isProcessing ? (
-                              <div className="inline-block w-4 h-4 border-2 border-slate-300 border-t-blue-600 rounded-full animate-spin" />
+                              <div className="inline-block w-4 h-4 border-2 border-slate-300 border-t-[#0F766E] rounded-full animate-spin" />
                             ) : isAuthorizedAdmin ? (
                               <div className="flex items-center justify-end gap-1.5">
                                 {isPending && (
@@ -1646,7 +1582,7 @@ function OrganizationDashboardContent({
                         setInviteModalRole(MEMBER_ROLE);
                         setIsInviteModalOpen(true);
                       }}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold shadow-sm"
+                      className="px-4 py-2 bg-[#0F766E] hover:bg-[#0D655E] active:bg-[#115E59] active:scale-[0.98] text-white rounded-lg text-xs font-bold shadow-md shadow-teal-900/20 transition-all cursor-pointer"
                     >
                       Add Member
                     </button>
@@ -1657,7 +1593,7 @@ function OrganizationDashboardContent({
                           setInviteModalRole(MANAGER_ROLE);
                           setIsInviteModalOpen(true);
                         }}
-                        className="px-4 py-2 bg-purple-700 text-white rounded-xl text-xs font-bold shadow-sm"
+                        className="px-4 py-2 bg-purple-700 text-white rounded-lg text-xs font-bold shadow-sm"
                       >
                         Add Manager
                       </button>
@@ -1677,9 +1613,9 @@ function OrganizationDashboardContent({
           <div className="p-6 space-y-6 animate-fadeIn text-xs">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {/* General Card */}
-              <div className="p-5 rounded-2xl bg-slate-50/70 border border-slate-200/80 space-y-3.5">
+              <div className="p-5 rounded-lg bg-slate-50/70 border border-slate-200/80 space-y-3.5">
                 <div className="flex items-center gap-2 text-slate-900 font-bold text-sm border-b border-slate-200/60 pb-2">
-                  <FiGlobe className="w-4 h-4 text-blue-600" />
+                  <FiGlobe className="w-4 h-4 text-[#0F766E]" />
                   <span>General Information</span>
                 </div>
                 <div>
@@ -1709,7 +1645,7 @@ function OrganizationDashboardContent({
               </div>
 
               {/* Company & Contact Card */}
-              <div className="p-5 rounded-2xl bg-slate-50/70 border border-slate-200/80 space-y-3.5">
+              <div className="p-5 rounded-lg bg-slate-50/70 border border-slate-200/80 space-y-3.5">
                 <div className="flex items-center gap-2 text-slate-900 font-bold text-sm border-b border-slate-200/60 pb-2">
                   <FiLayers className="w-4 h-4 text-purple-600" />
                   <span>Company & Contact</span>
@@ -1749,7 +1685,7 @@ function OrganizationDashboardContent({
               </div>
 
               {/* Location & Localization Card */}
-              <div className="p-5 rounded-2xl bg-slate-50/70 border border-slate-200/80 space-y-3.5">
+              <div className="p-5 rounded-lg bg-slate-50/70 border border-slate-200/80 space-y-3.5">
                 <div className="flex items-center gap-2 text-slate-900 font-bold text-sm border-b border-slate-200/60 pb-2">
                   <FiMapPin className="w-4 h-4 text-emerald-600" />
                   <span>Location & Defaults</span>
@@ -1792,7 +1728,7 @@ function OrganizationDashboardContent({
             </div>
 
             {/* Ownership & Metadata */}
-            <div className="p-4 rounded-xl bg-slate-100/70 border border-slate-200 text-slate-500 flex flex-wrap items-center justify-between gap-3 text-[11px]">
+            <div className="p-4 rounded-lg bg-slate-100/70 border border-slate-200 text-slate-500 flex flex-wrap items-center justify-between gap-3 text-[11px]">
               {userRole === OWNER_ROLE && (
                 <div>
                   <span className="font-bold text-slate-700">Created By UUID: </span>
@@ -2009,7 +1945,7 @@ function MemberTasksView({ membership, user, onRefresh }) {
 
   const statusStyles = {
     todo: "bg-slate-100 text-slate-700",
-    "in-progress": "bg-blue-100 text-blue-800",
+    "in-progress": "bg-teal-100 text-teal-800",
     review: "bg-purple-100 text-purple-800",
     done: "bg-emerald-100 text-emerald-800",
   };
@@ -2017,7 +1953,7 @@ function MemberTasksView({ membership, user, onRefresh }) {
   const roleBadgeClasses = {
     owner: "bg-amber-100 text-amber-800 border-amber-200",
     manager: "bg-purple-100 text-purple-800 border-purple-200",
-    member: "bg-blue-100 text-blue-800 border-blue-200",
+    member: "bg-teal-100 text-[#0F766E] border-teal-200",
   };
 
   return (
@@ -2025,13 +1961,13 @@ function MemberTasksView({ membership, user, onRefresh }) {
       {/* ───────────────────────────────────────────────────── */}
       {/* 1. Member Header Card (No Org Settings Leaked)        */}
       {/* ───────────────────────────────────────────────────── */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-white rounded-lg border border-slate-200/80 p-6 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="space-y-1">
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
               Workspace Overview
             </h1>
-            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-blue-100 text-blue-800 border border-blue-200">
+            <span className="px-2.5 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-teal-100 text-[#0F766E] border border-teal-200">
               Role: Member
             </span>
           </div>
@@ -2044,7 +1980,7 @@ function MemberTasksView({ membership, user, onRefresh }) {
           <button
             type="button"
             onClick={() => router.push("/projects")}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-[#0052CC] hover:bg-[#0747A6] text-white text-xs font-bold rounded-xl shadow-sm transition-all cursor-pointer"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-[#0F766E] hover:bg-[#0D655E] active:bg-[#115E59] active:scale-[0.98] text-white text-xs font-bold rounded-lg shadow-md shadow-teal-900/20 transition-all cursor-pointer"
           >
             <FiLayers className="w-4 h-4" />
             <span>Open Kanban Board</span>
@@ -2057,7 +1993,7 @@ function MemberTasksView({ membership, user, onRefresh }) {
               if (onRefresh) onRefresh();
               toast.info("Refreshed workspace data.");
             }}
-            className="p-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-600 transition-colors cursor-pointer"
+            className="p-2.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600 transition-colors cursor-pointer"
             title="Refresh data"
           >
             <FiRefreshCw className="w-4 h-4" />
@@ -2072,8 +2008,8 @@ function MemberTasksView({ membership, user, onRefresh }) {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Workspace Owner Who Created */}
           {leadership.owner && (
-            <div className="bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-white border border-amber-200/80 rounded-2xl p-4 shadow-xs flex items-center gap-3.5">
-              <div className="w-12 h-12 rounded-2xl bg-amber-500 text-white font-black text-lg flex items-center justify-center shadow-md shadow-amber-500/20 shrink-0">
+            <div className="bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-white border border-amber-200/80 rounded-lg p-4 shadow-xs flex items-center gap-3.5">
+              <div className="w-12 h-12 rounded-lg bg-amber-500 text-white font-black text-lg flex items-center justify-center shadow-md shadow-amber-500/20 shrink-0">
                 {leadership.owner.profiles?.full_name?.charAt(0)?.toUpperCase() || "O"}
               </div>
               <div className="space-y-0.5">
@@ -2081,7 +2017,7 @@ function MemberTasksView({ membership, user, onRefresh }) {
                   <span className="text-sm font-black text-slate-900">
                     {leadership.owner.profiles?.full_name || "Workspace Owner"}
                   </span>
-                  <span className="text-[10px] font-bold text-amber-800 bg-amber-100 px-2.5 py-0.5 rounded-full border border-amber-300">
+                  <span className="text-[10px] font-bold text-amber-800 bg-amber-100 px-2.5 py-0.5 rounded-lg border border-amber-300">
                     Workspace Creator
                   </span>
                 </div>
@@ -2097,8 +2033,8 @@ function MemberTasksView({ membership, user, onRefresh }) {
 
           {/* Reporting Manager Who Created / Invited You */}
           {leadership.manager && (
-            <div className="bg-gradient-to-r from-purple-500/10 via-purple-500/5 to-white border border-purple-200/80 rounded-2xl p-4 shadow-xs flex items-center gap-3.5">
-              <div className="w-12 h-12 rounded-2xl bg-purple-600 text-white font-black text-lg flex items-center justify-center shadow-md shadow-purple-500/20 shrink-0">
+            <div className="bg-gradient-to-r from-purple-500/10 via-purple-500/5 to-white border border-purple-200/80 rounded-lg p-4 shadow-xs flex items-center gap-3.5">
+              <div className="w-12 h-12 rounded-lg bg-purple-600 text-white font-black text-lg flex items-center justify-center shadow-md shadow-purple-500/20 shrink-0">
                 {leadership.manager.profiles?.full_name?.charAt(0)?.toUpperCase() || "M"}
               </div>
               <div className="space-y-0.5">
@@ -2106,7 +2042,7 @@ function MemberTasksView({ membership, user, onRefresh }) {
                   <span className="text-sm font-black text-slate-900">
                     {leadership.manager.profiles?.full_name || "Reporting Manager"}
                   </span>
-                  <span className="text-[10px] font-bold text-purple-800 bg-purple-100 px-2.5 py-0.5 rounded-full border border-purple-300">
+                  <span className="text-[10px] font-bold text-purple-800 bg-purple-100 px-2.5 py-0.5 rounded-lg border border-purple-300">
                     Who Created You
                   </span>
                 </div>
@@ -2125,20 +2061,20 @@ function MemberTasksView({ membership, user, onRefresh }) {
       {/* ───────────────────────────────────────────────────── */}
       {/* 3. Navigation Tabs: Tasks vs Team Directory           */}
       {/* ───────────────────────────────────────────────────── */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+      <div className="bg-white rounded-lg border border-slate-200/80 shadow-xs overflow-hidden">
         <div className="flex border-b border-slate-200 px-4 pt-2 gap-2 overflow-x-auto">
           <button
             type="button"
             onClick={() => setActiveTab("tasks")}
             className={`flex items-center gap-2 px-4 py-3 text-xs sm:text-sm font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
               activeTab === "tasks"
-                ? "border-blue-600 text-blue-600"
+                ? "border-[#0F766E] text-[#0F766E]"
                 : "border-transparent text-slate-500 hover:text-slate-900"
             }`}
           >
             <FiLayers className="w-4 h-4" />
             <span>My Assigned Tasks</span>
-            <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-semibold">
+            <span className="text-[10px] px-2 py-0.5 rounded-lg bg-slate-100 text-slate-600 font-semibold">
               {stats.total}
             </span>
           </button>
@@ -2148,13 +2084,13 @@ function MemberTasksView({ membership, user, onRefresh }) {
             onClick={() => setActiveTab("projects")}
             className={`flex items-center gap-2 px-4 py-3 text-xs sm:text-sm font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
               activeTab === "projects"
-                ? "border-blue-600 text-blue-600"
+                ? "border-[#0F766E] text-[#0F766E]"
                 : "border-transparent text-slate-500 hover:text-slate-900"
             }`}
           >
             <FiFolder className="w-4 h-4" />
             <span>My Assigned Projects</span>
-            <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-semibold">
+            <span className="text-[10px] px-2 py-0.5 rounded-lg bg-slate-100 text-slate-600 font-semibold">
               {memberProjects.length}
             </span>
           </button>
@@ -2164,13 +2100,13 @@ function MemberTasksView({ membership, user, onRefresh }) {
             onClick={() => setActiveTab("team")}
             className={`flex items-center gap-2 px-4 py-3 text-xs sm:text-sm font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
               activeTab === "team"
-                ? "border-blue-600 text-blue-600"
+                ? "border-[#0F766E] text-[#0F766E]"
                 : "border-transparent text-slate-500 hover:text-slate-900"
             }`}
           >
             <FiUsers className="w-4 h-4" />
             <span>Team Directory & Managers</span>
-            <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-semibold">
+            <span className="text-[10px] px-2 py-0.5 rounded-lg bg-slate-100 text-slate-600 font-semibold">
               {teamMembers.length}
             </span>
           </button>
@@ -2183,8 +2119,8 @@ function MemberTasksView({ membership, user, onRefresh }) {
           <div className="p-5 space-y-6">
             {/* Task Summary Stat Cards */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-              <div className="p-4 bg-slate-50/60 rounded-2xl border border-slate-200/60 flex items-center gap-3.5">
-                <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+              <div className="p-4 bg-slate-50/60 rounded-lg border border-slate-200/60 flex items-center gap-3.5">
+                <div className="w-10 h-10 rounded-lg bg-teal-50 text-[#0F766E] flex items-center justify-center shrink-0">
                   <FiLayers className="w-5 h-5" />
                 </div>
                 <div>
@@ -2193,8 +2129,8 @@ function MemberTasksView({ membership, user, onRefresh }) {
                 </div>
               </div>
 
-              <div className="p-4 bg-slate-50/60 rounded-2xl border border-slate-200/60 flex items-center gap-3.5">
-                <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center shrink-0">
+              <div className="p-4 bg-slate-50/60 rounded-lg border border-slate-200/60 flex items-center gap-3.5">
+                <div className="w-10 h-10 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center shrink-0">
                   <FiClock className="w-5 h-5" />
                 </div>
                 <div>
@@ -2203,8 +2139,8 @@ function MemberTasksView({ membership, user, onRefresh }) {
                 </div>
               </div>
 
-              <div className="p-4 bg-slate-50/60 rounded-2xl border border-slate-200/60 flex items-center gap-3.5">
-                <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
+              <div className="p-4 bg-slate-50/60 rounded-lg border border-slate-200/60 flex items-center gap-3.5">
+                <div className="w-10 h-10 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
                   <FiActivity className="w-5 h-5" />
                 </div>
                 <div>
@@ -2213,8 +2149,8 @@ function MemberTasksView({ membership, user, onRefresh }) {
                 </div>
               </div>
 
-              <div className="p-4 bg-slate-50/60 rounded-2xl border border-slate-200/60 flex items-center gap-3.5">
-                <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+              <div className="p-4 bg-slate-50/60 rounded-lg border border-slate-200/60 flex items-center gap-3.5">
+                <div className="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
                   <FiCheck className="w-5 h-5" />
                 </div>
                 <div>
@@ -2225,7 +2161,7 @@ function MemberTasksView({ membership, user, onRefresh }) {
             </div>
 
             {/* Filters & Search */}
-            <div className="bg-slate-50/60 rounded-2xl border border-slate-200/60 p-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+            <div className="bg-slate-50/60 rounded-lg border border-slate-200/60 p-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
               <div className="relative flex-1 max-w-sm">
                 <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <input
@@ -2233,7 +2169,7 @@ function MemberTasksView({ membership, user, onRefresh }) {
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Search by title, description or ID..."
-                  className="w-full pl-9 pr-3 py-1.5 text-xs bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-600"
+                  className="w-full pl-9 pr-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-[#0F766E]"
                 />
               </div>
 
@@ -2241,7 +2177,7 @@ function MemberTasksView({ membership, user, onRefresh }) {
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
-                  className="px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-xl outline-none text-slate-700 font-medium"
+                  className="px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg outline-none text-slate-700 font-medium"
                 >
                   <option value="all">All Statuses</option>
                   <option value="todo">To Do</option>
@@ -2253,7 +2189,7 @@ function MemberTasksView({ membership, user, onRefresh }) {
                 <select
                   value={priorityFilter}
                   onChange={(e) => setPriorityFilter(e.target.value)}
-                  className="px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-xl outline-none text-slate-700 font-medium"
+                  className="px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg outline-none text-slate-700 font-medium"
                 >
                   <option value="all">All Priorities</option>
                   <option value="urgent">Urgent</option>
@@ -2267,11 +2203,11 @@ function MemberTasksView({ membership, user, onRefresh }) {
             {/* Task Cards List */}
             <div className="space-y-3">
               {loadingTasks ? (
-                <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center text-xs text-slate-400">
+                <div className="bg-white rounded-lg border border-slate-200 p-12 text-center text-xs text-slate-400">
                   Loading your assigned tasks...
                 </div>
               ) : filteredTasks.length === 0 ? (
-                <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center space-y-2">
+                <div className="bg-white rounded-lg border border-slate-200 p-12 text-center space-y-2">
                   <FiLayers className="w-8 h-8 text-slate-300 mx-auto" />
                   <h3 className="text-sm font-bold text-slate-800">No Assigned Tasks Found</h3>
                   <p className="text-xs text-slate-500 max-w-sm mx-auto">
@@ -2282,11 +2218,11 @@ function MemberTasksView({ membership, user, onRefresh }) {
                 filteredTasks.map((task) => (
                   <div
                     key={task.id}
-                    className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs hover:shadow-md transition-shadow space-y-3"
+                    className="bg-white rounded-lg border border-slate-200/80 p-5 shadow-xs hover:shadow-md transition-shadow space-y-3"
                   >
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
                       <div className="flex items-center gap-2.5">
-                        <span className="font-mono text-xs font-bold text-blue-600 bg-blue-50 px-2.5 py-0.5 rounded-md">
+                        <span className="font-mono text-xs font-bold text-[#0F766E] bg-teal-50 px-2.5 py-0.5 rounded-lg">
                           {task.id}
                         </span>
                         <span className="text-[11px] font-bold text-slate-500">
@@ -2296,7 +2232,7 @@ function MemberTasksView({ membership, user, onRefresh }) {
 
                       <div className="flex items-center gap-2">
                         <span
-                          className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
+                          className={`px-2.5 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wider border ${
                             priorityStyles[task.priority] || priorityStyles.medium
                           }`}
                         >
@@ -2324,7 +2260,7 @@ function MemberTasksView({ membership, user, onRefresh }) {
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-bold text-slate-500">Status:</span>
                         <span
-                          className={`px-2 py-0.5 rounded-md text-xs font-semibold ${
+                          className={`px-2 py-0.5 rounded-lg text-xs font-semibold ${
                             statusStyles[task.status] || statusStyles.todo
                           }`}
                         >
@@ -2370,7 +2306,7 @@ function MemberTasksView({ membership, user, onRefresh }) {
             </div>
 
             {memberProjects.length === 0 ? (
-              <div className="bg-slate-50/60 rounded-2xl border border-slate-200/80 p-12 text-center space-y-2">
+              <div className="bg-slate-50/60 rounded-lg border border-slate-200/80 p-12 text-center space-y-2">
                 <FiFolder className="w-8 h-8 text-slate-300 mx-auto" />
                 <h3 className="text-sm font-bold text-slate-800">No Projects Assigned Yet</h3>
                 <p className="text-xs text-slate-500 max-w-sm mx-auto">
@@ -2390,17 +2326,17 @@ function MemberTasksView({ membership, user, onRefresh }) {
                   return (
                     <div
                       key={proj.id}
-                      className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs hover:shadow-md transition-all flex flex-col justify-between gap-4"
+                      className="bg-white rounded-lg border border-slate-200/80 p-5 shadow-xs hover:shadow-md transition-all flex flex-col justify-between gap-4"
                     >
                       <div className="space-y-2.5">
                         <div className="flex items-start justify-between gap-2">
                           <h4 className="font-black text-slate-900 text-sm">{proj.name}</h4>
                           <span
-                            className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                            className={`px-2.5 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wider ${
                               proj.status === "completed"
                                 ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
                                 : proj.status === "in_progress"
-                                ? "bg-blue-50 text-blue-700 border border-blue-200"
+                                ? "bg-teal-50 text-[#0F766E] border border-teal-200"
                                 : "bg-slate-100 text-slate-700 border border-slate-200"
                             }`}
                           >
@@ -2424,7 +2360,7 @@ function MemberTasksView({ membership, user, onRefresh }) {
                               {managers.map((m, idx) => (
                                 <span
                                   key={idx}
-                                  className="text-[11px] font-medium text-purple-700 bg-purple-50 px-2 py-0.5 rounded-md border border-purple-200"
+                                  className="text-[11px] font-medium text-purple-700 bg-purple-50 px-2 py-0.5 rounded-lg border border-purple-200"
                                 >
                                   {m.profiles?.full_name || m.user_id}
                                 </span>
@@ -2461,14 +2397,14 @@ function MemberTasksView({ membership, user, onRefresh }) {
                         <button
                           type="button"
                           onClick={() => setSelectedProject(proj)}
-                          className="flex-1 py-1.5 px-3 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors"
+                          className="flex-1 py-1.5 px-3 rounded-lg border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors"
                         >
                           View Details
                         </button>
                         <button
                           type="button"
                           onClick={() => router.push(`/projects?projectId=${proj.id}`)}
-                          className="py-1.5 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-colors flex items-center gap-1.5"
+                          className="py-1.5 px-3 rounded-lg bg-[#0F766E] hover:bg-[#0D655E] active:bg-[#115E59] text-white text-xs font-bold transition-all shadow-sm shadow-teal-900/20 flex items-center gap-1.5 cursor-pointer"
                         >
                           <FiLayers className="w-3.5 h-3.5" />
                           <span>Board</span>
@@ -2504,7 +2440,7 @@ function MemberTasksView({ membership, user, onRefresh }) {
                   value={teamSearch}
                   onChange={(e) => setTeamSearch(e.target.value)}
                   placeholder="Search team members..."
-                  className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-blue-600"
+                  className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg outline-none focus:bg-white focus:ring-2 focus:ring-[#0F766E]"
                 />
               </div>
             </div>
@@ -2550,7 +2486,7 @@ function MemberTasksView({ membership, user, onRefresh }) {
                                   {profile?.full_name || "Team Member"}
                                 </p>
                                 {m.user_id === user?.id && (
-                                  <span className="text-[10px] text-blue-600 font-semibold">
+                                  <span className="text-[10px] text-[#0F766E] font-semibold">
                                     (You)
                                   </span>
                                 )}
@@ -2563,19 +2499,19 @@ function MemberTasksView({ membership, user, onRefresh }) {
                           <td className="py-3 px-3">
                             <div className="flex flex-wrap items-center gap-1.5">
                               <span
-                                className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
+                                className={`px-2.5 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wider border ${
                                   roleBadgeClasses[m.role] || roleBadgeClasses.member
                                 }`}
                               >
                                 {m.role}
                               </span>
                               {m.role === OWNER_ROLE && (
-                                <span className="text-[10px] font-semibold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                                <span className="text-[10px] font-semibold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-200">
                                   Workspace Creator
                                 </span>
                               )}
                               {m.role === MANAGER_ROLE && (
-                                <span className="text-[10px] font-semibold text-purple-800 bg-purple-50 px-2 py-0.5 rounded-full border border-purple-200">
+                                <span className="text-[10px] font-semibold text-purple-800 bg-purple-50 px-2 py-0.5 rounded-lg border border-purple-200">
                                   Who Created You
                                 </span>
                               )}

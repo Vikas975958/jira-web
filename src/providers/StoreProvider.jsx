@@ -5,6 +5,8 @@ import { Provider } from "react-redux";
 import { PersistGate } from "redux-persist/integration/react";
 import { store, persistor } from "@/store";
 import { ToastContainer } from "react-toastify";
+import { ConfigProvider } from "antd";
+import primary from "@/utils/theme";
 
 export default function StoreProvider({ children }) {
   return (
@@ -17,18 +19,27 @@ export default function StoreProvider({ children }) {
         }
         persistor={persistor}
       >
-        <ToastContainer
-          position="top-right"
-          autoClose={3000}
-          hideProgressBar={false}
-          newestOnTop={false}
-          closeOnClick
-          rtl={false}
-          pauseOnFocusLoss
-          draggable
-          pauseOnHover
-        />
-        {children}
+        <ConfigProvider
+          theme={{
+            token: {
+              colorPrimary: primary,
+              borderRadius: 12,
+            },
+          }}
+        >
+          <ToastContainer
+            position="top-right"
+            autoClose={3000}
+            hideProgressBar={false}
+            newestOnTop={false}
+            closeOnClick
+            rtl={false}
+            pauseOnFocusLoss
+            draggable
+            pauseOnHover
+          />
+          {children}
+        </ConfigProvider>
       </PersistGate>
     </Provider>
   );
