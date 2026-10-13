@@ -36,14 +36,26 @@ export const taskService = {
         .select("*")
         .eq("organization_id", organizationId);
 
-      // If user is member, filter by assignee
-      if (userRole === MEMBER_ROLE) {
-        if (userId) {
-          query = query.or(`assignee_id.eq.${userId},assignee.ilike.%${userEmail}%,assignee.ilike.%${userName}%`);
+      // If user is member, filter by assignee_id or created_by
+      if (userRole === MEMBER_ROLE && userId) {
+        query = query.or(`assignee_id.eq.${userId},created_by.eq.${userId}`);
+      }
+
+      let { data, error } = await query.order("created_at", { ascending: false });
+
+      // Fallback: If query with filter returned an error, query org directly and rely on RLS/application filtering
+      if (error && userRole === MEMBER_ROLE) {
+        const retry = await supabase
+          .from("tasks")
+          .select("*")
+          .eq("organization_id", organizationId)
+          .order("created_at", { ascending: false });
+        if (!retry.error && retry.data) {
+          data = retry.data;
+          error = null;
         }
       }
 
-      const { data, error } = await query.order("created_at", { ascending: false });
       if (!error && data) {
         tasksFromDb = data;
       }
@@ -57,7 +69,41 @@ export const taskService = {
       allTasks = this.getLocalTasks(organizationId);
     }
 
-    // 3. Strict application-level enforcement of role restrictions
+    // 3. Auto-heal missing assignee_id on existing tasks for owners/managers
+    if ((userRole === OWNER_ROLE || userRole === MANAGER_ROLE) && tasksFromDb && tasksFromDb.length > 0) {
+      const tasksMissingAssigneeId = tasksFromDb.filter(
+        (t) => !t.assignee_id && t.assignee && t.assignee.trim().toLowerCase() !== "unassigned"
+      );
+      if (tasksMissingAssigneeId.length > 0) {
+        (async () => {
+          try {
+            const { data: profiles } = await supabase
+              .from("profiles")
+              .select("id, full_name, email");
+            if (profiles && profiles.length > 0) {
+              for (const t of tasksMissingAssigneeId) {
+                const cleanT = t.assignee.toLowerCase().trim();
+                const matched = profiles.find(
+                  (p) =>
+                    (p.full_name && p.full_name.toLowerCase().trim() === cleanT) ||
+                    (p.email && p.email.toLowerCase().trim() === cleanT) ||
+                    (p.full_name && cleanT.includes(p.full_name.toLowerCase().trim()))
+                );
+                if (matched?.id) {
+                  t.assignee_id = matched.id;
+                  await supabase
+                    .from("tasks")
+                    .update({ assignee_id: matched.id })
+                    .eq("id", t.id);
+                }
+              }
+            }
+          } catch (_) {}
+        })();
+      }
+    }
+
+    // 4. Strict application-level enforcement of role restrictions
     if (userRole === MEMBER_ROLE) {
       const cleanName = (userName || "").trim().toLowerCase();
       const cleanEmail = (userEmail || "").trim().toLowerCase();
@@ -68,13 +114,18 @@ export const taskService = {
           return false;
         }
 
-        // Assigned to this user by ID, email, or full name
-        const matchId = userId && task.assignee_id === userId;
-        const taskAssignee = (task.assignee || "").toLowerCase();
-        const matchName = cleanName && (taskAssignee.includes(cleanName) || cleanName.includes(taskAssignee));
+        // Assigned to this user by ID, email, or full name, OR created by this user
+        const matchId = userId && (task.assignee_id === userId || task.assigneeId === userId);
+        const matchCreator = userId && (task.created_by === userId || task.createdBy === userId);
+        const taskAssignee = (task.assignee || "").toLowerCase().trim();
+        const matchName = cleanName && (
+          taskAssignee === cleanName ||
+          taskAssignee.includes(cleanName) ||
+          cleanName.includes(taskAssignee)
+        );
         const matchEmail = cleanEmail && taskAssignee.includes(cleanEmail);
 
-        return matchId || matchName || matchEmail;
+        return matchId || matchCreator || matchName || matchEmail;
       });
     }
 
@@ -104,10 +155,35 @@ export const taskService = {
       createdBy = null,
     } = taskData;
 
-    const nextId = `WG-${Math.floor(100 + Math.random() * 900)}`;
+    let finalAssigneeId = assigneeId || taskData.assignee_id || null;
+    const finalCreatedBy = createdBy || taskData.created_by || null;
+    const finalProjectName = taskData.project_name || taskData.projectName || projectName || "Main Project";
+    const finalDueDate = taskData.due_date || taskData.dueDate || dueDate || null;
 
-    const newTask = {
-      id: nextId,
+    // Fallback: If assigneeId is missing but assignee name/email is provided, resolve it
+    if (!finalAssigneeId && assignee && assignee.trim().toLowerCase() !== "unassigned") {
+      try {
+        const cleanAssignee = assignee.toLowerCase().trim();
+        const { data: matchedProf } = await supabase
+          .from("profiles")
+          .select("id, full_name, email");
+        if (matchedProf && matchedProf.length > 0) {
+          const match = matchedProf.find(
+            (p) =>
+              (p.full_name && p.full_name.toLowerCase().trim() === cleanAssignee) ||
+              (p.email && p.email.toLowerCase().trim() === cleanAssignee) ||
+              (p.full_name && cleanAssignee.includes(p.full_name.toLowerCase().trim()))
+          );
+          if (match?.id) {
+            finalAssigneeId = match.id;
+          }
+        }
+      } catch (_) {}
+    }
+
+    const nextId = taskData.id || `JIRA-${Math.floor(100 + Math.random() * 900)}`;
+
+    const insertPayload = {
       organization_id: organizationId,
       title: title?.trim(),
       description: description?.trim() || "",
@@ -115,19 +191,21 @@ export const taskService = {
       priority,
       type,
       assignee: assignee?.trim() || "Unassigned",
-      assignee_id: assigneeId || null,
-      project_name: projectName,
-      due_date: dueDate || null,
-      created_by: createdBy,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+      assignee_id: finalAssigneeId,
+      project_name: finalProjectName,
+      due_date: finalDueDate,
+      created_by: finalCreatedBy,
     };
+
+    if (taskData.id) {
+      insertPayload.id = taskData.id;
+    }
 
     // 1. Try Supabase insert
     try {
       const { data, error } = await supabase
         .from("tasks")
-        .insert(newTask)
+        .insert(insertPayload)
         .select()
         .single();
 
@@ -138,8 +216,14 @@ export const taskService = {
     } catch (_) {}
 
     // 2. Fallback to localStorage
-    this.saveLocalTask(newTask);
-    return newTask;
+    const fallbackTask = {
+      id: nextId,
+      ...insertPayload,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    this.saveLocalTask(fallbackTask);
+    return fallbackTask;
   },
 
   /**

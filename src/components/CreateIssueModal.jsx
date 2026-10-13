@@ -25,6 +25,7 @@ export default function CreateIssueModal({
   const [priority, setPriority] = useState("medium");
   const [storyPoints, setStoryPoints] = useState(3);
   const [assignee, setAssignee] = useState("");
+  const [assigneeId, setAssigneeId] = useState("");
 
   // Sync default projectId when modal opens
   React.useEffect(() => {
@@ -33,12 +34,13 @@ export default function CreateIssueModal({
     }
   }, [isOpen, selectedProjectId, projects]);
 
-  // Set default assignee when modal opens or members load
+  // Set default assignee and assigneeId when modal opens or user loads
   React.useEffect(() => {
-    if (isOpen && !assignee && user) {
-      setAssignee(user.full_name || user.name || "");
+    if (isOpen && !assigneeId && user) {
+      setAssigneeId(user.id || "");
+      setAssignee(user.full_name || user.name || user.email || "");
     }
-  }, [isOpen, user, assignee]);
+  }, [isOpen, user, assigneeId]);
 
   if (!isOpen) return null;
 
@@ -48,6 +50,35 @@ export default function CreateIssueModal({
 
     const chosenProj = projects.find((p) => p.id === projectId);
 
+    let finalAssigneeId = assigneeId || null;
+    let finalAssigneeName = assignee.trim() || user?.full_name || user?.name || "Unassigned";
+
+    // Auto-resolve assigneeId from teamMembers if needed
+    if (!finalAssigneeId && finalAssigneeName && finalAssigneeName !== "Unassigned" && teamMembers?.length > 0) {
+      const match = teamMembers.find(
+        (m) =>
+          (m.full_name && m.full_name.toLowerCase().trim() === finalAssigneeName.toLowerCase().trim()) ||
+          (m.email && m.email.toLowerCase().trim() === finalAssigneeName.toLowerCase().trim()) ||
+          (m.user_id && m.user_id === finalAssigneeName)
+      );
+      if (match) {
+        finalAssigneeId = match.user_id || match.profiles?.id || match.id || null;
+        if (!finalAssigneeName || finalAssigneeName === match.user_id) {
+          finalAssigneeName = match.full_name || match.email || "Team Member";
+        }
+      }
+    }
+
+    if (
+      !finalAssigneeId &&
+      user &&
+      (finalAssigneeName.toLowerCase() === (user.full_name || "").toLowerCase() ||
+        finalAssigneeName.toLowerCase() === (user.email || "").toLowerCase() ||
+        finalAssigneeName.toLowerCase() === (user.name || "").toLowerCase())
+    ) {
+      finalAssigneeId = user.id;
+    }
+
     if (onAddTicket) {
       onAddTicket({
         title: title.trim(),
@@ -56,7 +87,9 @@ export default function CreateIssueModal({
         status,
         priority,
         storyPoints: Number(storyPoints) || 1,
-        assignee: assignee.trim() || user?.full_name || "Unassigned",
+        assignee: finalAssigneeName,
+        assigneeId: finalAssigneeId,
+        assignee_id: finalAssigneeId,
         tags: [],
         projectId: projectId || null,
         project_id: projectId || null,
@@ -67,6 +100,8 @@ export default function CreateIssueModal({
 
     setTitle("");
     setDescription("");
+    setAssigneeId(user?.id || "");
+    setAssignee(user?.full_name || user?.name || "");
     if (onClose) onClose();
   };
 
@@ -234,22 +269,51 @@ export default function CreateIssueModal({
               </label>
               {teamMembers && teamMembers.length > 0 ? (
                 <select
-                  value={assignee}
-                  onChange={(e) => setAssignee(e.target.value)}
+                  value={assigneeId}
+                  onChange={(e) => {
+                    const selId = e.target.value;
+                    setAssigneeId(selId);
+                    if (!selId) {
+                      setAssignee("Unassigned");
+                    } else {
+                      const found = teamMembers.find(
+                        (m) => (m.user_id || m.profiles?.id || m.id) === selId
+                      );
+                      const name = found?.full_name || found?.name || found?.email || "Team Member";
+                      setAssignee(name);
+                    }
+                  }}
                   className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-[#0F766E]"
                 >
                   <option value="">Unassigned</option>
-                  {teamMembers.map((member) => (
-                    <option key={member.user_id || member.email} value={member.full_name || member.email}>
-                      {member.full_name || member.email} ({member.role})
-                    </option>
-                  ))}
+                  {teamMembers.map((member) => {
+                    const mId = member.user_id || member.profiles?.id || member.id;
+                    const mName = member.full_name || member.name || member.email || "Member";
+                    return (
+                      <option key={mId || member.email} value={mId}>
+                        {mName} ({member.role})
+                      </option>
+                    );
+                  })}
                 </select>
               ) : (
                 <input
                   type="text"
                   value={assignee}
-                  onChange={(e) => setAssignee(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setAssignee(val);
+                    if (
+                      user &&
+                      (val.trim().toLowerCase() === (user.full_name || "").toLowerCase() ||
+                        val.trim().toLowerCase() === (user.email || "").toLowerCase() ||
+                        val.trim().toLowerCase() === (user.name || "").toLowerCase())
+                    ) {
+                      setAssigneeId(user.id);
+                    } else {
+                      setAssigneeId("");
+                    }
+                  }}
                   placeholder="Assignee name"
                   className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 outline-none focus:ring-2 focus:ring-[#0F766E]"
                 />

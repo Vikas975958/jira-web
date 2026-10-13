@@ -146,6 +146,9 @@ function ProjectsBoardContent() {
         projectId: newTicket.projectId || selectedProject?.id || null,
         project_name: newTicket.projectName || selectedProject?.name || null,
         createdBy: user?.id,
+        created_by: user?.id,
+        assigneeId: newTicket.assigneeId || newTicket.assignee_id || null,
+        assignee_id: newTicket.assigneeId || newTicket.assignee_id || null,
       });
       toast.success(`Created issue ${created.id}: "${created.title.slice(0, 30)}..."`);
       await loadTickets();
