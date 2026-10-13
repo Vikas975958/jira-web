@@ -43,12 +43,12 @@ export default function SignInPage() {
   };
 
   const handleQuickDemoFill = () => {
-    setEmail("developer@jira.internal");
-    setPassword("JiraDemo2026!");
+    setEmail("developer@workgrid.internal");
+    setPassword("WorkGridDemo2026!");
   };
 
   return (
-    <div className="h-screen w-full flex bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-100 text-slate-800 overflow-hidden select-none">
+    <div className="h-screen w-full flex bg-gradient-to-br from-slate-50 via-teal-50/30 to-slate-100 text-slate-800 overflow-hidden select-none">
       {/* Left Column: Sign In Form */}
       <div className="w-full lg:w-1/2 h-full flex flex-col justify-between px-6 py-6 sm:px-10 lg:px-14 xl:px-16 overflow-hidden">
         {/* Brand Header */}
@@ -56,7 +56,7 @@ export default function SignInPage() {
           <JiraLogo className="w-9 h-9" textColor="text-slate-900" />
           <Link
             href="/signup"
-            className="text-xs sm:text-sm font-semibold text-blue-600 hover:text-blue-800 transition-colors"
+            className="text-xs sm:text-sm font-semibold text-[#0F766E] hover:text-teal-800 transition-colors"
           >
             Sign up for an account →
           </Link>
@@ -76,7 +76,7 @@ export default function SignInPage() {
 
           {/* Error Message Alert */}
           {errorMsg && (
-            <div className="mb-4 p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs sm:text-sm flex items-start gap-3 animate-fadeIn">
+            <div className="mb-4 p-3.5 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs sm:text-sm flex items-start gap-3 animate-fadeIn">
               <span className="text-base">⚠️</span>
               <div className="flex-1">
                 <p className="font-semibold">Sign in failed</p>
@@ -105,7 +105,7 @@ export default function SignInPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="name@company.com"
-                  className="w-full h-12 pl-11 pr-4 bg-white border border-slate-300 rounded-xl text-slate-900 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all shadow-2xs placeholder:text-slate-400"
+                  className="w-full h-12 pl-11 pr-4 bg-white border border-slate-300 rounded-lg text-slate-900 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-[#0F766E] focus:border-transparent transition-all shadow-2xs placeholder:text-slate-400"
                 />
               </div>
             </div>
@@ -124,7 +124,7 @@ export default function SignInPage() {
                     e.preventDefault();
                     toast.info("Password reset link will be sent to your email.");
                   }}
-                  className="text-xs sm:text-sm font-semibold text-blue-600 hover:text-blue-800"
+                  className="text-xs sm:text-sm font-semibold text-[#0F766E] hover:text-teal-800"
                 >
                   Forgot password?
                 </a>
@@ -140,7 +140,7 @@ export default function SignInPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••••••"
-                  className="w-full h-12 pl-11 pr-11 bg-white border border-slate-300 rounded-xl text-slate-900 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all shadow-2xs placeholder:text-slate-400"
+                  className="w-full h-12 pl-11 pr-11 bg-white border border-slate-300 rounded-lg text-slate-900 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-[#0F766E] focus:border-transparent transition-all shadow-2xs placeholder:text-slate-400"
                 />
                 <button
                   type="button"
@@ -162,7 +162,7 @@ export default function SignInPage() {
                 <input
                   type="checkbox"
                   defaultChecked
-                  className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                  className="w-4 h-4 rounded-lg border-slate-300 text-[#0F766E] focus:ring-[#0F766E] cursor-pointer"
                 />
                 <span className="text-xs sm:text-sm text-slate-600">Keep me signed in</span>
               </label>
@@ -170,7 +170,7 @@ export default function SignInPage() {
               <button
                 type="button"
                 onClick={handleQuickDemoFill}
-                className="text-xs sm:text-sm font-medium text-slate-500 hover:text-blue-600 underline decoration-dotted cursor-pointer"
+                className="text-xs sm:text-sm font-medium text-slate-500 hover:text-[#0F766E] underline decoration-dotted cursor-pointer"
               >
                 Autofill test demo
               </button>
@@ -179,12 +179,12 @@ export default function SignInPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full h-12 px-5 bg-[#0052CC] hover:bg-[#0747A6] active:scale-[0.99] text-white font-bold rounded-xl shadow-lg shadow-blue-500/20 transition-all flex items-center justify-center gap-2.5 disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer text-sm sm:text-base"
+              className="w-full h-12 px-5 bg-[#0F766E] hover:bg-[#0D655E] active:bg-[#115E59] active:scale-[0.99] text-white font-bold rounded-lg shadow-lg shadow-teal-900/20 transition-all flex items-center justify-center gap-2.5 disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer text-sm sm:text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0F766E] focus-visible:ring-offset-2"
             >
               {loading ? (
                 <>
                   <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  <span>Signing in with Supabase...</span>
+                  <span>Signing in...</span>
                 </>
               ) : (
                 <>
@@ -210,7 +210,7 @@ export default function SignInPage() {
 
         {/* Footer info */}
         <div className="w-full max-w-[500px] mx-auto pt-3 border-t border-slate-200/60 text-xs text-slate-400 flex flex-wrap items-center justify-between gap-2 shrink-0">
-          <p>© 2026 Atlassian Jira Cloud Replica. Powered by Supabase Auth.</p>
+          <p>© 2026 WorkGrid Cloud. All rights reserved.</p>
           <div className="flex gap-4">
             <a href="#" className="hover:underline">Privacy</a>
             <a href="#" className="hover:underline">Terms</a>
@@ -220,14 +220,14 @@ export default function SignInPage() {
       </div>
 
       {/* Right Column: Hero Visual Panel */}
-      <div className="hidden lg:flex w-1/2 h-full bg-gradient-to-br from-[#0052CC] via-[#0747A6] to-[#091E42] text-white px-10 py-6 lg:px-14 xl:px-18 flex-col justify-between relative overflow-hidden">
+      <div className="hidden lg:flex w-1/2 h-full bg-gradient-to-br from-[#0F766E] via-[#115E59] to-[#042F2E] text-white px-10 py-6 lg:px-14 xl:px-18 flex-col justify-between relative overflow-hidden">
         {/* Glows */}
-        <div className="absolute -top-32 -right-32 w-96 h-96 bg-blue-400/20 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-10 left-10 w-80 h-80 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -top-32 -right-32 w-96 h-96 bg-teal-400/20 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-10 left-10 w-80 h-80 bg-emerald-500/20 rounded-full blur-3xl pointer-events-none" />
 
         {/* Center Content */}
         <div className="relative z-10 w-full max-w-[500px] mx-auto my-auto space-y-6">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-xs font-semibold text-blue-100">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-white/10 backdrop-blur-md border border-white/20 text-xs font-semibold text-teal-100">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
             Active Sprint 24 • Engineering & Product
           </div>
@@ -235,18 +235,18 @@ export default function SignInPage() {
           <h2 className="text-3xl xl:text-4xl 2xl:text-5xl font-black leading-tight text-white tracking-tight">
             Move fast, stay aligned, and deliver great software.
           </h2>
-          <p className="text-blue-100/80 text-sm sm:text-base leading-relaxed">
+          <p className="text-teal-100/80 text-sm sm:text-base leading-relaxed">
             The #1 software development tool used by agile teams. Track bugs, plan sprints, and visualize workflows in real-time.
           </p>
 
           {/* Feature List */}
           <div className="space-y-3 pt-1">
             {[
-              "Interactive Kanban & Scrum board workflows",
-              "Instant Supabase user registration and login",
-              "Enterprise-grade session management with Redux",
+              "Interactive Kanban and agile sprint workflows",
+              "Real-time team collaboration and role-based permissions",
+              "Comprehensive task tracking and backlog management",
             ].map((feature, idx) => (
-              <div key={idx} className="flex items-center gap-3 text-sm sm:text-base text-blue-100">
+              <div key={idx} className="flex items-center gap-3 text-sm sm:text-base text-teal-100">
                 <FiCheckCircle className="w-5 h-5 text-emerald-300 shrink-0" />
                 <span>{feature}</span>
               </div>
@@ -255,7 +255,7 @@ export default function SignInPage() {
         </div>
 
         {/* Footer */}
-        <div className="relative z-10 w-full max-w-[500px] mx-auto text-xs text-blue-200/60 shrink-0">
+        <div className="relative z-10 w-full max-w-[500px] mx-auto text-xs text-teal-200/60 shrink-0">
           Crafted for high performance agile engineering teams.
         </div>
       </div>

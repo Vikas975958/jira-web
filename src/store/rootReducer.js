@@ -1,9 +1,11 @@
-import { combineReducers, createAction } from "@reduxjs/toolkit";
+import { combineReducers } from "@reduxjs/toolkit";
 import authSlice from "./slices/authSlices";
-export const emptyStore = createAction("emptyStore");
+import { emptyStore } from "./actions";
+
+export { emptyStore };
 
 const rootReducer = combineReducers({
-    authSlice,
+  authSlice,
 });
 
 export default rootReducer;

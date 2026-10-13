@@ -21,14 +21,14 @@ function PrivateLayoutContent({ children }) {
   const showNav = !isCreateOrg && !loadingOrgs && hasOrganization;
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-100 text-slate-800">
-      {/* Top Jira Header */}
+    <div className="h-screen max-h-screen flex flex-col bg-slate-100 text-slate-800 overflow-hidden">
+      {/* Top WorkGrid Header */}
       {showNav && <Header />}
 
       {/* Main Container with Sidebar + Content */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden min-h-0">
         {showNav && <Sidebar />}
-        <main className="flex-1 overflow-y-auto bg-white min-h-0">
+        <main className="flex-1 overflow-y-auto bg-white min-h-0 h-full">
           {children}
         </main>
       </div>

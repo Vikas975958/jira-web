@@ -10,7 +10,24 @@ export default {
       colors: {
         background: "var(--background)",
         foreground: "var(--foreground)",
-        primary: "var(--primary)",
+        primary: {
+          DEFAULT: "var(--primary)",
+          hover: "var(--primary-hover)",
+          active: "var(--primary-active)",
+          light: "var(--primary-light)",
+          border: "var(--primary-border)",
+          ring: "var(--primary-ring)",
+        },
+      },
+      borderRadius: {
+        DEFAULT: "var(--border-radius, 8px)",
+        sm: "var(--border-radius, 8px)",
+        md: "var(--border-radius, 8px)",
+        lg: "var(--border-radius, 8px)",
+        xl: "var(--border-radius, 8px)",
+        "2xl": "var(--border-radius, 8px)",
+        "3xl": "var(--border-radius, 8px)",
+        full: "9999px",
       },
       screens: {
         xs: "480px",

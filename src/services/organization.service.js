@@ -1421,7 +1421,9 @@ export const organizationService = {
       // Fallback local project invites
       if (typeof window !== "undefined") {
         try {
-          const raw = localStorage.getItem("jira_project_invitations_data");
+          const raw =
+            localStorage.getItem("workgrid_project_invitations_data") ||
+            localStorage.getItem("jira_project_invitations_data");
           if (raw) {
             const list = JSON.parse(raw);
             const matches = list.filter(
@@ -1582,7 +1584,9 @@ export const organizationService = {
     // 3. Check in local project invites fallback
     if (!data && typeof window !== "undefined") {
       try {
-        const raw = localStorage.getItem("jira_project_invitations_data");
+        const raw =
+          localStorage.getItem("workgrid_project_invitations_data") ||
+          localStorage.getItem("jira_project_invitations_data");
         if (raw) {
           const list = JSON.parse(raw);
           const found = list.find(
@@ -1652,7 +1656,9 @@ export const organizationService = {
     if (data && !data.organizations && (projectId || data.project_id) && typeof window !== "undefined") {
       try {
         const pId = projectId || data.project_id;
-        const rawProj = localStorage.getItem("jira_projects_data");
+        const rawProj =
+          localStorage.getItem("workgrid_projects_data") ||
+          localStorage.getItem("jira_projects_data");
         if (rawProj) {
           const pList = JSON.parse(rawProj);
           const foundProj = pList.find((p) => p.id === pId);
@@ -1873,6 +1879,32 @@ export const organizationService = {
       role: normalizedRole,
       request_id: req?.id,
     };
+  },
+
+  /**
+   * Update organization details
+   * @param {string} orgId
+   * @param {Object} updates
+   * @returns {Promise<Object>}
+   */
+  async updateOrganization(orgId, updates) {
+    if (!orgId) throw new Error("Organization ID is required.");
+    const payload = {
+      ...updates,
+      updated_at: new Date().toISOString(),
+    };
+    const { data, error } = await supabase
+      .from("organizations")
+      .update(payload)
+      .eq("id", orgId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("updateOrganization error:", error);
+      throw error;
+    }
+    return data;
   },
 };
 

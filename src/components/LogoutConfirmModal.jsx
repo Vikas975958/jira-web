@@ -3,6 +3,7 @@
 import React, { useEffect } from "react";
 import { FiAlertTriangle, FiLogOut, FiX } from "react-icons/fi";
 import { getNameInitials } from "@/utils/commonFunction";
+import Portal from "@/components/Portal";
 
 export default function LogoutConfirmModal({
   isOpen,
@@ -29,14 +30,15 @@ export default function LogoutConfirmModal({
   const userInitials = getNameInitials(userName) || "U";
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs select-none animate-fadeIn"
+    <Portal>
+      <div
+        className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs select-none animate-fadeIn"
       onClick={() => {
         if (!isLoading) onClose();
       }}
     >
       <div
-        className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-md overflow-hidden animate-scaleUp"
+        className="bg-white rounded-lg shadow-2xl border border-slate-200 w-full max-w-md overflow-hidden animate-scaleUp"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -63,12 +65,12 @@ export default function LogoutConfirmModal({
         {/* Content */}
         <div className="p-6 space-y-4">
           <p className="text-sm text-slate-600 leading-relaxed">
-            You will need to sign in again to access your Jira boards, sprint tasks, and project updates.
+            You will need to sign in again to access your WorkGrid boards, sprint tasks, and project updates.
           </p>
 
           {/* User Profile Card */}
-          <div className="flex items-center gap-3 p-3 bg-slate-50 border border-slate-200/80 rounded-xl">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-700 to-indigo-500 text-white font-bold text-xs flex items-center justify-center shadow-xs shrink-0">
+          <div className="flex items-center gap-3 p-3 bg-slate-50 border border-slate-200/80 rounded-lg">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#0F766E] to-teal-500 text-white font-bold text-xs flex items-center justify-center shadow-xs shrink-0">
               {userInitials}
             </div>
             <div className="flex-1 min-w-0">
@@ -128,5 +130,6 @@ export default function LogoutConfirmModal({
         </div>
       </div>
     </div>
-  );
+  </Portal>
+);
 }

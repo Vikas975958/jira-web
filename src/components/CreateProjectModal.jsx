@@ -19,6 +19,7 @@ import {
 } from "react-icons/fi";
 import projectService from "@/services/project.service";
 import { MEMBER_ROLE, MANAGER_ROLE, OWNER_ROLE } from "@/utils/constants";
+import Portal from "@/components/Portal";
 
 export default function CreateProjectModal({
   isOpen,
@@ -235,24 +236,25 @@ export default function CreateProjectModal({
   };
 
   return (
-    <div
-      ref={overlayRef}
-      onClick={handleOverlayClick}
-      className="fixed inset-0 z-[999] flex items-center justify-center p-4 select-none"
-      style={{ backgroundColor: "rgba(15, 23, 42, 0.65)", backdropFilter: "blur(4px)" }}
-    >
+    <Portal>
       <div
-        className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col"
-        style={{ maxHeight: "90vh", animation: "modalSlideIn 0.2s ease-out" }}
-        onClick={(e) => e.stopPropagation()}
+        ref={overlayRef}
+        onClick={handleOverlayClick}
+        className="fixed inset-0 z-[9999] flex items-center justify-center p-4 select-none"
+        style={{ backgroundColor: "rgba(15, 23, 42, 0.65)", backdropFilter: "blur(4px)" }}
       >
-        {/* Accent Top Bar */}
-        <div className="h-1.5 w-full bg-gradient-to-r from-[#0052CC] via-indigo-600 to-purple-600" />
+        <div
+          className="relative w-full max-w-2xl bg-white rounded-lg shadow-2xl overflow-hidden flex flex-col"
+          style={{ maxHeight: "90vh", animation: "modalSlideIn 0.2s ease-out" }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Accent Top Bar */}
+          <div className="h-1.5 w-full bg-gradient-to-r from-[#0F766E] via-teal-600 to-indigo-600" />
 
         {/* Modal Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50 shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center font-bold shadow-xs">
+            <div className="w-10 h-10 rounded-lg bg-teal-100 text-[#0F766E] flex items-center justify-center font-bold shadow-xs">
               <FiFolderPlus className="w-5 h-5" />
             </div>
             <div>
@@ -274,7 +276,7 @@ export default function CreateProjectModal({
         {/* Success View */}
         {createdResult ? (
           <div className="p-8 space-y-6 overflow-y-auto">
-            <div className="w-14 h-14 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center mx-auto shadow-sm">
+            <div className="w-14 h-14 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center mx-auto shadow-sm">
               <FiCheck className="w-8 h-8" />
             </div>
             <div className="text-center space-y-1">
@@ -286,7 +288,7 @@ export default function CreateProjectModal({
             </div>
 
             {createdResult.invitationsSent && createdResult.invitationsSent.length > 0 && (
-              <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
+              <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 space-y-3">
                 <h4 className="text-xs font-bold uppercase tracking-wider text-slate-600">
                   Project Invitations Generated ({createdResult.invitationsSent.length})
                 </h4>
@@ -298,7 +300,7 @@ export default function CreateProjectModal({
                     >
                       <div className="truncate">
                         <span className="font-bold text-slate-800">{inv.email}</span>
-                        <span className="ml-2 text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-blue-100 text-blue-800">
+                        <span className="ml-2 text-[10px] uppercase font-bold px-1.5 py-0.5 rounded-lg bg-teal-100 text-teal-800">
                           {inv.intended_role}
                         </span>
                       </div>
@@ -309,7 +311,7 @@ export default function CreateProjectModal({
                             navigator.clipboard.writeText(inv.signupUrl);
                             toast.success(`Copied invite link for ${inv.email}`);
                           }}
-                          className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 hover:text-blue-800 shrink-0 cursor-pointer"
+                          className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#0F766E] hover:text-[#0D655E] shrink-0 cursor-pointer"
                         >
                           <FiCopy className="w-3.5 h-3.5" />
                           <span>Copy Link</span>
@@ -325,7 +327,7 @@ export default function CreateProjectModal({
               <button
                 type="button"
                 onClick={onClose}
-                className="px-6 py-2.5 bg-[#0052CC] hover:bg-[#0747A6] text-white text-xs font-bold rounded-xl shadow-md transition-all cursor-pointer"
+                className="px-6 py-2.5 bg-[#0F766E] hover:bg-[#0D655E] active:bg-[#115E59] active:scale-[0.98] text-white text-xs font-bold rounded-lg shadow-md shadow-teal-900/20 transition-all cursor-pointer"
               >
                 Close & View Projects
               </button>
@@ -341,7 +343,7 @@ export default function CreateProjectModal({
                 onClick={() => setActiveTab("general")}
                 className={`py-3 px-3 text-xs font-bold border-b-2 transition-all cursor-pointer ${
                   activeTab === "general"
-                    ? "border-blue-600 text-blue-600"
+                    ? "border-[#0F766E] text-[#0F766E]"
                     : "border-transparent text-slate-500 hover:text-slate-800"
                 }`}
               >
@@ -352,12 +354,12 @@ export default function CreateProjectModal({
                 onClick={() => setActiveTab("team")}
                 className={`py-3 px-3 text-xs font-bold border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
                   activeTab === "team"
-                    ? "border-blue-600 text-blue-600"
+                    ? "border-[#0F766E] text-[#0F766E]"
                     : "border-transparent text-slate-500 hover:text-slate-800"
                 }`}
               >
                 <span>2. Assign Team</span>
-                <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-slate-200 text-slate-700">
+                <span className="text-[10px] px-1.5 py-0.2 rounded-lg bg-slate-200 text-slate-700">
                   {selectedManagerIds.length + selectedMemberIds.length}
                 </span>
               </button>
@@ -366,13 +368,13 @@ export default function CreateProjectModal({
                 onClick={() => setActiveTab("invite")}
                 className={`py-3 px-3 text-xs font-bold border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
                   activeTab === "invite"
-                    ? "border-blue-600 text-blue-600"
+                    ? "border-[#0F766E] text-[#0F766E]"
                     : "border-transparent text-slate-500 hover:text-slate-800"
                 }`}
               >
                 <span>3. Invite New Members</span>
                 {newInvites.length > 0 && (
-                  <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-blue-100 text-blue-800 font-bold">
+                  <span className="text-[10px] px-1.5 py-0.2 rounded-lg bg-teal-100 text-teal-800 font-bold">
                     {newInvites.length}
                   </span>
                 )}
@@ -381,7 +383,7 @@ export default function CreateProjectModal({
 
             {/* Error Message */}
             {errorMsg && (
-              <div className="mx-6 mt-4 p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 flex items-center gap-2">
+              <div className="mx-6 mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700 flex items-center gap-2">
                 <FiAlertCircle className="w-4 h-4 shrink-0 text-red-500" />
                 <span>{errorMsg}</span>
               </div>
@@ -402,7 +404,7 @@ export default function CreateProjectModal({
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       placeholder="e.g. Core Platform Modernization"
-                      className="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-slate-900"
+                      className="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-[#0F766E] focus:border-[#0F766E] transition-all text-slate-900"
                     />
                   </div>
 
@@ -415,7 +417,7 @@ export default function CreateProjectModal({
                       value={description}
                       onChange={(e) => setDescription(e.target.value)}
                       placeholder="High-level objectives, scope, or roadmap for this project..."
-                      className="w-full px-3.5 py-2.5 text-xs bg-white border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-slate-900"
+                      className="w-full px-3.5 py-2.5 text-xs bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-[#0F766E] focus:border-[#0F766E] transition-all text-slate-900"
                     />
                   </div>
 
@@ -427,7 +429,7 @@ export default function CreateProjectModal({
                       <select
                         value={status}
                         onChange={(e) => setStatus(e.target.value)}
-                        className="w-full px-3 py-2 text-xs font-semibold bg-white border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800"
+                        className="w-full px-3 py-2 text-xs font-semibold bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-[#0F766E] text-slate-800"
                       >
                         <option value="planning">📋 Planning</option>
                         <option value="active">⚡ Active</option>
@@ -444,7 +446,7 @@ export default function CreateProjectModal({
                         type="date"
                         value={startDate}
                         onChange={(e) => setStartDate(e.target.value)}
-                        className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800"
+                        className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-[#0F766E] text-slate-800"
                       />
                     </div>
 
@@ -456,7 +458,7 @@ export default function CreateProjectModal({
                         type="date"
                         value={dueDate}
                         onChange={(e) => setDueDate(e.target.value)}
-                        className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800"
+                        className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-[#0F766E] text-slate-800"
                       />
                     </div>
                   </div>
@@ -465,7 +467,7 @@ export default function CreateProjectModal({
                     <button
                       type="button"
                       onClick={() => setActiveTab("team")}
-                      className="text-xs font-bold text-blue-600 hover:text-blue-800 inline-flex items-center gap-1 cursor-pointer"
+                      className="text-xs font-bold text-[#0F766E] hover:text-[#0D655E] inline-flex items-center gap-1 cursor-pointer"
                     >
                       <span>Continue to Team Assignment →</span>
                     </button>
@@ -476,8 +478,8 @@ export default function CreateProjectModal({
               {/* TAB 2: Assign Team Section */}
               {activeTab === "team" && (
                 <div className="space-y-5 animate-fadeIn">
-                  <div className="bg-blue-50/60 border border-blue-200/80 rounded-xl p-3 text-xs text-blue-800 flex items-start gap-2">
-                    <FiInfo className="w-4 h-4 shrink-0 text-blue-600 mt-0.5" />
+                  <div className="bg-teal-50/60 border border-teal-200/80 rounded-lg p-3 text-xs text-teal-900 flex items-start gap-2">
+                    <FiInfo className="w-4 h-4 shrink-0 text-[#0F766E] mt-0.5" />
                     <span>
                       Assign existing managers and members from{" "}
                       <strong>{organizationName}</strong>. Only verified members of this organization can be directly added.
@@ -501,45 +503,15 @@ export default function CreateProjectModal({
                             {selectedManagerIds.length === orgManagers.length ? "Deselect All" : "Select All"}
                           </button>
                         )}
-                        <span className="text-[11px] text-purple-700 bg-purple-50 px-2 py-0.5 rounded-full font-bold border border-purple-200">
+                        <span className="text-[11px] text-purple-700 bg-purple-50 px-2 py-0.5 rounded-lg font-bold border border-purple-200">
                           {selectedManagerIds.length} selected
                         </span>
                       </div>
                     </div>
 
-                    {orgManagers.length > 0 && (
-                      <div className="relative">
-                        <select
-                          value=""
-                          onChange={(e) => {
-                            if (e.target.value) toggleManager(e.target.value);
-                          }}
-                          className="w-full px-3.5 py-2.5 text-xs font-medium bg-white border border-purple-200 rounded-xl outline-none focus:ring-2 focus:ring-purple-500 text-slate-800 cursor-pointer shadow-2xs hover:border-purple-300 transition-all"
-                        >
-                          <option value="">➕ Select a manager from dropdown...</option>
-                          {orgManagers.map((mgr) => {
-                            const mgrId = mgr.user_id || mgr.id;
-                            const isSelected = selectedManagerIds.includes(mgrId);
-                            const profile = mgr.profiles || mgr;
-                            const displayName =
-                              mgr.full_name ||
-                              profile?.full_name ||
-                              mgr.email ||
-                              profile?.email ||
-                              "Manager";
-                            const displayEmail = mgr.email || profile?.email || "";
-                            return (
-                              <option key={`opt-mgr-${mgrId}`} value={mgrId}>
-                                {isSelected ? "✓ [Assigned] " : ""}{displayName}{displayEmail ? ` (${displayEmail})` : ""}
-                              </option>
-                            );
-                          })}
-                        </select>
-                      </div>
-                    )}
 
                     {orgManagers.length === 0 ? (
-                      <p className="text-xs text-slate-400 italic bg-slate-50 p-3 rounded-xl border border-slate-200">
+                      <p className="text-xs text-slate-400 italic bg-slate-50 p-3 rounded-lg border border-slate-200">
                         No additional managers found in this organization.
                       </p>
                     ) : (
@@ -570,7 +542,7 @@ export default function CreateProjectModal({
                             <div
                               key={mgrId}
                               onClick={() => toggleManager(mgrId)}
-                              className={`p-2.5 rounded-xl border text-xs flex items-center justify-between cursor-pointer transition-all ${
+                              className={`p-2.5 rounded-lg border text-xs flex items-center justify-between cursor-pointer transition-all ${
                                 isSelected
                                   ? "bg-purple-50/90 border-purple-400 ring-1 ring-purple-400/20 shadow-2xs"
                                   : "bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50/50"
@@ -586,7 +558,7 @@ export default function CreateProjectModal({
                                       {displayName}
                                     </p>
                                     {isSelf && (
-                                      <span className="text-[9px] font-bold text-purple-700 bg-purple-100 px-1 py-0.2 rounded border border-purple-200">
+                                      <span className="text-[9px] font-bold text-purple-700 bg-purple-100 px-1 py-0.2 rounded-lg border border-purple-200">
                                         You
                                       </span>
                                     )}
@@ -598,7 +570,7 @@ export default function CreateProjectModal({
                                 </div>
                               </div>
                               <div
-                                className={`w-4 h-4 rounded-md flex items-center justify-center shrink-0 border transition-all ${
+                                className={`w-4 h-4 rounded-lg flex items-center justify-center shrink-0 border transition-all ${
                                   isSelected
                                     ? "bg-purple-600 border-purple-600 text-white"
                                     : "border-slate-300 bg-white"
@@ -616,7 +588,7 @@ export default function CreateProjectModal({
                   {/* Members Section */}
                   <div className="space-y-3 pt-3 border-t border-slate-100">
                     <div className="flex items-center justify-between">
-                      <h4 className="text-xs font-bold uppercase tracking-wider text-blue-700 flex items-center gap-1.5">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-[#0F766E] flex items-center gap-1.5">
                         <FiUsers className="w-3.5 h-3.5" />
                         <span>Organization Members ({orgMembers.length})</span>
                       </h4>
@@ -625,50 +597,20 @@ export default function CreateProjectModal({
                           <button
                             type="button"
                             onClick={handleSelectAllMembers}
-                            className="text-[11px] font-bold text-blue-600 hover:text-blue-800 transition-colors cursor-pointer"
+                            className="text-[11px] font-bold text-[#0F766E] hover:text-[#0D655E] transition-colors cursor-pointer"
                           >
                             {selectedMemberIds.length === orgMembers.length ? "Deselect All" : "Select All"}
                           </button>
                         )}
-                        <span className="text-[11px] text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full font-bold border border-blue-200">
+                        <span className="text-[11px] text-[#0F766E] bg-teal-50 px-2 py-0.5 rounded-lg font-bold border border-teal-200">
                           {selectedMemberIds.length} selected
                         </span>
                       </div>
                     </div>
 
-                    {orgMembers.length > 0 && (
-                      <div className="relative">
-                        <select
-                          value=""
-                          onChange={(e) => {
-                            if (e.target.value) toggleMember(e.target.value);
-                          }}
-                          className="w-full px-3.5 py-2.5 text-xs font-medium bg-white border border-blue-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 cursor-pointer shadow-2xs hover:border-blue-300 transition-all"
-                        >
-                          <option value="">➕ Select a team member from dropdown...</option>
-                          {orgMembers.map((mem) => {
-                            const memId = mem.user_id || mem.id;
-                            const isSelected = selectedMemberIds.includes(memId);
-                            const profile = mem.profiles || mem;
-                            const displayName =
-                              mem.full_name ||
-                              profile?.full_name ||
-                              mem.email ||
-                              profile?.email ||
-                              "Team Member";
-                            const displayEmail = mem.email || profile?.email || "";
-                            return (
-                              <option key={`opt-mem-${memId}`} value={memId}>
-                                {isSelected ? "✓ [Assigned] " : ""}{displayName}{displayEmail ? ` (${displayEmail})` : ""}
-                              </option>
-                            );
-                          })}
-                        </select>
-                      </div>
-                    )}
 
                     {orgMembers.length === 0 ? (
-                      <p className="text-xs text-slate-400 italic bg-slate-50 p-3 rounded-xl border border-slate-200">
+                      <p className="text-xs text-slate-400 italic bg-slate-50 p-3 rounded-lg border border-slate-200">
                         No team members registered yet. Use the Invite tab to add people!
                       </p>
                     ) : (
@@ -699,14 +641,14 @@ export default function CreateProjectModal({
                             <div
                               key={memId}
                               onClick={() => toggleMember(memId)}
-                              className={`p-2.5 rounded-xl border text-xs flex items-center justify-between cursor-pointer transition-all ${
+                              className={`p-2.5 rounded-lg border text-xs flex items-center justify-between cursor-pointer transition-all ${
                                 isSelected
-                                  ? "bg-blue-50/90 border-blue-400 ring-1 ring-blue-400/20 shadow-2xs"
+                                  ? "bg-teal-50/90 border-[#0F766E]/40 ring-1 ring-[#0F766E]/20 shadow-2xs"
                                   : "bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50/50"
                               }`}
                             >
                               <div className="flex items-center gap-2.5 min-w-0 flex-1 mr-2">
-                                <div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-700 font-bold flex items-center justify-center shrink-0 text-xs">
+                                <div className="w-8 h-8 rounded-lg bg-teal-100 text-[#0F766E] font-bold flex items-center justify-center shrink-0 text-xs">
                                   {initials}
                                 </div>
                                 <div className="min-w-0 flex-1">
@@ -715,7 +657,7 @@ export default function CreateProjectModal({
                                       {displayName}
                                     </p>
                                     {isSelf && (
-                                      <span className="text-[9px] font-bold text-blue-700 bg-blue-100 px-1 py-0.2 rounded border border-blue-200">
+                                      <span className="text-[9px] font-bold text-[#0F766E] bg-teal-100 px-1 py-0.2 rounded-lg border border-teal-200">
                                         You
                                       </span>
                                     )}
@@ -727,9 +669,9 @@ export default function CreateProjectModal({
                                 </div>
                               </div>
                               <div
-                                className={`w-4 h-4 rounded-md flex items-center justify-center shrink-0 border transition-all ${
+                                className={`w-4 h-4 rounded-lg flex items-center justify-center shrink-0 border transition-all ${
                                   isSelected
-                                    ? "bg-blue-600 border-blue-600 text-white"
+                                    ? "bg-[#0F766E] border-[#0F766E] text-white"
                                     : "border-slate-300 bg-white"
                                 }`}
                               >
@@ -747,7 +689,7 @@ export default function CreateProjectModal({
               {/* TAB 3: Invite New Users (Case A & B) */}
               {activeTab === "invite" && (
                 <div className="space-y-4 animate-fadeIn">
-                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800 flex items-start gap-2">
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-800 flex items-start gap-2">
                     <FiMail className="w-4 h-4 shrink-0 text-amber-600 mt-0.5" />
                     <div>
                       <p className="font-bold">Project Team Invitations</p>
@@ -759,7 +701,7 @@ export default function CreateProjectModal({
                   </div>
 
                   {/* Add invite row */}
-                  <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
+                  <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-lg space-y-3">
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                       <div>
                         <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">
@@ -770,7 +712,7 @@ export default function CreateProjectModal({
                           value={inviteName}
                           onChange={(e) => setInviteName(e.target.value)}
                           placeholder="e.g. Sarah Connor"
-                          className="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-900"
+                          className="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-[#0F766E] text-slate-900"
                         />
                       </div>
 
@@ -783,7 +725,7 @@ export default function CreateProjectModal({
                           value={inviteEmail}
                           onChange={(e) => setInviteEmail(e.target.value)}
                           placeholder="sarah@example.com"
-                          className="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-900"
+                          className="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-[#0F766E] text-slate-900"
                         />
                       </div>
 
@@ -794,7 +736,7 @@ export default function CreateProjectModal({
                         <select
                           value={inviteRole}
                           onChange={(e) => setInviteRole(e.target.value)}
-                          className="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800"
+                          className="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-[#0F766E] text-slate-800"
                         >
                           <option value={MEMBER_ROLE}>Team Member</option>
                           {canManageManagers && (
@@ -830,10 +772,10 @@ export default function CreateProjectModal({
                               <span className="font-bold text-slate-800">{inv.fullName}</span>
                               <span className="text-slate-500 font-mono ml-2">({inv.email})</span>
                               <span
-                                className={`ml-2 text-[10px] uppercase font-bold px-1.5 py-0.5 rounded border ${
+                                className={`ml-2 text-[10px] uppercase font-bold px-1.5 py-0.5 rounded-lg border ${
                                   inv.role === MANAGER_ROLE
                                     ? "bg-purple-100 text-purple-800 border-purple-200"
-                                    : "bg-blue-100 text-blue-800 border-blue-200"
+                                    : "bg-teal-100 text-teal-800 border-teal-200"
                                 }`}
                               >
                                 {inv.role}
@@ -842,7 +784,7 @@ export default function CreateProjectModal({
                             <button
                               type="button"
                               onClick={() => handleRemoveInvite(idx)}
-                              className="text-slate-400 hover:text-red-600 p-1 rounded cursor-pointer"
+                              className="text-slate-400 hover:text-red-600 p-1 rounded-lg cursor-pointer"
                             >
                               <FiTrash2 className="w-3.5 h-3.5" />
                             </button>
@@ -860,7 +802,7 @@ export default function CreateProjectModal({
                   type="button"
                   onClick={onClose}
                   disabled={loading}
-                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -872,7 +814,7 @@ export default function CreateProjectModal({
                       onClick={() =>
                         setActiveTab((curr) => (curr === "invite" ? "team" : "general"))
                       }
-                      className="px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+                      className="px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
                     >
                       ← Back
                     </button>
@@ -881,7 +823,7 @@ export default function CreateProjectModal({
                   <button
                     type="submit"
                     disabled={loading}
-                    className="inline-flex items-center gap-2 px-6 py-2.5 bg-[#0052CC] hover:bg-[#0747A6] active:scale-[0.98] text-white text-xs font-bold rounded-xl shadow-md shadow-blue-500/20 transition-all cursor-pointer disabled:opacity-60"
+                    className="inline-flex items-center gap-2 px-6 py-2.5 bg-[#0F766E] hover:bg-[#0D655E] active:scale-[0.98] text-white text-xs font-bold rounded-lg shadow-md shadow-teal-900/20 transition-all cursor-pointer disabled:opacity-60"
                   >
                     {loading ? (
                       <span className="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -897,5 +839,6 @@ export default function CreateProjectModal({
         )}
       </div>
     </div>
-  );
+  </Portal>
+);
 }

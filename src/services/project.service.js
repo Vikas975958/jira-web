@@ -2,9 +2,18 @@ import { supabase } from "@/lib/supabaseconfig";
 import { generateInvitationToken, hashToken } from "@/utils/token";
 import { MEMBER_ROLE, MANAGER_ROLE, OWNER_ROLE } from "@/utils/constants";
 
-const LOCAL_STORAGE_PROJECTS_KEY = "jira_projects_data";
-const LOCAL_STORAGE_MEMBERS_KEY = "jira_project_members_data";
-const LOCAL_STORAGE_INVITES_KEY = "jira_project_invitations_data";
+const LOCAL_STORAGE_PROJECTS_KEY = "workgrid_projects_data";
+const LOCAL_STORAGE_MEMBERS_KEY = "workgrid_project_members_data";
+const LOCAL_STORAGE_INVITES_KEY = "workgrid_project_invitations_data";
+
+const LEGACY_STORAGE_PROJECTS_KEY = "jira_projects_data";
+const LEGACY_STORAGE_MEMBERS_KEY = "jira_project_members_data";
+const LEGACY_STORAGE_INVITES_KEY = "jira_project_invitations_data";
+
+const getStorageItem = (key, legacyKey) => {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(key) || localStorage.getItem(legacyKey);
+};
 
 export const projectService = {
   /**
@@ -177,7 +186,36 @@ export const projectService = {
             }));
           } catch (_) {}
         }
-        return data;
+
+        const assignedManagers = [];
+        const assignedMembers = [];
+        (data.project_members || []).forEach((pm) => {
+          const profile = pm.profiles || {
+            id: pm.user_id,
+            full_name: pm.full_name || "Team Member",
+            email: pm.email || "",
+          };
+          const item = {
+            id: pm.id || pm.user_id,
+            userId: pm.user_id,
+            role: pm.role || MEMBER_ROLE,
+            fullName: profile.full_name || profile.email || "Team Member",
+            email: profile.email || "",
+            profilePhoto: profile.profile_photo || null,
+          };
+          if (pm.role === MANAGER_ROLE) {
+            assignedManagers.push(item);
+          } else {
+            assignedMembers.push(item);
+          }
+        });
+
+        return {
+          ...data,
+          assignedManagers,
+          assignedMembers,
+          totalTeamCount: assignedManagers.length + assignedMembers.length,
+        };
       }
     } catch (_) {}
 
@@ -631,7 +669,7 @@ export const projectService = {
   getLocalProjects(organizationId) {
     if (typeof window === "undefined") return [];
     try {
-      const raw = localStorage.getItem(LOCAL_STORAGE_PROJECTS_KEY);
+      const raw = getStorageItem(LOCAL_STORAGE_PROJECTS_KEY, LEGACY_STORAGE_PROJECTS_KEY);
       if (!raw) return [];
       const parsed = JSON.parse(raw);
       if (!Array.isArray(parsed)) return [];
@@ -644,7 +682,7 @@ export const projectService = {
   getAllLocalProjects() {
     if (typeof window === "undefined") return [];
     try {
-      const raw = localStorage.getItem(LOCAL_STORAGE_PROJECTS_KEY);
+      const raw = getStorageItem(LOCAL_STORAGE_PROJECTS_KEY, LEGACY_STORAGE_PROJECTS_KEY);
       return raw ? JSON.parse(raw) : [];
     } catch (_) {
       return [];
@@ -681,7 +719,7 @@ export const projectService = {
   getLocalProjectMembers(projectId) {
     if (typeof window === "undefined") return [];
     try {
-      const raw = localStorage.getItem(LOCAL_STORAGE_MEMBERS_KEY);
+      const raw = getStorageItem(LOCAL_STORAGE_MEMBERS_KEY, LEGACY_STORAGE_MEMBERS_KEY);
       const list = raw ? JSON.parse(raw) : [];
       return list.filter((m) => m.project_id === projectId);
     } catch (_) {
@@ -692,7 +730,7 @@ export const projectService = {
   saveLocalProjectMembers(members) {
     if (typeof window === "undefined") return;
     try {
-      const raw = localStorage.getItem(LOCAL_STORAGE_MEMBERS_KEY);
+      const raw = getStorageItem(LOCAL_STORAGE_MEMBERS_KEY, LEGACY_STORAGE_MEMBERS_KEY);
       const list = raw ? JSON.parse(raw) : [];
       const updated = [...list];
       members.forEach((m) => {
@@ -707,7 +745,7 @@ export const projectService = {
   removeLocalProjectMember(projectId, userId) {
     if (typeof window === "undefined") return;
     try {
-      const raw = localStorage.getItem(LOCAL_STORAGE_MEMBERS_KEY);
+      const raw = getStorageItem(LOCAL_STORAGE_MEMBERS_KEY, LEGACY_STORAGE_MEMBERS_KEY);
       const list = raw ? JSON.parse(raw) : [];
       const updated = list.filter(
         (m) => !(m.project_id === projectId && m.user_id === userId)
@@ -719,7 +757,7 @@ export const projectService = {
   getLocalProjectInvites() {
     if (typeof window === "undefined") return [];
     try {
-      const raw = localStorage.getItem(LOCAL_STORAGE_INVITES_KEY);
+      const raw = getStorageItem(LOCAL_STORAGE_INVITES_KEY, LEGACY_STORAGE_INVITES_KEY);
       return raw ? JSON.parse(raw) : [];
     } catch (_) {
       return [];

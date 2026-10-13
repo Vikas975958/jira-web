@@ -1,7 +1,8 @@
 import { supabase } from "@/lib/supabaseconfig";
 import { MEMBER_ROLE, MANAGER_ROLE, OWNER_ROLE } from "@/utils/constants";
 
-const LOCAL_STORAGE_KEY = "jira_tickets";
+const LOCAL_STORAGE_KEY = "workgrid_tickets";
+const LEGACY_LOCAL_STORAGE_KEY = "jira_tickets";
 
 export const taskService = {
   /**
@@ -103,7 +104,7 @@ export const taskService = {
       createdBy = null,
     } = taskData;
 
-    const nextId = `JIRA-${Math.floor(100 + Math.random() * 900)}`;
+    const nextId = `WG-${Math.floor(100 + Math.random() * 900)}`;
 
     const newTask = {
       id: nextId,
@@ -199,7 +200,9 @@ export const taskService = {
   getLocalTasks(organizationId) {
     if (typeof window === "undefined") return [];
     try {
-      const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
+      const raw =
+        localStorage.getItem(LOCAL_STORAGE_KEY) ||
+        localStorage.getItem(LEGACY_LOCAL_STORAGE_KEY);
       if (!raw) return [];
       const parsed = JSON.parse(raw);
       if (!Array.isArray(parsed)) return [];
