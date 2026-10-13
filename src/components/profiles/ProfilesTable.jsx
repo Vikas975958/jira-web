@@ -30,14 +30,14 @@ export default function ProfilesTable({
     switch (normalized) {
       case MANAGER_ROLE:
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold bg-purple-50 text-purple-700 border border-purple-200/70">
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-purple-50 text-purple-700 border border-purple-200/70">
             <FiShield className="w-3 h-3 text-purple-600" />
             Manager
           </span>
         );
       case OWNER_ROLE:
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200/70">
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200/70">
             <FiShield className="w-3 h-3 text-amber-600" />
             Owner
           </span>
@@ -45,8 +45,8 @@ export default function ProfilesTable({
       case MEMBER_ROLE:
       default:
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200/70">
-            <FiUsers className="w-3 h-3 text-blue-600" />
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-teal-50 text-[#0F766E] border border-teal-200/70">
+            <FiUsers className="w-3 h-3 text-[#0F766E]" />
             Member
           </span>
         );
@@ -69,10 +69,10 @@ export default function ProfilesTable({
   // 1. Loading Skeleton State
   if (loading && (!profiles || profiles.length === 0)) {
     return (
-      <div className="w-full bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+      <div className="w-full bg-white rounded-lg border border-slate-200/80 shadow-xs overflow-hidden">
         <div className="p-4 border-b border-slate-100 flex items-center justify-between">
-          <div className="h-4 w-36 bg-slate-200 rounded animate-pulse" />
-          <div className="h-4 w-20 bg-slate-200 rounded animate-pulse" />
+          <div className="h-4 w-36 bg-slate-200 rounded-lg animate-pulse" />
+          <div className="h-4 w-20 bg-slate-200 rounded-lg animate-pulse" />
         </div>
         <div className="divide-y divide-slate-100">
           {[1, 2, 3, 4, 5].map((idx) => (
@@ -80,13 +80,13 @@ export default function ProfilesTable({
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 rounded-full bg-slate-200" />
                 <div className="space-y-1.5">
-                  <div className="h-3.5 w-32 bg-slate-200 rounded" />
-                  <div className="h-2.5 w-44 bg-slate-200 rounded" />
+                  <div className="h-3.5 w-32 bg-slate-200 rounded-lg" />
+                  <div className="h-2.5 w-44 bg-slate-200 rounded-lg" />
                 </div>
               </div>
-              <div className="h-6 w-20 bg-slate-200 rounded" />
-              <div className="h-3.5 w-24 bg-slate-200 rounded hidden md:block" />
-              <div className="h-3.5 w-20 bg-slate-200 rounded hidden lg:block" />
+              <div className="h-6 w-20 bg-slate-200 rounded-lg" />
+              <div className="h-3.5 w-24 bg-slate-200 rounded-lg hidden md:block" />
+              <div className="h-3.5 w-20 bg-slate-200 rounded-lg hidden lg:block" />
             </div>
           ))}
         </div>
@@ -97,7 +97,7 @@ export default function ProfilesTable({
   // 2. Error State
   if (error) {
     return (
-      <div className="w-full bg-white rounded-2xl border border-red-200/80 p-8 text-center shadow-xs">
+      <div className="w-full bg-white rounded-lg border border-red-200/80 p-8 text-center shadow-xs">
         <div className="w-12 h-12 rounded-full bg-red-50 text-red-600 flex items-center justify-center mx-auto mb-3">
           <FiAlertCircle className="w-6 h-6" />
         </div>
@@ -107,7 +107,7 @@ export default function ProfilesTable({
           <button
             type="button"
             onClick={onRetry}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl transition-all cursor-pointer shadow-sm"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-[#0F766E] hover:bg-[#0D655E] active:bg-[#115E59] active:scale-[0.98] text-white text-xs font-bold rounded-lg transition-all cursor-pointer shadow-md shadow-teal-900/20"
           >
             <FiRefreshCw className="w-3.5 h-3.5" />
             Retry
@@ -120,8 +120,8 @@ export default function ProfilesTable({
   // 3. Empty State
   if (!profiles || profiles.length === 0) {
     return (
-      <div className="w-full bg-white rounded-2xl border border-slate-200/80 p-12 text-center shadow-xs">
-        <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto mb-3.5">
+      <div className="w-full bg-white rounded-lg border border-slate-200/80 p-12 text-center shadow-xs">
+        <div className="w-12 h-12 rounded-lg bg-teal-50 text-[#0F766E] flex items-center justify-center mx-auto mb-3.5">
           <FiUsers className="w-6 h-6" />
         </div>
         <h3 className="text-base font-bold text-slate-800 mb-1">No profiles found</h3>
@@ -132,7 +132,7 @@ export default function ProfilesTable({
           <button
             type="button"
             onClick={onOpenInviteModal}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-[#0052CC] hover:bg-[#0747A6] text-white text-xs font-semibold rounded-xl transition-all cursor-pointer shadow-sm"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-[#0F766E] hover:bg-[#0D655E] active:bg-[#115E59] active:scale-[0.98] text-white text-xs font-bold rounded-lg transition-all cursor-pointer shadow-md shadow-teal-900/20"
           >
             <FiUserPlus className="w-4 h-4" />
             Invite New User
@@ -144,7 +144,7 @@ export default function ProfilesTable({
 
   // 4. Data Table
   return (
-    <div className="w-full bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+    <div className="w-full bg-white rounded-lg border border-slate-200/80 shadow-xs overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full text-left border-collapse">
           <thead>
@@ -163,7 +163,7 @@ export default function ProfilesTable({
                 profile.full_name ||
                 profile.name ||
                 profile.email?.split("@")[0] ||
-                "Jira User";
+                "WorkGrid User";
               const initials = getNameInitials(displayName) || "U";
               const orgName = profile.organization_name || "—";
               const deptTitle = [profile.job_title, profile.department]
@@ -178,11 +178,11 @@ export default function ProfilesTable({
                   {/* User name & email */}
                   <td className="py-3.5 px-4 sm:px-6">
                     <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-2xs">
+                      <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-[#0F766E] to-teal-600 text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-2xs">
                         {initials}
                       </div>
                       <div className="min-w-0">
-                        <p className="font-bold text-slate-900 truncate group-hover:text-blue-600 transition-colors">
+                        <p className="font-bold text-slate-900 truncate group-hover:text-[#0F766E] transition-colors">
                           {displayName}
                         </p>
                         <p className="text-slate-500 text-[11px] truncate flex items-center gap-1 mt-0.5">
@@ -212,7 +212,7 @@ export default function ProfilesTable({
 
                   {/* Status */}
                   <td className="py-3.5 px-4 whitespace-nowrap">
-                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200/60">
+                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200/60">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                       {profile.status || "Active"}
                     </span>

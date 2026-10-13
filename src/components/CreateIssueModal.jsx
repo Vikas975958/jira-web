@@ -3,12 +3,13 @@
 import React, { useState } from "react";
 import { useSelector } from "react-redux";
 import { FiX, FiCheck, FiBookmark, FiAlertCircle, FiCheckSquare } from "react-icons/fi";
+import Portal from "@/components/Portal";
 
 export default function CreateIssueModal({
   isOpen,
   onClose,
   onAddTicket,
-  organizationName = "Jira Workspace",
+  organizationName = "WorkGrid Workspace",
   teamMembers = [],
   projects = [],
   selectedProjectId = "",
@@ -70,12 +71,13 @@ export default function CreateIssueModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs select-none animate-fadeIn">
-      <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-xl overflow-hidden animate-scaleUp">
+    <Portal>
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs select-none animate-fadeIn">
+      <div className="bg-white rounded-lg shadow-2xl border border-slate-200 w-full max-w-xl overflow-hidden animate-scaleUp">
         {/* Modal Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50/50">
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded bg-blue-600 flex items-center justify-center text-white text-xs font-bold">
+            <div className="w-6 h-6 rounded-lg bg-[#0F766E] flex items-center justify-center text-white text-xs font-bold">
               +
             </div>
             <h2 className="text-base font-bold text-slate-800">Create Issue</h2>
@@ -109,7 +111,7 @@ export default function CreateIssueModal({
                 <select
                   value={projectId}
                   onChange={(e) => setProjectId(e.target.value)}
-                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-[#0F766E]"
                 >
                   <option value="">General (No Project)</option>
                   {projects.map((p) => (
@@ -137,7 +139,7 @@ export default function CreateIssueModal({
               <select
                 value={type}
                 onChange={(e) => setType(e.target.value)}
-                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-[#0F766E]"
               >
                 <option value="story">📗 Story</option>
                 <option value="task">📘 Task</option>
@@ -157,7 +159,7 @@ export default function CreateIssueModal({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="e.g. Implement webhook notification listener"
-              className="w-full px-3 py-2.5 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 outline-none focus:ring-2 focus:ring-blue-500 placeholder:text-slate-400"
+              className="w-full px-3 py-2.5 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 outline-none focus:ring-2 focus:ring-[#0F766E] placeholder:text-slate-400"
             />
           </div>
 
@@ -171,7 +173,7 @@ export default function CreateIssueModal({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Provide context, acceptance criteria, or technical details..."
-              className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 outline-none focus:ring-2 focus:ring-blue-500 placeholder:text-slate-400"
+              className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 outline-none focus:ring-2 focus:ring-[#0F766E] placeholder:text-slate-400"
             />
           </div>
 
@@ -184,7 +186,7 @@ export default function CreateIssueModal({
               <select
                 value={priority}
                 onChange={(e) => setPriority(e.target.value)}
-                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-[#0F766E]"
               >
                 <option value="urgent">🔴 Urgent</option>
                 <option value="high">🟠 High</option>
@@ -200,7 +202,7 @@ export default function CreateIssueModal({
               <select
                 value={status}
                 onChange={(e) => setStatus(e.target.value)}
-                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-[#0F766E]"
               >
                 <option value="todo">📋 To Do</option>
                 <option value="in-progress">⚡ In Progress</option>
@@ -222,7 +224,7 @@ export default function CreateIssueModal({
                 max="21"
                 value={storyPoints}
                 onChange={(e) => setStoryPoints(e.target.value)}
-                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 outline-none focus:ring-2 focus:ring-[#0F766E]"
               />
             </div>
 
@@ -234,7 +236,7 @@ export default function CreateIssueModal({
                 <select
                   value={assignee}
                   onChange={(e) => setAssignee(e.target.value)}
-                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-[#0F766E]"
                 >
                   <option value="">Unassigned</option>
                   {teamMembers.map((member) => (
@@ -249,7 +251,7 @@ export default function CreateIssueModal({
                   value={assignee}
                   onChange={(e) => setAssignee(e.target.value)}
                   placeholder="Assignee name"
-                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 outline-none focus:ring-2 focus:ring-[#0F766E]"
                 />
               )}
             </div>
@@ -266,7 +268,7 @@ export default function CreateIssueModal({
             </button>
             <button
               type="submit"
-              className="px-5 py-2 bg-[#0052CC] hover:bg-[#0747A6] text-white text-xs font-semibold rounded-lg shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
+              className="px-5 py-2 bg-[#0F766E] hover:bg-[#0D655E] active:bg-[#115E59] active:scale-[0.98] text-white text-xs font-bold rounded-lg shadow-md shadow-teal-900/20 transition-all flex items-center gap-1.5 cursor-pointer"
             >
               <FiCheck className="w-4 h-4" />
               <span>Create Issue</span>
@@ -275,5 +277,6 @@ export default function CreateIssueModal({
         </form>
       </div>
     </div>
-  );
+  </Portal>
+);
 }

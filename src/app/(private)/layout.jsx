@@ -22,7 +22,7 @@ function PrivateLayoutContent({ children }) {
 
   return (
     <div className="h-screen max-h-screen flex flex-col bg-slate-100 text-slate-800 overflow-hidden">
-      {/* Top Jira Header */}
+      {/* Top WorkGrid Header */}
       {showNav && <Header />}
 
       {/* Main Container with Sidebar + Content */}

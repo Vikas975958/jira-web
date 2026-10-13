@@ -123,7 +123,7 @@ export default function TeamPage() {
   const roleBadgeClasses = {
     owner: "bg-amber-100 text-amber-800 border-amber-200",
     manager: "bg-purple-100 text-purple-800 border-purple-200",
-    member: "bg-blue-100 text-blue-800 border-blue-200",
+    member: "bg-teal-100 text-[#0F766E] border-teal-200",
   };
 
   const statusBadgeClasses = {
@@ -149,7 +149,7 @@ export default function TeamPage() {
               {isMember ? "Team Directory" : "Team Management"}
             </h1>
             <span
-              className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
+              className={`px-2.5 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wider border ${
                 roleBadgeClasses[userRole] || roleBadgeClasses.member
               }`}
             >
@@ -165,41 +165,26 @@ export default function TeamPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5">
-          {!isMember && (
-            <button
-              type="button"
-              onClick={() => {
-                setInviteModalRole(MEMBER_ROLE);
-                setIsInviteModalOpen(true);
-              }}
-              className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#0052CC] hover:bg-[#0747A6] text-white text-xs font-bold rounded-xl shadow-sm transition-all cursor-pointer"
-            >
-              <FiUserPlus className="w-4 h-4" />
-              <span>Add Member</span>
-            </button>
-          )}
-          {userRole === OWNER_ROLE && (
-            <button
-              type="button"
-              onClick={() => {
-                setInviteModalRole(MANAGER_ROLE);
-                setIsInviteModalOpen(true);
-              }}
-              className="inline-flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-purple-700 to-indigo-700 hover:from-purple-800 hover:to-indigo-800 text-white text-xs font-bold rounded-xl shadow-sm transition-all cursor-pointer"
-            >
-              <FiShield className="w-4 h-4" />
-              <span>Add Manager</span>
-            </button>
-          )}
-        </div>
+        {!isMember && (
+          <button
+            type="button"
+            onClick={() => {
+              setInviteModalRole(MEMBER_ROLE);
+              setIsInviteModalOpen(true);
+            }}
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#0F766E] hover:bg-[#0D655E] active:bg-[#115E59] active:scale-[0.98] text-white text-xs font-bold rounded-lg shadow-md shadow-teal-900/20 transition-all cursor-pointer"
+          >
+            <FiUserPlus className="w-4 h-4" />
+            <span>Invite Teammate</span>
+          </button>
+        )}
       </div>
 
       {/* Leadership Presentation: Manager View (Present Owner, who created) */}
       {userRole === MANAGER_ROLE && leadership.owner && (
-        <div className="bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-white border border-amber-200/80 rounded-2xl p-4 sm:p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-white border border-amber-200/80 rounded-lg p-4 sm:p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3.5">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-amber-600 text-white font-black text-lg flex items-center justify-center shadow-md shadow-amber-500/20 shrink-0">
+            <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-amber-500 to-amber-600 text-white font-black text-lg flex items-center justify-center shadow-md shadow-amber-500/20 shrink-0">
               {leadership.owner.profiles?.full_name?.charAt(0)?.toUpperCase() || "O"}
             </div>
             <div className="space-y-0.5">
@@ -207,7 +192,7 @@ export default function TeamPage() {
                 <span className="text-sm font-black text-slate-900">
                   {leadership.owner.profiles?.full_name || "Workspace Owner"}
                 </span>
-                <span className="text-[10px] font-bold text-amber-800 bg-amber-100 px-2.5 py-0.5 rounded-full border border-amber-300">
+                <span className="text-[10px] font-bold text-amber-800 bg-amber-100 px-2.5 py-0.5 rounded-lg border border-amber-300">
                   Workspace Creator
                 </span>
               </div>
@@ -216,7 +201,7 @@ export default function TeamPage() {
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2 text-xs font-semibold text-amber-900 bg-amber-50 px-3 py-1.5 rounded-xl border border-amber-200/60 w-fit">
+          <div className="flex items-center gap-2 text-xs font-semibold text-amber-900 bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-200/60 w-fit">
             <FiShield className="w-3.5 h-3.5 text-amber-600" />
             <span>Workspace Created & Owned By This Administrator</span>
           </div>
@@ -228,8 +213,8 @@ export default function TeamPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Workspace Owner Who Created */}
           {leadership.owner && (
-            <div className="bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-white border border-amber-200/80 rounded-2xl p-4 shadow-xs flex items-center gap-3.5">
-              <div className="w-11 h-11 rounded-2xl bg-amber-500 text-white font-black text-base flex items-center justify-center shadow-sm shrink-0">
+            <div className="bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-white border border-amber-200/80 rounded-lg p-4 shadow-xs flex items-center gap-3.5">
+              <div className="w-11 h-11 rounded-lg bg-amber-500 text-white font-black text-base flex items-center justify-center shadow-sm shrink-0">
                 {leadership.owner.profiles?.full_name?.charAt(0)?.toUpperCase() || "O"}
               </div>
               <div className="space-y-0.5">
@@ -237,7 +222,7 @@ export default function TeamPage() {
                   <span className="text-xs font-black text-slate-900">
                     {leadership.owner.profiles?.full_name || "Workspace Owner"}
                   </span>
-                  <span className="text-[10px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full border border-amber-200">
+                  <span className="text-[10px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-lg border border-amber-200">
                     Workspace Creator
                   </span>
                 </div>
@@ -250,8 +235,8 @@ export default function TeamPage() {
 
           {/* Manager Who Created You */}
           {leadership.manager && (
-            <div className="bg-gradient-to-r from-purple-500/10 via-purple-500/5 to-white border border-purple-200/80 rounded-2xl p-4 shadow-xs flex items-center gap-3.5">
-              <div className="w-11 h-11 rounded-2xl bg-purple-600 text-white font-black text-base flex items-center justify-center shadow-sm shrink-0">
+            <div className="bg-gradient-to-r from-purple-500/10 via-purple-500/5 to-white border border-purple-200/80 rounded-lg p-4 shadow-xs flex items-center gap-3.5">
+              <div className="w-11 h-11 rounded-lg bg-purple-600 text-white font-black text-base flex items-center justify-center shadow-sm shrink-0">
                 {leadership.manager.profiles?.full_name?.charAt(0)?.toUpperCase() || "M"}
               </div>
               <div className="space-y-0.5">
@@ -259,7 +244,7 @@ export default function TeamPage() {
                   <span className="text-xs font-black text-slate-900">
                     {leadership.manager.profiles?.full_name || "Reporting Manager"}
                   </span>
-                  <span className="text-[10px] font-bold text-purple-800 bg-purple-100 px-2 py-0.5 rounded-full border border-purple-200">
+                  <span className="text-[10px] font-bold text-purple-800 bg-purple-100 px-2 py-0.5 rounded-lg border border-purple-200">
                     Who Created You
                   </span>
                 </div>
@@ -280,7 +265,7 @@ export default function TeamPage() {
             onClick={() => setActiveTab("members")}
             className={`px-4 py-2 text-xs font-bold border-b-2 transition-all cursor-pointer ${
               activeTab === "members"
-                ? "border-blue-600 text-blue-600"
+                ? "border-[#0F766E] text-[#0F766E]"
                 : "border-transparent text-slate-500 hover:text-slate-800"
             }`}
           >
@@ -292,7 +277,7 @@ export default function TeamPage() {
               onClick={() => setActiveTab("requests")}
               className={`px-4 py-2 text-xs font-bold border-b-2 transition-all cursor-pointer ${
                 activeTab === "requests"
-                  ? "border-blue-600 text-blue-600"
+                  ? "border-[#0F766E] text-[#0F766E]"
                   : "border-transparent text-slate-500 hover:text-slate-800"
               }`}
             >
@@ -308,13 +293,13 @@ export default function TeamPage() {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Search by name, email or role..."
-            className="w-full h-8 pl-8 pr-3 text-xs bg-slate-50 border border-slate-200 rounded-lg outline-none focus:bg-white focus:ring-2 focus:ring-blue-600"
+            className="w-full h-8 pl-8 pr-3 text-xs bg-slate-50 border border-slate-200 rounded-lg outline-none focus:bg-white focus:ring-2 focus:ring-[#0F766E]"
           />
         </div>
       </div>
 
       {/* Content Container */}
-      <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
+      <div className="bg-white rounded-lg border border-slate-200 overflow-hidden shadow-xs">
         {loading ? (
           <div className="py-16 text-center text-slate-400 text-xs">
             Loading team details...
@@ -345,7 +330,7 @@ export default function TeamPage() {
                               {member.profiles?.full_name || "Unknown"}
                             </span>
                             {member.user_id === user?.id && (
-                              <span className="ml-1.5 text-[10px] font-semibold text-blue-600">(You)</span>
+                              <span className="ml-1.5 text-[10px] font-semibold text-[#0F766E]">(You)</span>
                             )}
                           </div>
                         </div>
@@ -356,19 +341,19 @@ export default function TeamPage() {
                       <td className="py-3 px-4">
                         <div className="flex flex-wrap items-center gap-1.5">
                           <span
-                            className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
+                            className={`px-2.5 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wider border ${
                               roleBadgeClasses[member.role] || roleBadgeClasses.member
                             }`}
                           >
                             {member.role}
                           </span>
                           {member.role === OWNER_ROLE && (
-                            <span className="text-[10px] font-semibold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                            <span className="text-[10px] font-semibold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-200">
                               Workspace Creator
                             </span>
                           )}
                           {isMember && member.role === MANAGER_ROLE && (
-                            <span className="text-[10px] font-semibold text-purple-800 bg-purple-50 px-2 py-0.5 rounded-full border border-purple-200">
+                            <span className="text-[10px] font-semibold text-purple-800 bg-purple-50 px-2 py-0.5 rounded-lg border border-purple-200">
                               Who Created You
                             </span>
                           )}
@@ -426,10 +411,10 @@ export default function TeamPage() {
                       {userRole !== MANAGER_ROLE && (
                         <td className="py-3 px-4">
                           <span
-                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
+                            className={`px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wider border ${
                               req.request_type === MANAGER_ROLE
                                 ? "bg-purple-50 text-purple-700 border-purple-200"
-                                : "bg-blue-50 text-blue-700 border-blue-200"
+                                : "bg-teal-50 text-[#0F766E] border-teal-200"
                             }`}
                           >
                             {req.request_type}
@@ -438,7 +423,7 @@ export default function TeamPage() {
                       )}
                       <td className="py-3 px-4">
                         <span
-                          className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
+                          className={`px-2.5 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wider border ${
                             statusBadgeClasses[req.status] || statusBadgeClasses.pending
                           }`}
                         >
@@ -450,7 +435,7 @@ export default function TeamPage() {
                       </td>
                       <td className="py-3 px-4 text-right">
                         {processingId === req.id ? (
-                          <div className="inline-block w-4 h-4 border-2 border-slate-300 border-t-blue-600 rounded-full animate-spin" />
+                          <div className="inline-block w-4 h-4 border-2 border-slate-300 border-t-[#0F766E] rounded-full animate-spin" />
                         ) : (
                           <button
                             type="button"

@@ -24,7 +24,7 @@ export default function ProfileFilters({
   return (
     <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pb-4">
       {/* Role Filter Tabs */}
-      <div className="flex items-center gap-1.5 p-1 bg-slate-100/90 rounded-xl border border-slate-200/70 w-fit">
+      <div className="flex items-center gap-1.5 p-1 bg-slate-100/90 rounded-lg border border-slate-200/70 w-fit">
         {filterTabs.map((tab) => {
           const isActive = activeRole === tab.key;
           return (
@@ -34,16 +34,16 @@ export default function ProfileFilters({
               onClick={() => onRoleChange && onRoleChange(tab.key)}
               className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                 isActive
-                  ? "bg-white text-blue-700 shadow-xs"
+                  ? "bg-white text-[#0F766E] shadow-xs"
                   : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/50"
               }`}
             >
               <span>{tab.label}</span>
               {typeof tab.count === "number" && (
                 <span
-                  className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+                  className={`text-[10px] px-1.5 py-0.5 rounded-lg font-bold ${
                     isActive
-                      ? "bg-blue-100 text-blue-800"
+                      ? "bg-teal-100 text-teal-800"
                       : "bg-slate-200/80 text-slate-600"
                   }`}
                 >
@@ -65,7 +65,7 @@ export default function ProfileFilters({
           value={searchTerm}
           onChange={(e) => onSearchChange && onSearchChange(e.target.value)}
           placeholder="Filter by name, email, or org..."
-          className="w-full h-9 pl-9 pr-8 text-xs bg-white border border-slate-200 rounded-xl text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-600/30 focus:border-blue-600 transition-all placeholder:text-slate-400 shadow-2xs"
+          className="w-full h-9 pl-9 pr-8 text-xs bg-white border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/30 focus:border-[#0F766E] transition-all placeholder:text-slate-400 shadow-2xs"
         />
         {searchTerm && (
           <button
