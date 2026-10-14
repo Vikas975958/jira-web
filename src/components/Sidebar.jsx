@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useSelector } from "react-redux";
@@ -10,8 +10,12 @@ import {
   LuLayoutGrid,
   LuSlidersVertical,
   LuPlus,
+  LuChevronLeft,
+  LuChevronRight,
+  LuX,
 } from "react-icons/lu";
 import { useOrganization } from "@/context/OrganizationContext";
+import { useSidebar } from "@/context/SidebarContext";
 import projectService from "@/services/project.service";
 import CreateProjectModal from "@/components/CreateProjectModal";
 import { MEMBER_ROLE, MANAGER_ROLE, OWNER_ROLE } from "@/utils/constants";
@@ -23,6 +27,7 @@ export default function Sidebar() {
   const user = authState?.userData;
 
   const { currentOrg, organizations, members: realMembers = [] } = useOrganization();
+  const { isCollapsed, toggleSidebar, isMobileOpen, closeMobile } = useSidebar();
 
   const activeOrg = currentOrg?.organizations || currentOrg || organizations?.[0]?.organizations || organizations?.[0];
   const userRole = currentOrg?.role || organizations?.[0]?.role || user?.role || MEMBER_ROLE;
@@ -65,11 +70,23 @@ export default function Sidebar() {
     archived: "bg-slate-100 text-slate-500 border-slate-200",
   };
 
+  const lastFetchedOrgIdRef = useRef(null);
+  const projectsRef = useRef(projects);
+
+  useEffect(() => {
+    projectsRef.current = projects;
+  }, [projects]);
+
   // Load projects for active workspace
-  const loadProjects = useCallback(async () => {
+  const loadProjects = useCallback(async (force = false) => {
     const orgId = activeOrg?.id;
     if (!orgId) {
       setProjects([]);
+      lastFetchedOrgIdRef.current = null;
+      return;
+    }
+
+    if (!force && lastFetchedOrgIdRef.current === orgId && projectsRef.current.length > 0) {
       return;
     }
 
@@ -79,7 +96,9 @@ export default function Sidebar() {
         organizationId: orgId,
         userId: user?.id,
         userRole,
+        force,
       });
+      lastFetchedOrgIdRef.current = orgId;
       setProjects(data || []);
     } catch (err) {
       console.error("Sidebar loadProjects error:", err);
@@ -93,51 +112,84 @@ export default function Sidebar() {
     loadProjects();
   }, [loadProjects]);
 
-  // Synchronize projects across pages and custom events
   useEffect(() => {
-    const handleSync = () => loadProjects();
-    window.addEventListener("project-created", handleSync);
-    window.addEventListener("project-updated", handleSync);
-    window.addEventListener("project-deleted", handleSync);
+    const handleProjectCreated = () => loadProjects(true);
+    const handleProjectDeleted = () => loadProjects(true);
+
+    if (typeof window !== "undefined") {
+      window.addEventListener("project-created", handleProjectCreated);
+      window.addEventListener("project-deleted", handleProjectDeleted);
+    }
+
     return () => {
-      window.removeEventListener("project-created", handleSync);
-      window.removeEventListener("project-updated", handleSync);
-      window.removeEventListener("project-deleted", handleSync);
+      if (typeof window !== "undefined") {
+        window.removeEventListener("project-created", handleProjectCreated);
+        window.removeEventListener("project-deleted", handleProjectDeleted);
+      }
     };
   }, [loadProjects]);
 
-
-
   return (
     <>
-      <aside className="w-64 border-r border-slate-200/80 bg-white flex flex-col justify-between select-none shrink-0 h-full overflow-y-auto">
-        <div className="p-3 space-y-5">
+      <aside
+        className={`border-r border-slate-200/80 bg-white flex flex-col justify-between select-none shrink-0 h-full overflow-hidden transition-all duration-200 ease-in-out z-40
+          ${isCollapsed ? "w-16" : "w-60 lg:w-64"}
+          ${
+            isMobileOpen
+              ? "fixed inset-y-0 left-0 shadow-2xl translate-x-0 w-64 flex"
+              : "hidden md:flex"
+          }
+        `}
+      >
+        <div className="p-3 space-y-4 overflow-y-auto flex-1">
           {/* Active Workspace Header */}
           {activeOrg && (
-            <div className="px-3 py-2.5 rounded-lg bg-slate-50 border border-slate-200/80 flex items-center justify-between gap-2.5">
+            <div
+              className={`rounded-lg bg-slate-50 border border-slate-200/70 flex items-center transition-all ${
+                isCollapsed ? "p-1.5 justify-center" : "px-2.5 py-2 justify-between gap-2"
+              }`}
+            >
               <div className="flex items-center gap-2.5 min-w-0">
-                <div className="w-8 h-8 rounded-lg bg-[#0F766E] text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-xs">
+                <div
+                  className="w-7 h-7 rounded-lg bg-[#0F766E] text-white font-bold text-xs flex items-center justify-center shrink-0 cursor-pointer"
+                  title={`${activeOrg.name} (${userRole === OWNER_ROLE ? "Workspace Owner" : userRole})`}
+                  onClick={() => isCollapsed && toggleSidebar()}
+                >
                   {activeOrg.name?.charAt(0)?.toUpperCase() || "W"}
                 </div>
-                <div className="min-w-0">
-                  <p className="text-xs font-bold text-slate-900 truncate">
-                    {activeOrg.name}
-                  </p>
-                  <p className="text-[10px] text-slate-500 font-medium capitalize truncate">
-                    {userRole === OWNER_ROLE ? "Workspace Owner" : userRole}
-                  </p>
-                </div>
+                {!isCollapsed && (
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-slate-900 truncate">
+                      {activeOrg.name}
+                    </p>
+                    <p className="text-[10px] text-slate-500 font-medium capitalize truncate">
+                      {userRole === OWNER_ROLE ? "Workspace Owner" : userRole}
+                    </p>
+                  </div>
+                )}
               </div>
 
-              {userRole === OWNER_ROLE && (
-                <Link
-                  href="/dashboard/create-organization"
-                  className="p-1 rounded-lg text-slate-400 hover:text-[#0F766E] hover:bg-slate-200/50 transition-colors"
-                  title="Create New Organization"
+              {/* Desktop Collapse Button */}
+              {!isCollapsed && (
+                <button
+                  type="button"
+                  onClick={toggleSidebar}
+                  className="hidden md:flex text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 p-1 rounded-md transition-colors cursor-pointer shrink-0"
+                  title="Collapse sidebar"
                 >
-                  <LuPlus className="w-4 h-4" />
-                </Link>
+                  <LuChevronLeft className="w-3.5 h-3.5" />
+                </button>
               )}
+
+              {/* Mobile Close Button */}
+              <button
+                type="button"
+                onClick={closeMobile}
+                className="md:hidden text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 p-1 rounded-md transition-colors cursor-pointer shrink-0"
+                title="Close sidebar"
+              >
+                <LuX className="w-4 h-4" />
+              </button>
             </div>
           )}
 
@@ -147,26 +199,52 @@ export default function Sidebar() {
               const Icon = item.icon;
               const isActive = pathname === item.path;
 
+              if (isCollapsed) {
+                return (
+                  <Link
+                    key={item.name}
+                    href={item.path}
+                    onClick={() => closeMobile()}
+                    title={item.name}
+                    className={`w-full flex items-center justify-center p-2 rounded-lg text-xs transition-colors relative cursor-pointer ${
+                      isActive
+                        ? "bg-teal-50 text-[#0F766E] font-semibold"
+                        : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                    }`}
+                  >
+                    <Icon
+                      className={`w-4.5 h-4.5 ${
+                        isActive ? "text-[#0F766E]" : "text-slate-500"
+                      }`}
+                    />
+                    {item.count !== undefined && item.count > 0 && (
+                      <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#0F766E]" />
+                    )}
+                  </Link>
+                );
+              }
+
               return (
                 <Link
                   key={item.name}
                   href={item.path}
+                  onClick={() => closeMobile()}
                   className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs transition-colors cursor-pointer ${
                     isActive
                       ? "bg-slate-100 text-slate-900 font-semibold"
                       : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium"
                   }`}
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2.5">
                     <Icon
                       className={`w-4 h-4 ${
-                        isActive ? "text-slate-900" : "text-slate-500"
+                        isActive ? "text-[#0F766E]" : "text-slate-400"
                       }`}
                     />
                     <span>{item.name}</span>
                   </div>
                   {item.count !== undefined && item.count > 0 && (
-                    <span className="text-[10px] px-1.5 py-0.5 rounded-lg bg-slate-100 text-slate-600 font-semibold">
+                    <span className="text-[10px] px-1.5 py-0.2 rounded-lg bg-slate-100 text-slate-600 font-semibold">
                       {item.count}
                     </span>
                   )}
@@ -175,70 +253,42 @@ export default function Sidebar() {
             })}
           </nav>
 
-          {/* Show alternate workspaces only when user belongs to multiple organizations */}
-          {organizations && organizations.length > 1 && (
-            <div className="space-y-1.5">
-              <div className="px-3 text-[11px] font-semibold text-slate-400 tracking-wider uppercase">
-                <span>Other Workspaces</span>
-              </div>
-              <div className="space-y-0.5">
-                {organizations
-                  .filter((orgItem) => {
-                    const orgData = orgItem.organizations || orgItem;
-                    return orgData?.id !== activeOrg?.id;
-                  })
-                  .map((orgItem) => {
-                    const orgData = orgItem.organizations || orgItem;
-                    return (
-                      <Link
-                        key={orgData.id}
-                        href="/dashboard"
-                        className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
-                      >
-                        <div className="flex items-center gap-2 min-w-0">
-                          <div className="w-5 h-5 rounded-lg bg-white border border-slate-200 flex items-center justify-center shrink-0 text-[10px] font-bold text-[#0F766E]">
-                            {orgData.name?.charAt(0)?.toUpperCase() || "O"}
-                          </div>
-                          <span className="truncate text-xs">{orgData.name}</span>
-                        </div>
-                        <span className="text-[10px] text-slate-400 capitalize shrink-0 ml-1">
-                          {orgItem.role || MEMBER_ROLE}
-                        </span>
-                      </Link>
-                    );
-                  })}
-              </div>
-            </div>
-          )}
-
           {/* ALL PROJECTS Section */}
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between px-3 text-[11px] font-semibold text-slate-400 tracking-wider uppercase">
-              <div className="flex items-center gap-1.5">
-                <span>Projects</span>
-                {projects.length > 0 && (
-                  <span className="text-[10px] px-1.5 py-0.2 rounded-lg bg-slate-100 text-slate-600 font-semibold">
-                    {projects.length}
-                  </span>
+          <div className="space-y-1">
+            {!isCollapsed ? (
+              <div className="flex items-center justify-between px-3 py-1 text-[11px] font-semibold text-slate-400 tracking-wider uppercase">
+                <div className="flex items-center gap-1.5">
+                  <span>Projects</span>
+                  {projects.length > 0 && (
+                    <span className="text-[10px] px-1.5 py-0.2 rounded-lg bg-slate-100 text-slate-500 font-semibold">
+                      {projects.length}
+                    </span>
+                  )}
+                </div>
+                {!isMember && (
+                  <button
+                    type="button"
+                    onClick={() => setIsCreateProjectModalOpen(true)}
+                    className="text-slate-400 hover:text-[#0F766E] p-0.5 rounded-lg transition-colors cursor-pointer"
+                    title="Create Project"
+                  >
+                    <LuPlus className="w-3.5 h-3.5" />
+                  </button>
                 )}
               </div>
-              {!isMember && (
-                <button
-                  type="button"
-                  onClick={() => setIsCreateProjectModalOpen(true)}
-                  className="text-slate-400 hover:text-[#0F766E] p-0.5 rounded-lg transition-colors cursor-pointer"
-                  title="Create Project"
-                >
-                  <LuPlus className="w-3.5 h-3.5" />
-                </button>
-              )}
-            </div>
+            ) : (
+              <div className="pt-2 border-t border-slate-100 flex justify-center">
+                <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-widest">
+                  Proj
+                </span>
+              </div>
+            )}
 
             <div className="space-y-0.5">
               {loadingProjects ? (
-                <div className="px-3 py-2 text-[11px] text-slate-400 flex items-center gap-2">
+                <div className={`py-2 text-[11px] text-slate-400 flex items-center ${isCollapsed ? "justify-center" : "px-3 gap-2"}`}>
                   <span className="w-2.5 h-2.5 rounded-full border-2 border-slate-300 border-t-[#0F766E] animate-spin" />
-                  <span>Loading projects...</span>
+                  {!isCollapsed && <span>Loading projects...</span>}
                 </div>
               ) : projects && projects.length > 0 ? (
                 projects.map((project) => {
@@ -251,22 +301,45 @@ export default function Sidebar() {
 
                   const isCurrent = pathname === `/projects/${project.id}`;
 
+                  if (isCollapsed) {
+                    return (
+                      <Link
+                        key={project.id}
+                        href={`/projects/${project.id}`}
+                        onClick={() => closeMobile()}
+                        title={`${project.name} (${project.status || "active"})`}
+                        className={`w-full flex items-center justify-center p-2 rounded-lg text-xs transition-colors cursor-pointer ${
+                          isCurrent
+                            ? "bg-teal-50 text-[#0F766E]"
+                            : "text-slate-600 hover:bg-slate-50"
+                        }`}
+                      >
+                        <LuFolder
+                          className={`w-4 h-4 ${
+                            isCurrent ? "text-[#0F766E]" : "text-slate-400"
+                          }`}
+                        />
+                      </Link>
+                    );
+                  }
+
                   return (
                     <Link
                       key={project.id}
                       href={`/projects/${project.id}`}
+                      onClick={() => closeMobile()}
                       className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs transition-colors cursor-pointer ${
                         isCurrent
                           ? "bg-slate-100 text-slate-900 font-semibold"
                           : "text-slate-700 hover:bg-slate-50 font-normal"
                       }`}
                     >
-                      <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="flex items-center gap-2 min-w-0">
                         <div
-                          className={`w-5 h-5 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
+                          className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 transition-colors ${
                             isCurrent
                               ? "bg-[#0F766E] text-white"
-                              : "bg-teal-50 border border-teal-200/80 text-[#0F766E]"
+                              : "bg-teal-50 text-[#0F766E]"
                           }`}
                         >
                           <LuFolder className="w-3 h-3" />
@@ -276,7 +349,7 @@ export default function Sidebar() {
 
                       <div className="flex items-center gap-1.5 shrink-0 ml-2">
                         <span
-                          className={`text-[9px] px-1.5 py-0.2 rounded-lg font-bold uppercase tracking-wider border ${
+                          className={`text-[9px] px-1.5 py-0.2 rounded-md font-semibold uppercase tracking-wider ${
                             projectStatusBadge[project.status] ||
                             projectStatusBadge.active
                           }`}
@@ -296,12 +369,35 @@ export default function Sidebar() {
                   );
                 })
               ) : (
-                <div className="px-3 py-2 text-[11px] text-slate-400">
-                  No projects created yet.
-                </div>
+                !isCollapsed && (
+                  <div className="px-3 py-2 text-[11px] text-slate-400">
+                    No projects created yet.
+                  </div>
+                )
               )}
             </div>
           </div>
+        </div>
+
+        {/* Sidebar Footer Collapse / Expand Toggle */}
+        <div className="p-2 border-t border-slate-200/80 bg-slate-50/50">
+          <button
+            type="button"
+            onClick={toggleSidebar}
+            className={`w-full flex items-center rounded-lg text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer ${
+              isCollapsed ? "justify-center p-2" : "justify-between px-2.5 py-1.5"
+            }`}
+            title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            {!isCollapsed && (
+              <span className="text-[11px] font-semibold text-slate-500">Collapse sidebar</span>
+            )}
+            {isCollapsed ? (
+              <LuChevronRight className="w-4 h-4 text-slate-600" />
+            ) : (
+              <LuChevronLeft className="w-4 h-4 text-slate-500" />
+            )}
+          </button>
         </div>
       </aside>
 

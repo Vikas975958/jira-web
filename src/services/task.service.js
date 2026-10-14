@@ -4,7 +4,18 @@ import { MEMBER_ROLE, MANAGER_ROLE, OWNER_ROLE } from "@/utils/constants";
 const LOCAL_STORAGE_KEY = "workgrid_tickets";
 const LEGACY_LOCAL_STORAGE_KEY = "jira_tickets";
 
+const inFlightTasks = new Map();
+const tasksCache = new Map();
+const TASKS_CACHE_TTL = 60000; // 60 seconds
+const healedTaskIds = new Set();
+
+export const clearTasksCache = () => {
+  inFlightTasks.clear();
+  tasksCache.clear();
+};
+
 export const taskService = {
+  clearTasksCache,
   /**
    * Fetch tasks for an organization respecting role and permissions.
    * - Members: Only see their own assigned tasks.
@@ -16,6 +27,7 @@ export const taskService = {
    * @param {string} [params.userRole]
    * @param {string} [params.userName]
    * @param {string} [params.userEmail]
+   * @param {boolean} [params.force]
    * @returns {Promise<Array>} List of tasks
    */
   async getTasks({
@@ -24,8 +36,23 @@ export const taskService = {
     userRole = MEMBER_ROLE,
     userName = "",
     userEmail = "",
+    force = false,
   }) {
     if (!organizationId) return [];
+
+    const cacheKey = `${organizationId}:${userId || ""}:${userRole}:${userName || ""}:${userEmail || ""}`;
+
+    if (!force) {
+      const cached = tasksCache.get(cacheKey);
+      if (cached && Date.now() - cached.timestamp < TASKS_CACHE_TTL) {
+        return cached.data;
+      }
+      if (inFlightTasks.has(cacheKey)) {
+        return inFlightTasks.get(cacheKey);
+      }
+    }
+
+    const fetchPromise = (async () => {
 
     let tasksFromDb = null;
 
@@ -69,12 +96,13 @@ export const taskService = {
       allTasks = this.getLocalTasks(organizationId);
     }
 
-    // 3. Auto-heal missing assignee_id on existing tasks for owners/managers
+    // 3. Auto-heal missing assignee_id on existing tasks for owners/managers (only once per task)
     if ((userRole === OWNER_ROLE || userRole === MANAGER_ROLE) && tasksFromDb && tasksFromDb.length > 0) {
       const tasksMissingAssigneeId = tasksFromDb.filter(
-        (t) => !t.assignee_id && t.assignee && t.assignee.trim().toLowerCase() !== "unassigned"
+        (t) => !t.assignee_id && t.assignee && t.assignee.trim().toLowerCase() !== "unassigned" && !healedTaskIds.has(t.id)
       );
       if (tasksMissingAssigneeId.length > 0) {
+        tasksMissingAssigneeId.forEach((t) => healedTaskIds.add(t.id));
         (async () => {
           try {
             const { data: profiles } = await supabase
@@ -129,10 +157,87 @@ export const taskService = {
       });
     }
 
-    // Owners and Managers see all tasks within their organization
+    // Managers only work on projects assigned by the owner or created by themselves
+    if (userRole === MANAGER_ROLE && userId) {
+      let allowedProjectIds = new Set();
+      try {
+        const { data: projs } = await supabase
+          .from("projects")
+          .select("id, created_by, project_members(user_id)")
+          .eq("organization_id", organizationId);
+        (projs || []).forEach((p) => {
+          if (
+            p.created_by === userId ||
+            (p.project_members || []).some((m) => m.user_id === userId)
+          ) {
+            allowedProjectIds.add(p.id);
+          }
+        });
+      } catch (_) {}
+
+      if (typeof window !== "undefined") {
+        try {
+          const raw =
+            localStorage.getItem("workgrid_projects_data") ||
+            localStorage.getItem("jira_projects_data");
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            (parsed || []).forEach((p) => {
+              if (
+                p.organization_id === organizationId &&
+                (p.created_by === userId ||
+                  (p.project_members || []).some(
+                    (m) => (m.user_id || m.userId) === userId
+                  ))
+              ) {
+                allowedProjectIds.add(p.id);
+              }
+            });
+          }
+        } catch (_) {}
+      }
+
+      const cleanName = (userName || "").trim().toLowerCase();
+      const cleanEmail = (userEmail || "").trim().toLowerCase();
+
+      return (allTasks || []).filter((task) => {
+        if (task.organization_id && task.organization_id !== organizationId) {
+          return false;
+        }
+
+        const taskProjId = task.project_id || task.projectId;
+        if (taskProjId && allowedProjectIds.has(taskProjId)) {
+          return true;
+        }
+
+        const matchId = userId && (task.assignee_id === userId || task.assigneeId === userId);
+        const matchCreator = userId && (task.created_by === userId || task.createdBy === userId);
+        const taskAssignee = (task.assignee || "").toLowerCase().trim();
+        const matchName = cleanName && (
+          taskAssignee === cleanName ||
+          taskAssignee.includes(cleanName) ||
+          cleanName.includes(taskAssignee)
+        );
+        const matchEmail = cleanEmail && taskAssignee.includes(cleanEmail);
+
+        return matchId || matchCreator || matchName || matchEmail;
+      });
+    }
+
+    // Owners have full access and see all tasks within their organization
     return (allTasks || []).filter((task) => {
       return !task.organization_id || task.organization_id === organizationId;
     });
+    })();
+
+    inFlightTasks.set(cacheKey, fetchPromise);
+    try {
+      const result = await fetchPromise;
+      tasksCache.set(cacheKey, { data: result, timestamp: Date.now() });
+      return result;
+    } finally {
+      inFlightTasks.delete(cacheKey);
+    }
   },
 
   /**
@@ -181,7 +286,13 @@ export const taskService = {
       } catch (_) {}
     }
 
-    const nextId = taskData.id || `JIRA-${Math.floor(100 + Math.random() * 900)}`;
+    const projectPrefix = (finalProjectName || "TASK")
+      .trim()
+      .split(/\s+/)[0]
+      ?.toUpperCase()
+      .replace(/[^A-Z0-9]/g, "") || "TASK";
+
+    const nextId = taskData.id || `${projectPrefix}-${Math.floor(100 + Math.random() * 900)}`;
 
     const insertPayload = {
       organization_id: organizationId,
@@ -210,6 +321,7 @@ export const taskService = {
         .single();
 
       if (!error && data) {
+        clearTasksCache();
         this.saveLocalTask(data);
         return data;
       }
@@ -222,6 +334,7 @@ export const taskService = {
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
+    clearTasksCache();
     this.saveLocalTask(fallbackTask);
     return fallbackTask;
   },
@@ -249,12 +362,14 @@ export const taskService = {
         .single();
 
       if (!error && data) {
+        clearTasksCache();
         this.updateLocalTask(taskId, data);
         return data;
       }
     } catch (_) {}
 
     // 2. Fallback to localStorage
+    clearTasksCache();
     this.updateLocalTask(taskId, payload);
     return { id: taskId, ...payload };
   },
@@ -274,6 +389,7 @@ export const taskService = {
       await supabase.from("tasks").delete().eq("id", taskId);
     } catch (_) {}
 
+    clearTasksCache();
     this.deleteLocalTask(taskId);
     return true;
   },

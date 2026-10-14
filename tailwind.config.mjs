@@ -47,9 +47,10 @@ export default {
         costom960: "960px",
         costom1660: "1660px",
       },
-    },
-    fontFamily: {
-      poppins: "var(--font-poppins)",
+      fontFamily: {
+        sans: ["var(--font-family-base)", "sans-serif"],
+        poppins: ["var(--font-family-base)", "Poppins", "sans-serif"],
+      },
     },
   },
   plugins: [],
