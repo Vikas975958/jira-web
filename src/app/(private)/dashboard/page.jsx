@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -36,7 +36,6 @@ import {
   FiRefreshCw,
   FiFolder,
   FiFolderPlus,
-  FiCheckCircle,
 } from "react-icons/fi";
 import organizationService from "@/services/organization.service";
 import projectService from "@/services/project.service";
@@ -271,27 +270,36 @@ function OrganizationDashboardContent({
     }
   }, [userRole, activeTab]);
 
+  const orgId = org?.id;
+  const lastFetchedProjectsOrgIdRef = useRef(null);
+  const lastFetchedRequestsOrgIdRef = useRef(null);
+
   // Load Projects
-  const loadProjects = useCallback(async () => {
-    if (!org?.id) return;
+  const loadProjects = useCallback(async (force = false) => {
+    if (!orgId) return;
+    if (!force && lastFetchedProjectsOrgIdRef.current === orgId && projects.length > 0) return;
     try {
       setLoadingProjects(true);
       const data = await projectService.getProjects({
-        organizationId: org.id,
+        organizationId: orgId,
         userId: currentUserId,
         userRole,
+        force,
       });
+      lastFetchedProjectsOrgIdRef.current = orgId;
       setProjects(data || []);
     } catch (err) {
       console.error("loadProjects error:", err);
     } finally {
       setLoadingProjects(false);
     }
-  }, [org?.id, currentUserId, userRole]);
+  }, [orgId, currentUserId, userRole, projects.length]);
 
   useEffect(() => {
-    loadProjects();
-  }, [loadProjects]);
+    if (orgId) {
+      loadProjects();
+    }
+  }, [orgId, loadProjects]);
 
   // Requests state
   const [requests, setRequests] = useState([]);
@@ -302,49 +310,46 @@ function OrganizationDashboardContent({
   const [processingRequestId, setProcessingRequestId] = useState(null);
 
   // Fetch Requests
-  const loadRequests = useCallback(async () => {
-    if (!org?.id) return;
+  const loadRequests = useCallback(async (force = false) => {
+    if (!orgId) return;
+    if (!force && lastFetchedRequestsOrgIdRef.current === orgId && requests.length > 0) return;
     try {
       setLoadingRequests(true);
-      const data = await organizationService.getAllRequests(org.id, {
-        currentUserId,
-        currentUserRole: userRole,
-      });
-      setRequests(data);
+      const data = await organizationService.getAllRequests(
+        orgId,
+        {
+          currentUserId,
+          currentUserRole: userRole,
+        },
+        force
+      );
+      lastFetchedRequestsOrgIdRef.current = orgId;
+      setRequests(data || []);
     } catch (err) {
       console.error("loadRequests error:", err);
     } finally {
       setLoadingRequests(false);
     }
-  }, [org?.id, currentUserId, userRole]);
+  }, [orgId, currentUserId, userRole, requests.length]);
 
   useEffect(() => {
-    loadRequests();
-  }, [loadRequests]);
-
-  // Handle Approve / Accept Request
-  const handleApproveRequest = async (req) => {
-    if (!isAuthorizedAdmin) return;
-
-    setProcessingRequestId(req.id);
-    try {
-      await organizationService.approveRequest({
-        requestId: req.id,
-        type: req.request_type,
-        organizationId: org?.id,
-        email: req.email,
-      });
-      toast.success(`${req.full_name || req.email} accepted into workspace!`);
-      await Promise.all([
-        loadRequests(),
-        onRefresh ? onRefresh() : Promise.resolve(),
-      ]);
-    } catch (err) {
-      toast.error(err?.message || "Failed to accept request.");
-    } finally {
-      setProcessingRequestId(null);
+    if (orgId) {
+      loadRequests();
     }
-  };
+  }, [orgId, loadRequests]);
+
+  // Synchronize when invitations or members are modified elsewhere
+  useEffect(() => {
+    const handleSync = () => {
+      if (orgId) loadRequests();
+    };
+    window.addEventListener("invitation-deleted", handleSync);
+    window.addEventListener("member-removed", handleSync);
+    return () => {
+      window.removeEventListener("invitation-deleted", handleSync);
+      window.removeEventListener("member-removed", handleSync);
+    };
+  }, [orgId, loadRequests]);
 
   // Handle Delete Request
   const handleDeleteRequest = async (req) => {
@@ -356,6 +361,8 @@ function OrganizationDashboardContent({
       await organizationService.deleteRequest({
         requestId: req.id,
         type: req.request_type,
+        email: req.email,
+        organizationId: orgId,
       });
       toast.success("Invitation removed.");
       await loadRequests();
@@ -426,10 +433,10 @@ function OrganizationDashboardContent({
   }, [filteredProjects, projectPage]);
   const totalProjectPages = Math.ceil(filteredProjects.length / 5) || 1;
 
-  // Managers List
+  // Managers List (Only managers, excluding workspace owner)
   const managersList = useMemo(() => {
     return (members || []).filter(
-      (m) => m.role === MANAGER_ROLE || m.role === OWNER_ROLE || m.is_owner
+      (m) => m.role === MANAGER_ROLE && m.role !== OWNER_ROLE && !m.is_owner
     );
   }, [members]);
 
@@ -1538,17 +1545,7 @@ function OrganizationDashboardContent({
                             {isProcessing ? (
                               <div className="inline-block w-4 h-4 border-2 border-slate-300 border-t-[#0F766E] rounded-full animate-spin" />
                             ) : isAuthorizedAdmin ? (
-                              <div className="flex items-center justify-end gap-1.5">
-                                {isPending && (
-                                  <button
-                                    type="button"
-                                    onClick={() => handleApproveRequest(req)}
-                                    className="p-1.5 rounded-lg text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 transition-colors cursor-pointer"
-                                    title="Accept into workspace"
-                                  >
-                                    <FiCheckCircle className="w-4 h-4" />
-                                  </button>
-                                )}
+                              <div className="flex items-center justify-end">
                                 <button
                                   type="button"
                                   onClick={() => handleDeleteRequest(req)}
@@ -1778,6 +1775,7 @@ function OrganizationDashboardContent({
         onClose={() => setSelectedProject(null)}
         project={selectedProject}
         currentUserRole={userRole}
+        currentUserId={currentUserId}
         onProjectUpdated={() => {
           loadProjects();
         }}
@@ -2588,25 +2586,35 @@ export default function DashboardPage() {
   } = useOrganization();
 
   const [userInvitations, setUserInvitations] = useState([]);
+  const hasFetchedInvitesRef = useRef(false);
 
-  const fetchInvites = useCallback(async () => {
+  const fetchInvites = useCallback(async (force = false) => {
     if (!user?.email) {
       setUserInvitations([]);
       return;
     }
+    // Only fetch invitations when user has no active organizations
+    if (!force && orgMemberships && orgMemberships.length > 0) {
+      return;
+    }
+    if (!force && hasFetchedInvitesRef.current) return;
     try {
+      hasFetchedInvitesRef.current = true;
       const invites = await organizationService.getUserPendingInvitations(
-        user.email
+        user.email,
+        force
       );
       setUserInvitations(invites || []);
     } catch (err) {
       console.error("fetchInvites error:", err);
     }
-  }, [user?.email]);
+  }, [user?.email, orgMemberships?.length]);
 
   useEffect(() => {
-    fetchInvites();
-  }, [fetchInvites]);
+    if (!loadingOrgs && (!orgMemberships || orgMemberships.length === 0)) {
+      fetchInvites();
+    }
+  }, [loadingOrgs, orgMemberships?.length, fetchInvites]);
 
   const handleLogout = async () => {
     try {
@@ -2620,6 +2628,12 @@ export default function DashboardPage() {
   const handleCreateOrg = () => {
     router.push("/dashboard/create-organization");
   };
+
+  const handleRefreshAll = useCallback(async () => {
+    await refreshOrganizations();
+    await refreshMembers();
+    await fetchInvites(true);
+  }, [refreshOrganizations, refreshMembers, fetchInvites]);
 
   // Loading state
   if (loadingOrgs) {
@@ -2638,10 +2652,7 @@ export default function DashboardPage() {
         onCreateOrg={handleCreateOrg}
         onLogout={handleLogout}
         user={user}
-        onRefresh={async () => {
-          await refreshOrganizations();
-          await fetchInvites();
-        }}
+        onRefresh={handleRefreshAll}
       />
     );
   }
@@ -2653,10 +2664,7 @@ export default function DashboardPage() {
       <MemberTasksView
         membership={activeMembership}
         user={user}
-        onRefresh={async () => {
-          await refreshOrganizations();
-          await fetchInvites();
-        }}
+        onRefresh={handleRefreshAll}
       />
     );
   }
@@ -2667,11 +2675,7 @@ export default function DashboardPage() {
       membership={activeMembership}
       members={members}
       currentUserId={user?.id}
-      onRefresh={async () => {
-        await refreshOrganizations();
-        await refreshMembers();
-        await fetchInvites();
-      }}
+      onRefresh={handleRefreshAll}
     />
   );
 }

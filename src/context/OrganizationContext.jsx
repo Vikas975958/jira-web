@@ -40,6 +40,22 @@ export function OrganizationProvider({ children }) {
   const isFetchingMembersRef = useRef(false);
   const lastFetchedOrgIdRef = useRef(null);
 
+  const organizationsRef = useRef(organizations);
+  const currentOrgRef = useRef(currentOrg);
+  const membersRef = useRef(members);
+
+  useEffect(() => {
+    organizationsRef.current = organizations;
+  }, [organizations]);
+
+  useEffect(() => {
+    currentOrgRef.current = currentOrg;
+  }, [currentOrg]);
+
+  useEffect(() => {
+    membersRef.current = members;
+  }, [members]);
+
   const fetchOrganizations = useCallback(
     async (force = false) => {
       if (!user?.id) {
@@ -54,7 +70,7 @@ export function OrganizationProvider({ children }) {
 
       // If already fetching or already fetched for this user without force, avoid duplicate hit
       if (isFetchingOrgsRef.current) return;
-      if (!force && lastFetchedUserIdRef.current === user.id && organizations.length > 0) {
+      if (!force && lastFetchedUserIdRef.current === user.id) {
         setLoadingOrgs(false);
         return;
       }
@@ -63,14 +79,21 @@ export function OrganizationProvider({ children }) {
         isFetchingOrgsRef.current = true;
         setLoadingOrgs(true);
 
-        const orgs = await organizationService.getUserOrganizations(user.id);
+        const orgs = await organizationService.getUserOrganizations(user.id, force);
         // Single workspace policy: strictly keep only the single organization
         const validOrgs = orgs && orgs.length > 0 ? [orgs[0]] : [];
         lastFetchedUserIdRef.current = user.id;
         setOrganizations(validOrgs);
 
         if (validOrgs.length > 0) {
-          setCurrentOrg(validOrgs[0]);
+          setCurrentOrg((prev) => {
+            const prevId = prev?.organizations?.id || prev?.id;
+            const newId = validOrgs[0]?.organizations?.id || validOrgs[0]?.id;
+            if (prev && prevId === newId && prev.role === validOrgs[0].role) {
+              return prev;
+            }
+            return validOrgs[0];
+          });
         } else {
           setCurrentOrg(null);
           setMembers([]);
@@ -85,32 +108,37 @@ export function OrganizationProvider({ children }) {
         isFetchingOrgsRef.current = false;
       }
     },
-    [user?.id, organizations.length]
+    [user?.id]
   );
 
   // Shared members fetcher: automatically fetches members for current active organization
   const fetchMembers = useCallback(
     async (force = false) => {
-      const orgId = currentOrg?.organizations?.id || currentOrg?.id;
+      const activeOrg = currentOrgRef.current;
+      const orgId = activeOrg?.organizations?.id || activeOrg?.id;
       if (!orgId || !user?.id) {
         setMembers([]);
         return;
       }
 
-      const userRole = currentOrg?.role || user?.role || MEMBER_ROLE;
+      const userRole = activeOrg?.role || user?.role || MEMBER_ROLE;
 
       if (isFetchingMembersRef.current) return;
-      if (!force && lastFetchedOrgIdRef.current === orgId && members.length > 0) {
+      if (!force && lastFetchedOrgIdRef.current === orgId) {
         return;
       }
 
       try {
         isFetchingMembersRef.current = true;
         setLoadingMembers(true);
-        const data = await organizationService.getOrganizationMembers(orgId, {
-          currentUserId: user.id,
-          currentUserRole: userRole,
-        });
+        const data = await organizationService.getOrganizationMembers(
+          orgId,
+          {
+            currentUserId: user.id,
+            currentUserRole: userRole,
+          },
+          force
+        );
         lastFetchedOrgIdRef.current = orgId;
         setMembers(data || []);
       } catch (err) {
@@ -121,20 +149,25 @@ export function OrganizationProvider({ children }) {
         isFetchingMembersRef.current = false;
       }
     },
-    [currentOrg, user?.id, user?.role, members.length]
+    [user?.id, user?.role]
   );
+
+  const currentOrgId = currentOrg?.organizations?.id || currentOrg?.id;
 
   useEffect(() => {
     fetchOrganizations();
   }, [fetchOrganizations]);
 
   useEffect(() => {
-    if (currentOrg) {
+    if (currentOrgId) {
       fetchMembers();
     }
-  }, [currentOrg, fetchMembers]);
+  }, [currentOrgId, fetchMembers]);
 
   const hasOrganization = organizations.length > 0;
+
+  const refreshOrganizations = useCallback(() => fetchOrganizations(true), [fetchOrganizations]);
+  const refreshMembers = useCallback(() => fetchMembers(true), [fetchMembers]);
 
   return (
     <OrganizationContext.Provider
@@ -146,8 +179,8 @@ export function OrganizationProvider({ children }) {
         loadingOrgs,
         members,
         loadingMembers,
-        refreshOrganizations: () => fetchOrganizations(true),
-        refreshMembers: () => fetchMembers(true),
+        refreshOrganizations,
+        refreshMembers,
       }}
     >
       {children}

@@ -34,6 +34,41 @@ export default function CreateIssueModal({
     }
   }, [isOpen, selectedProjectId, projects]);
 
+  const chosenProj = React.useMemo(() => {
+    return projects.find((p) => p.id === projectId) || null;
+  }, [projects, projectId]);
+
+  // Project team members available for assignment
+  const effectiveAssignees = React.useMemo(() => {
+    if (chosenProj) {
+      const list = [];
+      if (chosenProj.assignedManagers?.length > 0) {
+        chosenProj.assignedManagers.forEach((m) => {
+          list.push({
+            id: m.id || m.userId,
+            user_id: m.userId || m.id,
+            full_name: m.fullName || m.name || "Manager",
+            email: m.email || "",
+            role: "manager",
+          });
+        });
+      }
+      if (chosenProj.assignedMembers?.length > 0) {
+        chosenProj.assignedMembers.forEach((m) => {
+          list.push({
+            id: m.id || m.userId,
+            user_id: m.userId || m.id,
+            full_name: m.fullName || m.name || "Member",
+            email: m.email || "",
+            role: "member",
+          });
+        });
+      }
+      if (list.length > 0) return list;
+    }
+    return teamMembers || [];
+  }, [chosenProj, teamMembers]);
+
   // Set default assignee and assigneeId when modal opens or user loads
   React.useEffect(() => {
     if (isOpen && !assigneeId && user) {
@@ -48,14 +83,12 @@ export default function CreateIssueModal({
     e.preventDefault();
     if (!title.trim()) return;
 
-    const chosenProj = projects.find((p) => p.id === projectId);
-
     let finalAssigneeId = assigneeId || null;
     let finalAssigneeName = assignee.trim() || user?.full_name || user?.name || "Unassigned";
 
-    // Auto-resolve assigneeId from teamMembers if needed
-    if (!finalAssigneeId && finalAssigneeName && finalAssigneeName !== "Unassigned" && teamMembers?.length > 0) {
-      const match = teamMembers.find(
+    // Auto-resolve assigneeId from effectiveAssignees if needed
+    if (!finalAssigneeId && finalAssigneeName && finalAssigneeName !== "Unassigned" && effectiveAssignees?.length > 0) {
+      const match = effectiveAssignees.find(
         (m) =>
           (m.full_name && m.full_name.toLowerCase().trim() === finalAssigneeName.toLowerCase().trim()) ||
           (m.email && m.email.toLowerCase().trim() === finalAssigneeName.toLowerCase().trim()) ||
@@ -267,7 +300,7 @@ export default function CreateIssueModal({
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
                 Assignee
               </label>
-              {teamMembers && teamMembers.length > 0 ? (
+              {effectiveAssignees && effectiveAssignees.length > 0 ? (
                 <select
                   value={assigneeId}
                   onChange={(e) => {
@@ -276,7 +309,7 @@ export default function CreateIssueModal({
                     if (!selId) {
                       setAssignee("Unassigned");
                     } else {
-                      const found = teamMembers.find(
+                      const found = effectiveAssignees.find(
                         (m) => (m.user_id || m.profiles?.id || m.id) === selId
                       );
                       const name = found?.full_name || found?.name || found?.email || "Team Member";
@@ -286,7 +319,7 @@ export default function CreateIssueModal({
                   className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-[#0F766E]"
                 >
                   <option value="">Unassigned</option>
-                  {teamMembers.map((member) => {
+                  {effectiveAssignees.map((member) => {
                     const mId = member.user_id || member.profiles?.id || member.id;
                     const mName = member.full_name || member.name || member.email || "Member";
                     return (

@@ -84,17 +84,42 @@ export default function ProjectDetailsPage() {
   // Can manage team if workspace owner or project manager
   const canManage = isOwner || isManager || isProjectManager;
 
+  const isFetchingProjectRef = React.useRef(false);
+  const lastFetchedProjectKeyRef = React.useRef("");
+  const isFetchingInvitesRef = React.useRef(false);
+  const lastFetchedInvitesKeyRef = React.useRef("");
+  const projectOrgIdRef = React.useRef("");
+
+  useEffect(() => {
+    if (project?.organization_id) {
+      projectOrgIdRef.current = project.organization_id;
+    }
+  }, [project?.organization_id]);
+
   // Fetch Project Details
-  const loadProject = useCallback(async () => {
+  const loadProject = useCallback(async (force = false) => {
     if (!projectId) return;
+    const fetchKey = `${projectId}:${user?.id || ""}:${userRole || ""}`;
+    if (!force && (isFetchingProjectRef.current || lastFetchedProjectKeyRef.current === fetchKey)) {
+      return;
+    }
+    isFetchingProjectRef.current = true;
     try {
-      setLoading(true);
+      setLoading((prev) => (prev ? true : !lastFetchedProjectKeyRef.current));
       setErrorMsg("");
-      const data = await projectService.getProjectById(projectId);
+      const data = await projectService.getProjectById(
+        projectId,
+        {
+          userId: user?.id,
+          userRole,
+        },
+        force
+      );
       if (!data) {
         setErrorMsg("Project not found or you do not have permission to view it.");
         setProject(null);
       } else {
+        lastFetchedProjectKeyRef.current = fetchKey;
         setProject(data);
         setStatus(data.status || "active");
       }
@@ -102,28 +127,66 @@ export default function ProjectDetailsPage() {
       console.error("loadProject error:", err);
       setErrorMsg(err?.message || "Failed to load project details.");
     } finally {
+      isFetchingProjectRef.current = false;
       setLoading(false);
     }
-  }, [projectId]);
+  }, [projectId, user?.id, userRole]);
 
   // Fetch Pending Project Invitations
-  const loadInvitations = useCallback(async () => {
+  const loadInvitations = useCallback(async (force = false) => {
     if (!projectId) return;
+    const orgId = activeOrg?.id || projectOrgIdRef.current;
+    const fetchKey = `${projectId}:${orgId || ""}`;
+    if (!force && (isFetchingInvitesRef.current || lastFetchedInvitesKeyRef.current === fetchKey)) {
+      return;
+    }
+    isFetchingInvitesRef.current = true;
     try {
       setLoadingInvites(true);
-      const invites = await projectService.getProjectInvitations({ projectId });
+      const invites = await projectService.getProjectInvitations(
+        { projectId, organizationId: orgId },
+        force
+      );
+      lastFetchedInvitesKeyRef.current = fetchKey;
       setPendingInvitations(invites || []);
     } catch (err) {
       console.error("loadInvitations error:", err);
     } finally {
+      isFetchingInvitesRef.current = false;
       setLoadingInvites(false);
     }
-  }, [projectId]);
+  }, [projectId, activeOrg?.id]);
 
   useEffect(() => {
     loadProject();
     loadInvitations();
   }, [loadProject, loadInvitations]);
+
+  // Synchronize across components when invitations or members are deleted
+  useEffect(() => {
+    let syncTimer = null;
+    const handleSync = (e) => {
+      // Ignore events dispatched by this page itself to avoid redundant re-fetches
+      if (e?.detail?.source === "project-details-page") return;
+      if (e?.detail?.projectId && e.detail.projectId !== projectId) return;
+
+      if (syncTimer) clearTimeout(syncTimer);
+      syncTimer = setTimeout(() => {
+        loadInvitations(true);
+        loadProject(true);
+      }, 300);
+    };
+
+    window.addEventListener("invitation-deleted", handleSync);
+    window.addEventListener("project-updated", handleSync);
+    window.addEventListener("member-removed", handleSync);
+    return () => {
+      if (syncTimer) clearTimeout(syncTimer);
+      window.removeEventListener("invitation-deleted", handleSync);
+      window.removeEventListener("project-updated", handleSync);
+      window.removeEventListener("member-removed", handleSync);
+    };
+  }, [loadInvitations, loadProject, projectId]);
 
   // Flattened team members list (Name, Type/Role, Email)
   const allTeamMembers = useMemo(() => {
@@ -207,9 +270,12 @@ export default function ProjectDetailsPage() {
         { status: newStatus },
         { userRole: isOwner ? OWNER_ROLE : MANAGER_ROLE }
       );
-      toast.success(`Project status changed to "${newStatus}"`);
       if (typeof window !== "undefined") {
-        window.dispatchEvent(new CustomEvent("project-updated", { detail: { id: projectId, status: newStatus } }));
+        window.dispatchEvent(
+          new CustomEvent("project-updated", {
+            detail: { id: projectId, status: newStatus, source: "project-details-page" },
+          })
+        );
       }
     } catch (err) {
       toast.error(err?.message || "Failed to update project status.");
@@ -234,11 +300,14 @@ export default function ProjectDetailsPage() {
         assignedBy: user?.id,
       });
 
-      toast.success("Member added to project successfully!");
       setSelectedExistingUserId("");
-      await loadProject();
+      await loadProject(true);
       if (typeof window !== "undefined") {
-        window.dispatchEvent(new CustomEvent("project-updated", { detail: { id: projectId } }));
+        window.dispatchEvent(
+          new CustomEvent("project-updated", {
+            detail: { id: projectId, source: "project-details-page" },
+          })
+        );
       }
     } catch (err) {
       console.error("Assign member error:", err);
@@ -271,15 +340,34 @@ export default function ProjectDetailsPage() {
       });
 
       setLastInviteLink(result?.signupUrl || null);
-      toast.success(`Invitation created and sent to ${cleanEmail}!`);
       setInviteName("");
       setInviteEmail("");
-      await loadInvitations();
+      await loadInvitations(true);
     } catch (err) {
       console.error("Invite error:", err);
       toast.error(err?.message || "Failed to send invitation.");
     } finally {
       setInviting(false);
+    }
+  };
+
+  // Handle Deleting / Cancelling Project Invitation
+  const handleDeleteProjectInvitation = async (inv) => {
+    if (!confirm(`Are you sure you want to cancel the invitation for ${inv.email}?`)) {
+      return;
+    }
+
+    try {
+      await projectService.deleteProjectInvitation(inv.id, {
+        email: inv.email,
+        projectId,
+        organizationId: project?.organization_id || activeOrg?.id,
+      });
+
+      await loadInvitations(true);
+    } catch (err) {
+      console.error("Delete invitation error:", err);
+      toast.error(err?.message || "Failed to cancel invitation.");
     }
   };
 
@@ -296,10 +384,13 @@ export default function ProjectDetailsPage() {
         userRole: isOwner ? OWNER_ROLE : MANAGER_ROLE,
       });
 
-      toast.info(`${targetMember.name} has been removed from this project.`);
-      await loadProject();
+      await loadProject(true);
       if (typeof window !== "undefined") {
-        window.dispatchEvent(new CustomEvent("project-updated", { detail: { id: projectId } }));
+        window.dispatchEvent(
+          new CustomEvent("project-updated", {
+            detail: { id: projectId, source: "project-details-page" },
+          })
+        );
       }
     } catch (err) {
       console.error("Remove member error:", err);
@@ -307,11 +398,31 @@ export default function ProjectDetailsPage() {
     }
   };
 
+  // Handle Deleting Project (Owner Only)
+  const handleDeleteProject = async () => {
+    if (!confirm(`Are you sure you want to delete project "${project?.name}"?`)) return;
+    try {
+      await projectService.deleteProject(projectId, {
+        userRole,
+        userId: user?.id,
+      });
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("project-deleted", {
+            detail: { id: projectId, source: "project-details-page" },
+          })
+        );
+      }
+      router.push("/projects");
+    } catch (err) {
+      toast.error(err?.message || "Failed to delete project");
+    }
+  };
+
   // Handle Copy Invitation Link
   const handleCopyLink = (url) => {
     if (!url) return;
     navigator.clipboard.writeText(url);
-    toast.success("Invitation link copied to clipboard!");
   };
 
   const statusBadgeColors = {
@@ -424,6 +535,19 @@ export default function ProjectDetailsPage() {
                 <FiLayers className="w-4 h-4" />
                 <span>Open Kanban Board</span>
               </button>
+
+              {/* Delete Project Button (Owner Only) */}
+              {isOwner && (
+                <button
+                  type="button"
+                  onClick={handleDeleteProject}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 text-red-600 hover:text-red-700 hover:bg-red-50 border border-red-200 rounded-lg text-xs font-bold transition-all cursor-pointer"
+                  title="Delete Project"
+                >
+                  <FiTrash2 className="w-3.5 h-3.5" />
+                  <span>Delete</span>
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -668,6 +792,16 @@ export default function ProjectDetailsPage() {
                         <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-purple-50 text-purple-700 capitalize">
                           {inv.intended_role || inv.role || "member"}
                         </span>
+                        {canManage && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteProjectInvitation(inv)}
+                            className="p-1 rounded-md text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer ml-1"
+                            title="Cancel / Delete Invitation"
+                          >
+                            <FiTrash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                       </div>
                     </div>
                   ))}

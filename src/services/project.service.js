@@ -15,7 +15,29 @@ const getStorageItem = (key, legacyKey) => {
   return localStorage.getItem(key) || localStorage.getItem(legacyKey);
 };
 
+const inFlightProjects = new Map();
+const projectsCache = new Map();
+
+const inFlightSingleProject = new Map();
+const singleProjectCache = new Map();
+
+const inFlightProjectInvitations = new Map();
+const projectInvitationsCache = new Map();
+
+const PROJECTS_CACHE_TTL = 60000; // 60 seconds (was 3.5s)
+
+export const clearProjectsCache = () => {
+  inFlightProjects.clear();
+  projectsCache.clear();
+  inFlightSingleProject.clear();
+  singleProjectCache.clear();
+  inFlightProjectInvitations.clear();
+  projectInvitationsCache.clear();
+};
+
 export const projectService = {
+  clearProjectsCache,
+
   /**
    * Fetch all projects for an organization, scoped by caller role.
    * - Owner / Manager: See all projects belonging to the organization.
@@ -25,176 +47,115 @@ export const projectService = {
    * @param {string} params.organizationId
    * @param {string} params.userId
    * @param {string} [params.userRole]
+   * @param {boolean} [params.force]
    * @returns {Promise<Array>}
    */
-  async getProjects({ organizationId, userId, userRole = MEMBER_ROLE }) {
+  async getProjects({ organizationId, userId, userRole = MEMBER_ROLE, force = false }) {
     if (!organizationId) return [];
 
-    let projectsFromDb = null;
+    const cacheKey = `${organizationId}:${userId || ""}:${userRole}`;
 
-    try {
-      let query = supabase
-        .from("projects")
-        .select(`
-          id,
-          organization_id,
-          name,
-          description,
-          status,
-          start_date,
-          due_date,
-          created_by,
-          created_at,
-          updated_at,
-          project_members (
-            id,
-            project_id,
-            user_id,
-            role,
-            joined_at
-          )
-        `)
-        .eq("organization_id", organizationId)
-        .order("created_at", { ascending: false });
-
-      const { data, error } = await query;
-      if (!error && data) {
-        const allUserIds = [
-          ...new Set(
-            data
-              .flatMap((p) => (p.project_members || []).map((m) => m.user_id))
-              .filter(Boolean)
-          ),
-        ];
-
-        let profileMap = new Map();
-        if (allUserIds.length > 0) {
-          try {
-            const { data: profs } = await supabase
-              .from("profiles")
-              .select("id, full_name, email, phone, profile_photo")
-              .in("id", allUserIds);
-            (profs || []).forEach((pr) => profileMap.set(pr.id, pr));
-          } catch (_) {}
-        }
-
-        projectsFromDb = data.map((p) => ({
-          ...p,
-          project_members: (p.project_members || []).map((pm) => ({
-            ...pm,
-            profiles: profileMap.get(pm.user_id) || null,
-          })),
-        }));
+    if (!force) {
+      const cached = projectsCache.get(cacheKey);
+      if (cached && Date.now() - cached.timestamp < PROJECTS_CACHE_TTL) {
+        return cached.data;
       }
-    } catch (err) {
-      console.warn("Supabase projects table query notice:", err?.message || err);
+      if (inFlightProjects.has(cacheKey)) {
+        return inFlightProjects.get(cacheKey);
+      }
     }
 
-    let allProjects = projectsFromDb;
-    if (!allProjects) {
-      allProjects = this.getLocalProjects(organizationId);
-    }
+    const fetchPromise = (async () => {
+      let projectsFromDb = null;
 
-    // Role-based filtering:
-    // Members only see projects where they are assigned as a member or created the project
-    if (userRole === MEMBER_ROLE) {
-      allProjects = (allProjects || []).filter((p) => {
-        if (p.created_by === userId) return true;
-        const membersList = p.project_members || [];
-        return membersList.some((m) => m.user_id === userId);
-      });
-    }
-
-    // Normalize project data with assigned managers and members
-    return (allProjects || []).map((project) => {
-      const pmList = project.project_members || [];
-      const assignedManagers = [];
-      const assignedMembers = [];
-
-      pmList.forEach((pm) => {
-        const profile = pm.profiles || {
-          id: pm.user_id,
-          full_name: pm.full_name || "Team Member",
-          email: pm.email || "",
-        };
-
-        const item = {
-          id: pm.id || pm.user_id,
-          userId: pm.user_id,
-          role: pm.role || MEMBER_ROLE,
-          fullName: profile.full_name || profile.email || "Team Member",
-          email: profile.email || "",
-          profilePhoto: profile.profile_photo || null,
-        };
-
-        if (pm.role === MANAGER_ROLE) {
-          assignedManagers.push(item);
-        } else {
-          assignedMembers.push(item);
-        }
-      });
-
-      return {
-        ...project,
-        assignedManagers,
-        assignedMembers,
-        totalTeamCount: assignedManagers.length + assignedMembers.length,
-      };
-    });
-  },
-
-  /**
-   * Get single project by ID with members and invitations.
-   * @param {string} projectId
-   * @returns {Promise<Object|null>}
-   */
-  async getProjectById(projectId) {
-    if (!projectId) return null;
-
-    try {
-      const { data, error } = await supabase
-        .from("projects")
-        .select(`
-          *,
-          project_members (
+      try {
+        let query = supabase
+          .from("projects")
+          .select(`
             id,
-            project_id,
-            user_id,
-            role,
-            joined_at
-          )
-        `)
-        .eq("id", projectId)
-        .single();
+            organization_id,
+            name,
+            description,
+            status,
+            start_date,
+            due_date,
+            created_by,
+            created_at,
+            updated_at,
+            project_members (
+              id,
+              project_id,
+              user_id,
+              role,
+              joined_at
+            )
+          `)
+          .eq("organization_id", organizationId)
+          .order("created_at", { ascending: false });
 
-      if (!error && data) {
-        const userIds = [
-          ...new Set(
-            (data.project_members || []).map((m) => m.user_id).filter(Boolean)
-          ),
-        ];
-        if (userIds.length > 0) {
-          try {
-            const { data: profs } = await supabase
-              .from("profiles")
-              .select("id, full_name, email, phone, profile_photo")
-              .in("id", userIds);
-            const profileMap = new Map((profs || []).map((pr) => [pr.id, pr]));
-            data.project_members = (data.project_members || []).map((pm) => ({
+        const { data, error } = await query;
+        if (!error && data) {
+          const allUserIds = [
+            ...new Set(
+              data
+                .flatMap((p) => (p.project_members || []).map((m) => m.user_id))
+                .filter(Boolean)
+            ),
+          ];
+
+          let profileMap = new Map();
+          if (allUserIds.length > 0) {
+            try {
+              const { data: profs } = await supabase
+                .from("profiles")
+                .select("id, full_name, email, phone, profile_photo")
+                .in("id", allUserIds);
+              (profs || []).forEach((pr) => profileMap.set(pr.id, pr));
+            } catch (_) {}
+          }
+
+          projectsFromDb = data.map((p) => ({
+            ...p,
+            project_members: (p.project_members || []).map((pm) => ({
               ...pm,
               profiles: profileMap.get(pm.user_id) || null,
-            }));
-          } catch (_) {}
+            })),
+          }));
         }
+      } catch (err) {
+        console.warn("Supabase projects table query notice:", err?.message || err);
+      }
 
+      let allProjects = projectsFromDb;
+      if (!allProjects) {
+        allProjects = this.getLocalProjects(organizationId);
+      }
+
+      // Role-based filtering:
+      // - Owner: Full CRUD on all projects in the workspace.
+      // - Manager: Only sees and works on projects assigned by the owner or created by themselves.
+      // - Member: Only sees projects where they are assigned or created by them.
+      if (userRole === MEMBER_ROLE || userRole === MANAGER_ROLE) {
+        allProjects = (allProjects || []).filter((p) => {
+          if (p.created_by === userId) return true;
+          const membersList = p.project_members || [];
+          return membersList.some((m) => (m.user_id || m.userId) === userId);
+        });
+      }
+
+      // Normalize project data with assigned managers and members
+      return (allProjects || []).map((project) => {
+        const pmList = project.project_members || [];
         const assignedManagers = [];
         const assignedMembers = [];
-        (data.project_members || []).forEach((pm) => {
+
+        pmList.forEach((pm) => {
           const profile = pm.profiles || {
             id: pm.user_id,
             full_name: pm.full_name || "Team Member",
             email: pm.email || "",
           };
+
           const item = {
             id: pm.id || pm.user_id,
             userId: pm.user_id,
@@ -203,6 +164,7 @@ export const projectService = {
             email: profile.email || "",
             profilePhoto: profile.profile_photo || null,
           };
+
           if (pm.role === MANAGER_ROLE) {
             assignedManagers.push(item);
           } else {
@@ -211,16 +173,148 @@ export const projectService = {
         });
 
         return {
-          ...data,
+          ...project,
           assignedManagers,
           assignedMembers,
           totalTeamCount: assignedManagers.length + assignedMembers.length,
         };
-      }
-    } catch (_) {}
+      });
+    })();
 
-    const localList = this.getAllLocalProjects();
-    return localList.find((p) => p.id === projectId) || null;
+    inFlightProjects.set(cacheKey, fetchPromise);
+
+    try {
+      const result = await fetchPromise;
+      projectsCache.set(cacheKey, { data: result, timestamp: Date.now() });
+      return result;
+    } finally {
+      inFlightProjects.delete(cacheKey);
+    }
+  },
+
+  /**
+   * Get single project by ID with members and invitations.
+   * Scoped by role: Owners see any project; Managers and Members only see projects they created or are assigned to.
+   * @param {string} projectId
+   * @param {Object} [context] - { userId, userRole }
+   * @returns {Promise<Object|null>}
+   */
+  async getProjectById(projectId, context = {}, force = false) {
+    if (!projectId) return null;
+    const { userId, userRole } = context;
+    const cacheKey = `${projectId}:${userId || ""}:${userRole || ""}`;
+
+    if (!force) {
+      const cached = singleProjectCache.get(cacheKey);
+      if (cached && Date.now() - cached.timestamp < PROJECTS_CACHE_TTL) {
+        return cached.data;
+      }
+      if (inFlightSingleProject.has(cacheKey)) {
+        return inFlightSingleProject.get(cacheKey);
+      }
+    }
+
+    const fetchPromise = (async () => {
+      let projectResult = null;
+
+      try {
+        const { data, error } = await supabase
+          .from("projects")
+          .select(`
+            *,
+            project_members (
+              id,
+              project_id,
+              user_id,
+              role,
+              joined_at
+            )
+          `)
+          .eq("id", projectId)
+          .single();
+
+        if (!error && data) {
+          const userIds = [
+            ...new Set(
+              (data.project_members || []).map((m) => m.user_id).filter(Boolean)
+            ),
+          ];
+          if (userIds.length > 0) {
+            try {
+              const { data: profs } = await supabase
+                .from("profiles")
+                .select("id, full_name, email, phone, profile_photo")
+                .in("id", userIds);
+              const profileMap = new Map((profs || []).map((pr) => [pr.id, pr]));
+              data.project_members = (data.project_members || []).map((pm) => ({
+                ...pm,
+                profiles: profileMap.get(pm.user_id) || null,
+              }));
+            } catch (_) {}
+          }
+
+          const assignedManagers = [];
+          const assignedMembers = [];
+          (data.project_members || []).forEach((pm) => {
+            const profile = pm.profiles || {
+              id: pm.user_id,
+              full_name: pm.full_name || "Team Member",
+              email: pm.email || "",
+            };
+            const item = {
+              id: pm.id || pm.user_id,
+              userId: pm.user_id,
+              role: pm.role || MEMBER_ROLE,
+              fullName: profile.full_name || profile.email || "Team Member",
+              email: profile.email || "",
+              profilePhoto: profile.profile_photo || null,
+            };
+            if (pm.role === MANAGER_ROLE) {
+              assignedManagers.push(item);
+            } else {
+              assignedMembers.push(item);
+            }
+          });
+
+          projectResult = {
+            ...data,
+            assignedManagers,
+            assignedMembers,
+            totalTeamCount: assignedManagers.length + assignedMembers.length,
+          };
+        }
+      } catch (_) {}
+
+      if (!projectResult) {
+        const localList = this.getAllLocalProjects();
+        projectResult = localList.find((p) => p.id === projectId) || null;
+      }
+
+      if (!projectResult) return null;
+
+      // Strict role check:
+      // If not OWNER, only allowed if user created the project or is in project_members
+      if (userRole && userRole !== OWNER_ROLE && userId) {
+        const isCreator = projectResult.created_by === userId;
+        const isMember = (projectResult.project_members || []).some(
+          (m) => (m.user_id || m.userId) === userId
+        );
+        if (!isCreator && !isMember) {
+          return null;
+        }
+      }
+
+      return projectResult;
+    })();
+
+    inFlightSingleProject.set(cacheKey, fetchPromise);
+    try {
+      const result = await fetchPromise;
+      singleProjectCache.set(cacheKey, { data: result, timestamp: Date.now() });
+      return result;
+    } finally {
+      inFlightSingleProject.delete(cacheKey);
+    }
   },
 
   /**
@@ -301,8 +395,8 @@ export const projectService = {
     // 2. Insert assigned managers and members into project_members
     const membersToInsert = [];
 
-    // Creator is always added as manager if they are creator
-    if (creatorId && !assignedManagerIds.includes(creatorId) && creatorRole === OWNER_ROLE) {
+    // Creator is always added as manager if they are creator (Owner or Manager)
+    if (creatorId && !assignedManagerIds.includes(creatorId) && (creatorRole === OWNER_ROLE || creatorRole === MANAGER_ROLE)) {
       membersToInsert.push({
         project_id: createdProject.id,
         user_id: creatorId,
@@ -366,6 +460,7 @@ export const projectService = {
     // Always update local cache
     this.saveLocalProject(createdProject);
 
+    clearProjectsCache();
     return {
       ...createdProject,
       invitationsSent: createdInvites,
@@ -380,9 +475,16 @@ export const projectService = {
    * @returns {Promise<Object>}
    */
   async updateProject(projectId, updates, context = {}) {
-    const { userRole } = context;
+    const { userRole, userId } = context;
     if (userRole === MEMBER_ROLE) {
       throw new Error("Members cannot modify project settings.");
+    }
+
+    if (userRole === MANAGER_ROLE && userId) {
+      const proj = await this.getProjectById(projectId, { userRole, userId });
+      if (!proj) {
+        throw new Error("Managers can only modify projects created by themselves or assigned to them.");
+      }
     }
 
     const payload = {
@@ -405,19 +507,21 @@ export const projectService = {
     } catch (_) {}
 
     this.updateLocalProject(projectId, payload);
+    clearProjectsCache();
     return { id: projectId, ...payload };
   },
 
   /**
-   * Delete a project. Authorized for Owner (or Manager if allowed).
+   * Delete a project. Authorized exclusively for Workspace Owner.
+   * Neither members nor managers can delete projects.
    * @param {string} projectId
    * @param {Object} context
    * @returns {Promise<boolean>}
    */
   async deleteProject(projectId, context = {}) {
     const { userRole } = context;
-    if (userRole === MEMBER_ROLE) {
-      throw new Error("Members cannot delete projects.");
+    if (userRole !== OWNER_ROLE) {
+      throw new Error("Only the workspace owner can delete a project. Managers and members are not authorized.");
     }
 
     try {
@@ -425,6 +529,7 @@ export const projectService = {
     } catch (_) {}
 
     this.deleteLocalProject(projectId);
+    clearProjectsCache();
     return true;
   },
 
@@ -456,15 +561,36 @@ export const projectService = {
     } catch (_) {}
 
     this.saveLocalProjectMembers([record]);
+    clearProjectsCache();
     return record;
   },
 
   /**
    * Remove a member from a project.
    */
-  async removeProjectMember({ projectId, userId, userRole = MEMBER_ROLE }) {
+  async removeProjectMember({ projectId, userId, userRole = MEMBER_ROLE, callerId = null }) {
     if (userRole === MEMBER_ROLE) {
       throw new Error("Members are not authorized to remove team members.");
+    }
+
+    if (userRole === MANAGER_ROLE && callerId) {
+      const proj = await this.getProjectById(projectId, { userRole, userId: callerId });
+      if (!proj) {
+        throw new Error("Managers can only manage members in projects created by themselves or assigned to them.");
+      }
+    }
+
+    try {
+      const { data: targetUser } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", userId)
+        .maybeSingle();
+      if (targetUser && targetUser.role === OWNER_ROLE) {
+        throw new Error("Cannot remove the Workspace Owner from a project.");
+      }
+    } catch (e) {
+      if (e?.message && e.message.includes("Workspace Owner")) throw e;
     }
 
     try {
@@ -475,7 +601,43 @@ export const projectService = {
         .eq("user_id", userId);
     } catch (_) {}
 
+    // Cascade: Clean up matching project invitations for this user's email
+    try {
+      const { data: prof } = await supabase
+        .from("profiles")
+        .select("email")
+        .eq("id", userId)
+        .maybeSingle();
+
+      if (prof?.email) {
+        const cleanEmail = prof.email.trim().toLowerCase();
+        await supabase
+          .from("project_invitations")
+          .delete()
+          .eq("project_id", projectId)
+          .eq("email", cleanEmail);
+        this.removeLocalProjectInvite(null, cleanEmail);
+      }
+    } catch (_) {}
+
+    // Cascade: Unassign any tasks in this project assigned to this user
+    try {
+      await supabase
+        .from("tasks")
+        .update({ assignee_id: null })
+        .eq("project_id", projectId)
+        .eq("assignee_id", userId);
+    } catch (_) {}
+
     this.removeLocalProjectMember(projectId, userId);
+    clearProjectsCache();
+
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent("project-updated", { detail: { id: projectId, userId } })
+      );
+    }
+
     return true;
   },
 
@@ -563,6 +725,7 @@ export const projectService = {
     }
 
     this.saveLocalProjectInvite(savedInvite);
+    clearProjectsCache();
 
     const origin = typeof window !== "undefined" ? window.location.origin : "http://localhost:3000";
     const signupUrl = `${origin}/signup?token=${token}&role=${role}&projectId=${projectId}`;
@@ -576,28 +739,191 @@ export const projectService = {
 
   /**
    * Get project invitations for a project or an organization.
+   * Automatically reconciles with request tables so cancelled/deleted invitations are purged.
    * @param {string} [projectId]
    * @param {string} [organizationId]
+   * @param {boolean} [force]
    * @returns {Promise<Array>}
    */
-  async getProjectInvitations({ projectId, organizationId }) {
-    try {
-      let query = supabase.from("project_invitations").select("*");
-      if (projectId) query = query.eq("project_id", projectId);
-      if (organizationId) query = query.eq("organization_id", organizationId);
+  async getProjectInvitations({ projectId, organizationId }, force = false) {
+    const cacheKey = `${projectId || ""}:${organizationId || ""}`;
 
-      const { data, error } = await query.order("created_at", { ascending: false });
-      if (!error && data) {
-        return data;
+    if (!force) {
+      const cached = projectInvitationsCache.get(cacheKey);
+      if (cached && Date.now() - cached.timestamp < PROJECTS_CACHE_TTL) {
+        return cached.data;
+      }
+      if (inFlightProjectInvitations.has(cacheKey)) {
+        return inFlightProjectInvitations.get(cacheKey);
+      }
+    }
+
+    const fetchPromise = (async () => {
+      let invitations = [];
+      try {
+        let query = supabase.from("project_invitations").select("*");
+        if (projectId) query = query.eq("project_id", projectId);
+        if (organizationId) query = query.eq("organization_id", organizationId);
+
+        const { data, error } = await query.order("created_at", { ascending: false });
+        if (!error && Array.isArray(data)) {
+          invitations = data;
+        }
+      } catch (_) {}
+
+      if (invitations.length === 0) {
+        const list = this.getLocalProjectInvites();
+        invitations = list.filter((item) => {
+          if (projectId && item.project_id !== projectId) return false;
+          if (organizationId && item.organization_id !== organizationId) return false;
+          return true;
+        });
+      }
+
+      // Reconcile and purge any invitations whose requests have been deleted
+      if (invitations.length > 0) {
+        try {
+          const emails = [
+            ...new Set(invitations.map((i) => i.email?.trim()?.toLowerCase()).filter(Boolean)),
+          ];
+          if (emails.length > 0) {
+            const [memRes, mgrRes] = await Promise.all([
+              supabase.from("request_member").select("email, status").in("email", emails),
+              supabase.from("request_manager").select("email, status").in("email", emails),
+            ]);
+
+            if (!memRes?.error && !mgrRes?.error) {
+              const activeEmails = new Set();
+              (memRes?.data || []).forEach((r) => {
+                if (r.status === "pending") activeEmails.add(r.email?.trim()?.toLowerCase());
+              });
+              (mgrRes?.data || []).forEach((r) => {
+                if (r.status === "pending") activeEmails.add(r.email?.trim()?.toLowerCase());
+              });
+
+              const staleInvites = invitations.filter((inv) => {
+                const e = inv.email?.trim()?.toLowerCase();
+                return e && !activeEmails.has(e);
+              });
+
+              if (staleInvites.length > 0) {
+                staleInvites.forEach((inv) => {
+                  this.removeLocalProjectInvite(inv.id, inv.email);
+                  supabase.from("project_invitations").delete().eq("id", inv.id).then(() => {});
+                });
+                invitations = invitations.filter((inv) => {
+                  const e = inv.email?.trim()?.toLowerCase();
+                  return e && activeEmails.has(e);
+                });
+              }
+            }
+          }
+        } catch (_) {}
+      }
+
+      return invitations;
+    })();
+
+    inFlightProjectInvitations.set(cacheKey, fetchPromise);
+    try {
+      const result = await fetchPromise;
+      projectInvitationsCache.set(cacheKey, { data: result, timestamp: Date.now() });
+      return result;
+    } finally {
+      inFlightProjectInvitations.delete(cacheKey);
+    }
+  },
+
+  /**
+   * Delete a project invitation everywhere (project_invitations, request tables, localStorage).
+   * @param {string} invitationId
+   * @param {Object} [details] - { email, projectId, organizationId }
+   * @returns {Promise<boolean>}
+   */
+  async deleteProjectInvitation(invitationId, { email, projectId, organizationId } = {}) {
+    if (!invitationId && !email) return false;
+
+    let targetEmail = email;
+    let targetOrgId = organizationId;
+    let targetProjectId = projectId;
+
+    if (!targetEmail || !targetOrgId) {
+      try {
+        const { data } = await supabase
+          .from("project_invitations")
+          .select("email, organization_id, project_id")
+          .eq("id", invitationId)
+          .maybeSingle();
+        if (data) {
+          if (!targetEmail) targetEmail = data.email;
+          if (!targetOrgId) targetOrgId = data.organization_id;
+          if (!targetProjectId) targetProjectId = data.project_id;
+        }
+      } catch (_) {}
+    }
+
+    if (!targetEmail) {
+      const local = this.getLocalProjectInvites().find((i) => i.id === invitationId);
+      if (local) {
+        targetEmail = local.email;
+        targetOrgId = targetOrgId || local.organization_id;
+        targetProjectId = targetProjectId || local.project_id;
+      }
+    }
+
+    const cleanEmail = targetEmail?.trim()?.toLowerCase();
+
+    // 1. Delete from project_invitations
+    try {
+      if (invitationId) {
+        await supabase.from("project_invitations").delete().eq("id", invitationId);
+      }
+      if (cleanEmail) {
+        let q = supabase.from("project_invitations").delete().eq("email", cleanEmail);
+        if (targetProjectId) q = q.eq("project_id", targetProjectId);
+        await q;
+      }
+    } catch (err) {
+      console.error("deleteProjectInvitation error:", err);
+    }
+
+    // 2. Cascade delete from request_member and request_manager
+    try {
+      if (cleanEmail) {
+        let q1 = supabase.from("request_member").delete().eq("email", cleanEmail);
+        if (targetOrgId) q1 = q1.eq("organization_id", targetOrgId);
+        await q1;
+
+        let q2 = supabase.from("request_manager").delete().eq("email", cleanEmail);
+        if (targetOrgId) q2 = q2.eq("organization_id", targetOrgId);
+        await q2;
       }
     } catch (_) {}
 
-    const list = this.getLocalProjectInvites();
-    return list.filter((item) => {
-      if (projectId && item.project_id !== projectId) return false;
-      if (organizationId && item.organization_id !== organizationId) return false;
-      return true;
-    });
+    // 3. Remove from localStorage
+    this.removeLocalProjectInvite(invitationId, cleanEmail);
+
+    // 4. Clear cache and notify
+    clearProjectsCache();
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent("invitation-deleted", {
+          detail: {
+            id: invitationId,
+            email: cleanEmail,
+            projectId: targetProjectId,
+            organizationId: targetOrgId,
+          },
+        })
+      );
+      window.dispatchEvent(
+        new CustomEvent("project-updated", {
+          detail: { projectId: targetProjectId, email: cleanEmail },
+        })
+      );
+    }
+
+    return true;
   },
 
   /**
@@ -779,6 +1105,21 @@ export const projectService = {
       const list = this.getLocalProjectInvites();
       const updated = list.map((i) => (i.id === inviteId ? { ...i, ...updates } : i));
       localStorage.setItem(LOCAL_STORAGE_INVITES_KEY, JSON.stringify(updated));
+    } catch (_) {}
+  },
+
+  removeLocalProjectInvite(inviteId, email) {
+    if (typeof window === "undefined") return;
+    try {
+      const list = this.getLocalProjectInvites();
+      const cleanEmail = email ? email.trim().toLowerCase() : null;
+      const updated = list.filter((i) => {
+        if (inviteId && i.id === inviteId) return false;
+        if (cleanEmail && i.email?.trim()?.toLowerCase() === cleanEmail) return false;
+        return true;
+      });
+      localStorage.setItem(LOCAL_STORAGE_INVITES_KEY, JSON.stringify(updated));
+      localStorage.setItem(LEGACY_STORAGE_INVITES_KEY, JSON.stringify(updated));
     } catch (_) {}
   },
 };

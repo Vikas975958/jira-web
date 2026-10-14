@@ -220,7 +220,6 @@ export default function CreateProjectModal({
         }
       );
 
-      toast.success(`Project "${created.name}" created successfully!`);
       setCreatedResult(created);
       if (onProjectCreated) {
         onProjectCreated(created);

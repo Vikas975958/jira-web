@@ -23,7 +23,9 @@ export default function ProjectDetailsModal({
   onClose,
   project,
   currentUserRole = MEMBER_ROLE,
+  currentUserId = null,
   onProjectUpdated,
+  onProjectDeleted,
   onOpenBoard,
 }) {
   const [loading, setLoading] = useState(false);
@@ -36,6 +38,7 @@ export default function ProjectDetailsModal({
       project.assignedManagers.forEach((m) => {
         list.push({
           id: m.id || m.userId,
+          userId: m.userId || m.id,
           name: m.fullName || m.name || "Manager",
           type: "Manager",
           role: "manager",
@@ -48,6 +51,7 @@ export default function ProjectDetailsModal({
       project.assignedMembers.forEach((m) => {
         list.push({
           id: m.id || m.userId,
+          userId: m.userId || m.id,
           name: m.fullName || m.name || "Member",
           type: "Member",
           role: "member",
@@ -61,6 +65,7 @@ export default function ProjectDetailsModal({
         const prof = pm.profiles || {};
         list.push({
           id: pm.id || pm.user_id,
+          userId: pm.user_id || pm.id,
           name: prof.full_name || prof.email || "Team Member",
           type: pm.role === "manager" ? "Manager" : "Member",
           role: pm.role || "member",
@@ -84,9 +89,8 @@ export default function ProjectDetailsModal({
       await projectService.updateProject(
         project.id,
         { status: newStatus },
-        { userRole: currentUserRole }
+        { userRole: currentUserRole, userId: currentUserId }
       );
-      toast.success(`Project status updated to ${newStatus}`);
       if (onProjectUpdated) onProjectUpdated();
     } catch (err) {
       toast.error(err?.message || "Failed to update status");
@@ -97,14 +101,38 @@ export default function ProjectDetailsModal({
     if (!confirm(`Are you sure you want to delete project "${project.name}"?`)) return;
     setLoading(true);
     try {
-      await projectService.deleteProject(project.id, { userRole: currentUserRole });
-      toast.info(`Project "${project.name}" deleted.`);
-      if (onProjectUpdated) onProjectUpdated();
+      await projectService.deleteProject(project.id, {
+        userRole: currentUserRole,
+        userId: currentUserId,
+      });
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("project-deleted", { detail: { id: project.id } }));
+      }
+      if (onProjectDeleted) {
+        onProjectDeleted();
+      } else if (onProjectUpdated) {
+        onProjectUpdated();
+      }
       onClose();
     } catch (err) {
       toast.error(err?.message || "Failed to delete project");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleRemoveMember = async (targetMember) => {
+    if (!confirm(`Remove ${targetMember.name} from project "${project.name}"?`)) return;
+    try {
+      await projectService.removeProjectMember({
+        projectId: project.id,
+        userId: targetMember.userId || targetMember.id,
+        userRole: currentUserRole,
+        callerId: currentUserId,
+      });
+      if (onProjectUpdated) onProjectUpdated();
+    } catch (err) {
+      toast.error(err?.message || "Failed to remove member");
     }
   };
 
@@ -245,7 +273,8 @@ export default function ProjectDetailsModal({
                 <div className="grid grid-cols-12 px-3 py-2 bg-slate-50 text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100">
                   <div className="col-span-5">Name</div>
                   <div className="col-span-3">Type</div>
-                  <div className="col-span-4">Email</div>
+                  <div className="col-span-3">Email</div>
+                  <div className="col-span-1 text-right">Action</div>
                 </div>
                 <div className="divide-y divide-slate-100 max-h-56 overflow-y-auto">
                   {allTeamMembers.map((member) => (
@@ -283,11 +312,27 @@ export default function ProjectDetailsModal({
                       </div>
 
                       {/* Email */}
-                      <div className="col-span-4 flex items-center gap-1.5 min-w-0 text-slate-600">
+                      <div className="col-span-3 flex items-center gap-1.5 min-w-0 text-slate-600">
                         <FiMail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                         <span className="truncate text-[11px] font-mono" title={member.email}>
                           {member.email}
                         </span>
+                      </div>
+
+                      {/* Action: Remove Member from project */}
+                      <div className="col-span-1 text-right">
+                        {canManage && member.role !== OWNER_ROLE ? (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveMember(member)}
+                            className="p-1 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+                            title={`Remove ${member.name} from project`}
+                          >
+                            <FiTrash2 className="w-3.5 h-3.5" />
+                          </button>
+                        ) : (
+                          <span className="text-[10px] text-slate-300">—</span>
+                        )}
                       </div>
                     </div>
                   ))}

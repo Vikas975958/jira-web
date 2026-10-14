@@ -24,50 +24,98 @@ export default function TeamPage() {
   const authState = useSelector((state) => state.authSlice);
   const user = authState?.userData;
 
-  const { currentOrg, organizations } = useOrganization();
+  const { currentOrg, organizations, members: contextMembers = [], refreshMembers } = useOrganization();
   const activeOrgMembership = currentOrg || (organizations && organizations[0]) || null;
   const activeOrg = activeOrgMembership?.organizations || activeOrgMembership;
   const userRole = activeOrgMembership?.role || user?.role || MEMBER_ROLE;
   const isMember = userRole === MEMBER_ROLE;
   const orgId = activeOrg?.id;
 
-  const [members, setMembers] = useState([]);
+  const [members, setMembers] = useState(contextMembers || []);
   const [requests, setRequests] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(contextMembers.length === 0);
   const [activeTab, setActiveTab] = useState("members"); // 'members' | 'requests'
   const [searchTerm, setSearchTerm] = useState("");
-  const [leadership, setLeadership] = useState({ owner: null, manager: null });
+  const [leadership, setLeadership] = useState(() =>
+    organizationService.getOrganizationLeadershipSync(contextMembers, user?.id, userRole)
+  );
 
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [inviteModalRole, setInviteModalRole] = useState(MEMBER_ROLE);
   const [processingId, setProcessingId] = useState(null);
 
-  const loadTeamData = useCallback(async () => {
+  // In-flight and last fetched tracking refs
+  const isFetchingTeamRef = React.useRef(false);
+  const lastFetchedTeamKeyRef = React.useRef(null);
+  const membersRef = React.useRef(members);
+
+  useEffect(() => {
+    membersRef.current = members;
+  }, [members]);
+
+  // Sync from contextMembers if available
+  useEffect(() => {
+    if (contextMembers && contextMembers.length > 0 && members.length === 0) {
+      setMembers(contextMembers);
+      const l = organizationService.getOrganizationLeadershipSync(contextMembers, user?.id, userRole);
+      setLeadership(l);
+      setLoading(false);
+    }
+  }, [contextMembers, members.length, user?.id, userRole]);
+
+  const loadTeamData = useCallback(async (force = false) => {
     if (!orgId || !user?.id) {
       setLoading(false);
       return;
     }
 
+    const fetchKey = `${orgId}:${user.id}:${userRole}`;
+    if (!force && lastFetchedTeamKeyRef.current === fetchKey && membersRef.current.length > 0) {
+      setLoading(false);
+      return;
+    }
+
+    if (isFetchingTeamRef.current) return;
+
     try {
+      isFetchingTeamRef.current = true;
       setLoading(true);
       const currentRole = userRole;
 
-      const [membersData, requestsData, leadershipData] = await Promise.all([
-        organizationService.getOrganizationMembers(orgId, {
-          currentUserId: user.id,
-          currentUserRole: currentRole,
-        }),
+      // 1. Members: use contextMembers if already loaded and not forced
+      let membersData =
+        !force && contextMembers && contextMembers.length > 0
+          ? contextMembers
+          : await organizationService.getOrganizationMembers(
+              orgId,
+              {
+                currentUserId: user.id,
+                currentUserRole: currentRole,
+              },
+              force
+            );
+
+      // 2. Requests: only for non-members
+      const requestsData =
         currentRole === MEMBER_ROLE
-          ? Promise.resolve([])
-          : organizationService.getAllRequests(orgId, {
-              currentUserId: user.id,
-              currentUserRole: currentRole,
-            }),
-        organizationService.getOrganizationLeadership(orgId, {
-          currentUserId: user.id,
-          currentUserRole: currentRole,
-        }),
-      ]);
+          ? []
+          : await organizationService.getAllRequests(
+              orgId,
+              {
+                currentUserId: user.id,
+                currentUserRole: currentRole,
+              },
+              force
+            );
+
+      // 3. Leadership: extract directly from membersData in 0ms without redundant network queries!
+      const leadershipData = organizationService.getOrganizationLeadershipSync(
+        membersData,
+        user.id,
+        currentRole
+      );
+
+      lastFetchedTeamKeyRef.current = fetchKey;
       setMembers(membersData || []);
       setRequests(requestsData || []);
       setLeadership(leadershipData || { owner: null, manager: null });
@@ -75,12 +123,29 @@ export default function TeamPage() {
       console.error("loadTeamData error:", err);
     } finally {
       setLoading(false);
+      isFetchingTeamRef.current = false;
     }
-  }, [orgId, user?.id, userRole]);
+  }, [orgId, user?.id, userRole, contextMembers]);
 
   useEffect(() => {
     loadTeamData();
   }, [loadTeamData]);
+
+  // Synchronize when invitations or members are modified elsewhere
+  useEffect(() => {
+    const handleSync = () => {
+      loadTeamData(true);
+      refreshMembers();
+    };
+    window.addEventListener("invitation-deleted", handleSync);
+    window.addEventListener("member-removed", handleSync);
+    window.addEventListener("project-updated", handleSync);
+    return () => {
+      window.removeEventListener("invitation-deleted", handleSync);
+      window.removeEventListener("member-removed", handleSync);
+      window.removeEventListener("project-updated", handleSync);
+    };
+  }, [loadTeamData, refreshMembers]);
 
   const handleDeleteRequest = async (req) => {
     if (!confirm("Are you sure you want to delete this invitation?")) return;
@@ -89,9 +154,11 @@ export default function TeamPage() {
       await organizationService.deleteRequest({
         requestId: req.id,
         type: req.request_type,
+        email: req.email,
+        organizationId: orgId,
       });
-      toast.success("Invitation removed.");
-      await loadTeamData();
+      await loadTeamData(true);
+      refreshMembers();
     } catch (err) {
       toast.error(err?.message || "Failed to delete invitation.");
     } finally {
@@ -99,11 +166,36 @@ export default function TeamPage() {
     }
   };
 
+  const handleRemoveMember = async (member) => {
+    const memberName = member.profiles?.full_name || member.email || "this member";
+    if (
+      !confirm(
+        `Are you sure you want to remove ${memberName} from this workspace? They will also be removed from all assigned projects.`
+      )
+    ) {
+      return;
+    }
+    setProcessingId(member.id);
+    try {
+      await organizationService.removeOrganizationMember({
+        organizationId: orgId,
+        userId: member.user_id,
+        userEmail: member.profiles?.email || member.email,
+        callerRole: userRole,
+        callerId: user?.id,
+      });
+      await loadTeamData(true);
+      refreshMembers();
+    } catch (err) {
+      toast.error(err?.message || "Failed to remove member.");
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
   const filteredMembers = members.filter((m) => {
-    // Managers see listing of members only who they created themselves (plus self)
-    if (userRole === MANAGER_ROLE && m.role !== MEMBER_ROLE && m.user_id !== user?.id) return false;
-    const name = m.profiles?.full_name?.toLowerCase() || "";
-    const email = m.profiles?.email?.toLowerCase() || "";
+    const name = m.profiles?.full_name?.toLowerCase() || m.full_name?.toLowerCase() || "";
+    const email = m.profiles?.email?.toLowerCase() || m.email?.toLowerCase() || "";
     const role = m.role?.toLowerCase() || "";
     const q = searchTerm.toLowerCase();
     return name.includes(q) || email.includes(q) || role.includes(q);
@@ -314,6 +406,7 @@ export default function TeamPage() {
                   <th className="py-3 px-4">Email</th>
                   <th className="py-3 px-4">Role</th>
                   <th className="py-3 px-4">Joined Date</th>
+                  {!isMember && <th className="py-3 px-4 text-right">Actions</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -368,11 +461,33 @@ export default function TeamPage() {
                             })
                           : "—"}
                       </td>
+                      {!isMember && (
+                        <td className="py-3 px-4 text-right">
+                          {member.user_id !== user?.id && member.role !== OWNER_ROLE && (
+                            userRole === OWNER_ROLE || (userRole === MANAGER_ROLE && member.role === MEMBER_ROLE)
+                          ) ? (
+                            processingId === member.id ? (
+                              <div className="inline-block w-4 h-4 border-2 border-slate-300 border-t-[#0F766E] rounded-full animate-spin" />
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveMember(member)}
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+                                title={`Remove ${member.profiles?.full_name || member.role} from workspace`}
+                              >
+                                <FiTrash2 className="w-3.5 h-3.5" />
+                              </button>
+                            )
+                          ) : (
+                            <span className="text-slate-300 text-[11px]">—</span>
+                          )}
+                        </td>
+                      )}
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={4} className="py-12 text-center text-slate-400">
+                    <td colSpan={!isMember ? 5 : 4} className="py-12 text-center text-slate-400">
                       {isMember
                         ? "No team members found."
                         : userRole === MANAGER_ROLE
@@ -471,7 +586,10 @@ export default function TeamPage() {
         organizationName={activeOrg?.name}
         currentUserId={user?.id}
         currentUserRole={userRole}
-        onSuccess={loadTeamData}
+        onSuccess={() => {
+          loadTeamData(true);
+          refreshMembers();
+        }}
       />
     </div>
   );

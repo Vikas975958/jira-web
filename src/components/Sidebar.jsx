@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useSelector } from "react-redux";
@@ -65,11 +65,23 @@ export default function Sidebar() {
     archived: "bg-slate-100 text-slate-500 border-slate-200",
   };
 
+  const lastFetchedOrgIdRef = React.useRef(null);
+  const projectsRef = React.useRef(projects);
+
+  useEffect(() => {
+    projectsRef.current = projects;
+  }, [projects]);
+
   // Load projects for active workspace
-  const loadProjects = useCallback(async () => {
+  const loadProjects = useCallback(async (force = false) => {
     const orgId = activeOrg?.id;
     if (!orgId) {
       setProjects([]);
+      lastFetchedOrgIdRef.current = null;
+      return;
+    }
+
+    if (!force && lastFetchedOrgIdRef.current === orgId && projectsRef.current.length > 0) {
       return;
     }
 
@@ -79,7 +91,9 @@ export default function Sidebar() {
         organizationId: orgId,
         userId: user?.id,
         userRole,
+        force,
       });
+      lastFetchedOrgIdRef.current = orgId;
       setProjects(data || []);
     } catch (err) {
       console.error("Sidebar loadProjects error:", err);
@@ -95,7 +109,7 @@ export default function Sidebar() {
 
   // Synchronize projects across pages and custom events
   useEffect(() => {
-    const handleSync = () => loadProjects();
+    const handleSync = () => loadProjects(true);
     window.addEventListener("project-created", handleSync);
     window.addEventListener("project-updated", handleSync);
     window.addEventListener("project-deleted", handleSync);

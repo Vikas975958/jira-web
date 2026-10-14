@@ -41,11 +41,11 @@ function ProjectsBoardContent() {
   const authState = useSelector((state) => state.authSlice);
   const user = authState?.userData;
 
-  const [activeOrgMembership, setActiveOrgMembership] = useState(null);
+  const { currentOrg, organizations, members = [] } = useOrganization();
+
   const [projects, setProjects] = useState([]);
   const [selectedProjectId, setSelectedProjectId] = useState(queryProjectId || "all");
   const [tickets, setTickets] = useState([]);
-  const [teamMembers, setTeamMembers] = useState([]);
   const [search, setSearch] = useState("");
 
   // Modals
@@ -53,8 +53,8 @@ function ProjectsBoardContent() {
   const [isCreateProjectModalOpen, setIsCreateProjectModalOpen] = useState(false);
   const [projectDetailsModalData, setProjectDetailsModalData] = useState(null);
 
-  const activeOrg = activeOrgMembership?.organizations || activeOrgMembership;
-  const userRole = activeOrgMembership?.role || user?.role || MEMBER_ROLE;
+  const activeOrg = currentOrg?.organizations || currentOrg || organizations?.[0]?.organizations || organizations?.[0];
+  const userRole = currentOrg?.role || organizations?.[0]?.role || user?.role || MEMBER_ROLE;
   const isMember = userRole === MEMBER_ROLE;
   const isOwner = userRole === OWNER_ROLE;
   const isManager = userRole === MANAGER_ROLE;
@@ -66,28 +66,36 @@ function ProjectsBoardContent() {
     }
   }, [queryProjectId]);
 
-  const { currentOrg, organizations } = useOrganization();
-
-  // Sync organization membership from OrganizationContext
+  // Projects ref tracking & loading
+  const isFetchingProjectsRef = React.useRef(false);
+  const lastFetchedProjectsKeyRef = React.useRef(null);
+  const projectsRef = React.useRef(projects);
   useEffect(() => {
-    const org = currentOrg || (organizations && organizations[0]) || null;
-    if (org) {
-      setActiveOrgMembership(org);
-    }
-  }, [currentOrg, organizations]);
+    projectsRef.current = projects;
+  }, [projects]);
 
-  // Load projects list
-  const loadProjects = useCallback(async () => {
-    if (!activeOrg?.id) return;
+  const loadProjects = useCallback(async (force = false) => {
+    const orgId = activeOrg?.id;
+    if (!orgId) return;
+    const fetchKey = `${orgId}:${user?.id || ""}:${userRole}`;
+    if (!force && lastFetchedProjectsKeyRef.current === fetchKey && projectsRef.current.length > 0) {
+      return;
+    }
+    if (isFetchingProjectsRef.current) return;
     try {
+      isFetchingProjectsRef.current = true;
       const data = await projectService.getProjects({
-        organizationId: activeOrg.id,
+        organizationId: orgId,
         userId: user?.id,
         userRole,
+        force,
       });
+      lastFetchedProjectsKeyRef.current = fetchKey;
       setProjects(data || []);
     } catch (err) {
       console.error("loadProjects error:", err);
+    } finally {
+      isFetchingProjectsRef.current = false;
     }
   }, [activeOrg?.id, user?.id, userRole]);
 
@@ -95,43 +103,44 @@ function ProjectsBoardContent() {
     loadProjects();
   }, [loadProjects]);
 
-  // Load tickets with role scoping
-  const loadTickets = useCallback(async () => {
-    if (!activeOrg?.id) return;
+  // Tickets ref tracking & loading
+  const isFetchingTicketsRef = React.useRef(false);
+  const lastFetchedTicketsKeyRef = React.useRef(null);
+  const ticketsRef = React.useRef(tickets);
+  useEffect(() => {
+    ticketsRef.current = tickets;
+  }, [tickets]);
+
+  const loadTickets = useCallback(async (force = false) => {
+    const orgId = activeOrg?.id;
+    if (!orgId) return;
+    const fetchKey = `${orgId}:${user?.id || ""}:${userRole}`;
+    if (!force && lastFetchedTicketsKeyRef.current === fetchKey && ticketsRef.current.length > 0) {
+      return;
+    }
+    if (isFetchingTicketsRef.current) return;
     try {
+      isFetchingTicketsRef.current = true;
       const data = await taskService.getTasks({
-        organizationId: activeOrg.id,
+        organizationId: orgId,
         userId: user?.id,
         userRole,
         userName: user?.full_name || user?.name || "",
         userEmail: user?.email || "",
+        force,
       });
+      lastFetchedTicketsKeyRef.current = fetchKey;
       setTickets(data || []);
     } catch (err) {
       console.error("loadTickets error:", err);
+    } finally {
+      isFetchingTicketsRef.current = false;
     }
   }, [activeOrg?.id, user?.id, userRole, user?.full_name, user?.name, user?.email]);
 
   useEffect(() => {
     loadTickets();
   }, [loadTickets]);
-
-  // Load team members for assignments
-  useEffect(() => {
-    const fetchMembers = async () => {
-      if (!activeOrg?.id) return;
-      try {
-        const members = await organizationService.getOrganizationMembers(activeOrg.id, {
-          currentUserId: user?.id,
-          currentUserRole: userRole,
-        });
-        setTeamMembers(members || []);
-      } catch (err) {
-        console.error("Failed to fetch team members", err);
-      }
-    };
-    fetchMembers();
-  }, [activeOrg?.id, user?.id, userRole]);
 
   const selectedProject = useMemo(() => {
     if (!selectedProjectId || selectedProjectId === "all") return null;
@@ -150,8 +159,7 @@ function ProjectsBoardContent() {
         assigneeId: newTicket.assigneeId || newTicket.assignee_id || null,
         assignee_id: newTicket.assigneeId || newTicket.assignee_id || null,
       });
-      toast.success(`Created issue ${created.id}: "${created.title.slice(0, 30)}..."`);
-      await loadTickets();
+      await loadTickets(true);
     } catch (err) {
       toast.error("Failed to create issue.");
     }
@@ -177,8 +185,7 @@ function ProjectsBoardContent() {
     }
     try {
       await taskService.deleteTask(ticketId, userRole);
-      toast.info(`Deleted issue ${ticketId}`);
-      await loadTickets();
+      await loadTickets(true);
     } catch (err) {
       toast.error(err?.message || "Failed to delete issue.");
     }
@@ -288,16 +295,14 @@ function ProjectsBoardContent() {
           )}
 
           {/* Create Issue Button */}
-          {!isMember && (
-            <button
-              type="button"
-              onClick={() => setIsCreateModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#0F766E] hover:bg-[#0D655E] active:bg-[#115E59] active:scale-[0.98] text-white text-xs font-bold rounded-lg shadow-md shadow-teal-900/20 transition-all cursor-pointer whitespace-nowrap"
-            >
-              <FiPlus className="w-4 h-4" />
-              <span>Create Issue</span>
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => setIsCreateModalOpen(true)}
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#0F766E] hover:bg-[#0D655E] active:bg-[#115E59] active:scale-[0.98] text-white text-xs font-bold rounded-lg shadow-md shadow-teal-900/20 transition-all cursor-pointer whitespace-nowrap"
+          >
+            <FiPlus className="w-4 h-4" />
+            <span>Create Issue</span>
+          </button>
         </div>
       </div>
 
@@ -480,16 +485,18 @@ function ProjectsBoardContent() {
                         <span className="text-[10px] font-mono font-bold text-[#0F766E]">
                           {ticket.id}
                         </span>
-                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button
-                            type="button"
-                            onClick={() => deleteTicket(ticket.id)}
-                            className="text-slate-400 hover:text-red-600 p-0.5 rounded-lg cursor-pointer"
-                            title="Delete issue"
-                          >
-                            <FiTrash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
+                        {!isMember && (
+                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                              type="button"
+                              onClick={() => deleteTicket(ticket.id)}
+                              className="text-slate-400 hover:text-red-600 p-0.5 rounded-lg cursor-pointer"
+                              title="Delete issue"
+                            >
+                              <FiTrash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        )}
                       </div>
 
                       <p className="text-xs font-bold text-slate-900 leading-snug">
@@ -553,7 +560,7 @@ function ProjectsBoardContent() {
         onClose={() => setIsCreateModalOpen(false)}
         onAddTicket={handleAddTicket}
         organizationName={activeOrg?.name || "WorkGrid Workspace"}
-        teamMembers={teamMembers}
+        teamMembers={members}
         projects={projects}
         selectedProjectId={selectedProject?.id || ""}
       />
@@ -568,10 +575,9 @@ function ProjectsBoardContent() {
         organizationName={activeOrg?.name}
         currentUserRole={userRole}
         currentUserId={user?.id}
-        existingMembers={teamMembers || []}
+        existingMembers={members || []}
         onProjectCreated={() => {
-          loadProjects();
-          toast.success("Project created successfully!");
+          loadProjects(true);
         }}
       />
 
@@ -586,12 +592,12 @@ function ProjectsBoardContent() {
         currentUserRole={userRole}
         currentUserId={user?.id}
         onProjectUpdated={() => {
-          loadProjects();
+          loadProjects(true);
         }}
         onProjectDeleted={() => {
           setProjectDetailsModalData(null);
           setSelectedProjectId("all");
-          loadProjects();
+          loadProjects(true);
         }}
       />
     </div>
