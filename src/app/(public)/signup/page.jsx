@@ -260,7 +260,7 @@ function SignUpForm() {
                         </>
                       )}
                     </div>
-                    <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900">
+                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
                       Join {orgName}
                     </h1>
                     <p className="text-xs sm:text-sm text-slate-500">
@@ -269,7 +269,7 @@ function SignUpForm() {
                   </div>
                 ) : (
                   <div>
-                    <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900">
+                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
                       Create your WorkGrid account
                     </h1>
                     <p className="mt-1.5 text-sm text-slate-500">
@@ -416,7 +416,7 @@ function SignUpForm() {
                   {isInvitation && (
                     <div className="space-y-4 pt-1 pb-1 border-t border-b border-slate-200/80 my-2">
                       <div className="pt-2">
-                        <span className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                        <span className="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
                           <FiBriefcase className="w-3.5 h-3.5 text-[#0F766E]" />
                           <span>Employee Details</span>
                         </span>
@@ -663,7 +663,7 @@ function SignUpForm() {
               : "Free plan available • No credit card required"}
           </div>
 
-          <h2 className="text-3xl xl:text-4xl 2xl:text-5xl font-black leading-tight text-white tracking-tight">
+          <h2 className="text-3xl xl:text-4xl 2xl:text-5xl font-bold leading-tight text-white tracking-tight">
             {isInvitation
               ? `Welcome aboard! Collaborate with your team on ${orgName}.`
               : "Plan, track, and manage all your team projects in one place."}

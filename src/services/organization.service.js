@@ -1,6 +1,7 @@
 import { supabase } from "@/lib/supabaseconfig";
 import { generateInvitationToken, hashToken } from "@/utils/token";
 import { MEMBER_ROLE, MANAGER_ROLE, OWNER_ROLE } from "@/utils/constants";
+import { clearProjectsCache } from "@/services/project.service";
 
 /**
  * Generate a clean URL-friendly slug from a string.
@@ -20,8 +21,34 @@ export const slugify = (text = "") => {
     .replace(/-+$/, ""); // Trim - from end of text
 };
 
+const inFlightUserOrgs = new Map();
+const userOrgsCache = new Map();
+
+const inFlightOrgMembers = new Map();
+const orgMembersCache = new Map();
+
+const inFlightAllRequests = new Map();
+const allRequestsCache = new Map();
+
+const inFlightUserPendingInvites = new Map();
+const userPendingInvitesCache = new Map();
+
+const ORG_CACHE_TTL = 60000; // 60 seconds (was 3.5s)
+
+export const clearOrganizationCache = () => {
+  inFlightUserOrgs.clear();
+  userOrgsCache.clear();
+  inFlightOrgMembers.clear();
+  orgMembersCache.clear();
+  inFlightAllRequests.clear();
+  allRequestsCache.clear();
+  inFlightUserPendingInvites.clear();
+  userPendingInvitesCache.clear();
+};
+
 export const organizationService = {
   slugify,
+  clearOrganizationCache,
 
   /**
    * Check if a slug is available.
@@ -88,6 +115,27 @@ export const organizationService = {
 
     if (!authenticatedUserId) {
       throw new Error("Authentication required to create an organization.");
+    }
+
+    // Verify user does not already have an active organization (single workspace policy)
+    const { data: existingMemberships } = await supabase
+      .from("organization_members")
+      .select("id, organization_id")
+      .eq("user_id", authenticatedUserId)
+      .limit(1);
+
+    if (existingMemberships && existingMemberships.length > 0) {
+      throw new Error("You already have an active workspace. Multiple workspaces are not allowed.");
+    }
+
+    const { data: existingCreated } = await supabase
+      .from("organizations")
+      .select("id")
+      .eq("created_by", authenticatedUserId)
+      .limit(1);
+
+    if (existingCreated && existingCreated.length > 0) {
+      throw new Error("You already have an active workspace. Multiple workspaces are not allowed.");
     }
 
     // Ensure slug is generated if not provided
@@ -162,123 +210,312 @@ export const organizationService = {
   },
 
   /**
+   * Remove a member or manager from an organization and everywhere in projects.
+   * @param {Object} params
+   * @param {string} params.organizationId
+   * @param {string} params.userId
+   * @param {string} [params.userEmail]
+   * @param {string} [params.callerRole]
+   * @param {string} [params.callerId]
+   * @returns {Promise<boolean>}
+   */
+  async removeOrganizationMember({
+    organizationId,
+    userId,
+    userEmail,
+    callerRole = OWNER_ROLE,
+    callerId = null,
+  }) {
+    if (!organizationId || !userId) {
+      throw new Error("Missing organizationId or userId.");
+    }
+
+    if (callerRole === MEMBER_ROLE) {
+      throw new Error("Members cannot remove other members.");
+    }
+
+    // Safety: Prevent removing workspace owner
+    try {
+      const { data: targetProfile } = await supabase
+        .from("profiles")
+        .select("role, email")
+        .eq("id", userId)
+        .maybeSingle();
+
+      if (targetProfile?.role === OWNER_ROLE) {
+        throw new Error("Cannot remove the Workspace Owner.");
+      }
+      if (!userEmail && targetProfile?.email) {
+        userEmail = targetProfile.email;
+      }
+    } catch (e) {
+      if (e?.message && e.message.includes("Workspace Owner")) throw e;
+    }
+
+    // 1. Remove from organization_members
+    const { error: omErr } = await supabase
+      .from("organization_members")
+      .delete()
+      .eq("organization_id", organizationId)
+      .eq("user_id", userId);
+
+    if (omErr) {
+      console.error("removeOrganizationMember error:", omErr);
+      throw omErr;
+    }
+
+    // 2. Cascade delete from all project_members in this organization
+    try {
+      const { data: orgProjects } = await supabase
+        .from("projects")
+        .select("id")
+        .eq("organization_id", organizationId);
+
+      const projectIds = (orgProjects || []).map((p) => p.id);
+      if (projectIds.length > 0) {
+        await supabase
+          .from("project_members")
+          .delete()
+          .in("project_id", projectIds)
+          .eq("user_id", userId);
+
+        if (typeof window !== "undefined") {
+          ["workgrid_project_members_data", "jira_project_members_data"].forEach((k) => {
+            const raw = localStorage.getItem(k);
+            if (raw) {
+              try {
+                const list = JSON.parse(raw);
+                if (Array.isArray(list)) {
+                  const filtered = list.filter(
+                    (m) => !(projectIds.includes(m.project_id) && m.user_id === userId)
+                  );
+                  localStorage.setItem(k, JSON.stringify(filtered));
+                }
+              } catch (_) {}
+            }
+          });
+        }
+      }
+    } catch (pErr) {
+      console.error("removeOrganizationMember project_members cleanup error:", pErr);
+    }
+
+    // 3. Unassign from tasks in this organization
+    try {
+      await supabase
+        .from("tasks")
+        .update({ assignee_id: null })
+        .eq("organization_id", organizationId)
+        .eq("assignee_id", userId);
+    } catch (_) {}
+
+    // 4. Remove any pending requests or invitations for this user's email
+    const cleanEmail = userEmail?.trim()?.toLowerCase();
+    if (cleanEmail) {
+      try {
+        await supabase
+          .from("request_member")
+          .delete()
+          .eq("organization_id", organizationId)
+          .eq("email", cleanEmail);
+      } catch (_) {}
+      try {
+        await supabase
+          .from("request_manager")
+          .delete()
+          .eq("organization_id", organizationId)
+          .eq("email", cleanEmail);
+      } catch (_) {}
+      try {
+        await supabase
+          .from("project_invitations")
+          .delete()
+          .eq("organization_id", organizationId)
+          .eq("email", cleanEmail);
+      } catch (_) {}
+
+      if (typeof window !== "undefined") {
+        try {
+          ["workgrid_project_invitations_data", "jira_project_invitations_data"].forEach((k) => {
+            const raw = localStorage.getItem(k);
+            if (raw) {
+              const list = JSON.parse(raw);
+              if (Array.isArray(list)) {
+                const filtered = list.filter(
+                  (item) => item.email?.trim()?.toLowerCase() !== cleanEmail
+                );
+                localStorage.setItem(k, JSON.stringify(filtered));
+              }
+            }
+          });
+        } catch (_) {}
+      }
+    }
+
+    clearOrganizationCache();
+    try {
+      clearProjectsCache();
+    } catch (_) {}
+
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent("member-removed", {
+          detail: { organizationId, userId, email: cleanEmail },
+        })
+      );
+      window.dispatchEvent(
+        new CustomEvent("project-updated", {
+          detail: { organizationId, userId },
+        })
+      );
+    }
+
+    return true;
+  },
+
+  /**
    * Get all organizations for a user (via organization_members or created_by).
    * @param {string} userId
    * @returns {Promise<Array>} List of organizations with membership info
    */
-  async getUserOrganizations(userId) {
+  async getUserOrganizations(userId, force = false) {
     if (!userId) return [];
 
-    // 1. Fetch memberships from organization_members
-    const { data: memberData, error: memberError } = await supabase
-      .from("organization_members")
-      .select(`
-        id,
-        role,
-        status,
-        joined_at,
-        organizations (
-          id,
-          name,
-          slug,
-          logo_url,
-          email,
-          phone,
-          website,
-          industry,
-          company_size,
-          description,
-          address,
-          city,
-          state,
-          country,
-          postal_code,
-          timezone,
-          currency,
-          status,
-          created_by,
-          owner_id,
-          created_at,
-          updated_at
-        )
-      `)
-      .eq("user_id", userId)
-      .eq("status", "active");
-
-    if (memberError) {
-      console.error("getUserOrganizations member fetch error:", memberError);
-    }
-
-    const orgs = (memberData || []).filter((item) => item.organizations);
-
-    // 2. Also check if the user is a creator of any organization not yet listed in organization_members
-    const existingOrgIds = new Set(orgs.map((o) => o.organizations?.id));
-
-    const { data: createdOrgs, error: createdError } = await supabase
-      .from("organizations")
-      .select("*")
-      .eq("created_by", userId);
-
-    if (!createdError && createdOrgs) {
-      for (const org of createdOrgs) {
-        if (!existingOrgIds.has(org.id)) {
-          existingOrgIds.add(org.id);
-          orgs.push({
-            id: `creator-${org.id}`,
-            role: OWNER_ROLE,
-            status: "active",
-            joined_at: org.created_at,
-            organizations: org,
-          });
-        }
+    const cacheKey = String(userId);
+    if (!force) {
+      const cached = userOrgsCache.get(cacheKey);
+      if (cached && Date.now() - cached.timestamp < ORG_CACHE_TTL) {
+        return cached.data;
+      }
+      if (inFlightUserOrgs.has(cacheKey)) {
+        return inFlightUserOrgs.get(cacheKey);
       }
     }
 
-    // 3. Also check if the user is an accepted manager or member in request_manager / request_member
-    try {
-      const [acceptedMgrs, acceptedMbrs] = await Promise.all([
-        supabase
-          .from("request_manager")
-          .select("organization_id, role, updated_at")
-          .eq("accepted_by", userId)
-          .eq("status", "accepted"),
-        supabase
-          .from("request_member")
-          .select("organization_id, role, updated_at")
-          .eq("accepted_by", userId)
-          .eq("status", "accepted"),
-      ]);
+    const fetchPromise = (async () => {
+      // 1. Fetch memberships from organization_members
+      const { data: memberData, error: memberError } = await supabase
+        .from("organization_members")
+        .select(`
+          id,
+          role,
+          status,
+          joined_at,
+          organizations (
+            id,
+            name,
+            slug,
+            logo_url,
+            email,
+            phone,
+            website,
+            industry,
+            company_size,
+            description,
+            address,
+            city,
+            state,
+            country,
+            postal_code,
+            timezone,
+            currency,
+            status,
+            created_by,
+            owner_id,
+            created_at,
+            updated_at
+          )
+        `)
+        .eq("user_id", userId)
+        .eq("status", "active");
 
-      const acceptedRows = [
-        ...(acceptedMgrs.data || []).map((r) => ({ ...r, role: MANAGER_ROLE })),
-        ...(acceptedMbrs.data || []).map((r) => ({ ...r, role: MEMBER_ROLE })),
-      ];
+      if (memberError) {
+        console.error("getUserOrganizations member fetch error:", memberError);
+      }
 
-      for (const row of acceptedRows) {
-        if (!existingOrgIds.has(row.organization_id)) {
-          const { data: orgData } = await supabase
-            .from("organizations")
-            .select("*")
-            .eq("id", row.organization_id)
-            .maybeSingle();
+      const orgs = (memberData || []).filter((item) => item.organizations);
 
-          if (orgData) {
-            existingOrgIds.add(orgData.id);
-            orgs.push({
-              id: `accepted-${row.role}-${row.organization_id}`,
-              role: row.role,
-              status: "active",
-              joined_at: row.updated_at || new Date().toISOString(),
-              organizations: orgData,
-            });
+      // Only check creator and requests fallback if no memberships were found in organization_members
+      if (orgs.length === 0) {
+        // 2. Also check if the user is a creator of any organization not yet listed in organization_members
+        const existingOrgIds = new Set(orgs.map((o) => o.organizations?.id));
+
+        const { data: createdOrgs, error: createdError } = await supabase
+          .from("organizations")
+          .select("*")
+          .eq("created_by", userId);
+
+        if (!createdError && createdOrgs) {
+          for (const org of createdOrgs) {
+            if (!existingOrgIds.has(org.id)) {
+              existingOrgIds.add(org.id);
+              orgs.push({
+                id: `creator-${org.id}`,
+                role: OWNER_ROLE,
+                status: "active",
+                joined_at: org.created_at,
+                organizations: org,
+              });
+            }
           }
         }
-      }
-    } catch (e) {
-      console.error("getUserOrganizations accepted requests fetch error:", e);
-    }
 
-    return orgs;
+        // 3. Also check if the user is an accepted manager or member in request_manager / request_member
+        try {
+          const [acceptedMgrs, acceptedMbrs] = await Promise.all([
+            supabase
+              .from("request_manager")
+              .select("organization_id, role, updated_at")
+              .eq("accepted_by", userId)
+              .eq("status", "accepted"),
+            supabase
+              .from("request_member")
+              .select("organization_id, role, updated_at")
+              .eq("accepted_by", userId)
+              .eq("status", "accepted"),
+          ]);
+
+          const acceptedRows = [
+            ...(acceptedMgrs.data || []).map((r) => ({ ...r, role: MANAGER_ROLE })),
+            ...(acceptedMbrs.data || []).map((r) => ({ ...r, role: MEMBER_ROLE })),
+          ];
+
+          for (const row of acceptedRows) {
+            if (!existingOrgIds.has(row.organization_id)) {
+              const { data: orgData } = await supabase
+                .from("organizations")
+                .select("*")
+                .eq("id", row.organization_id)
+                .maybeSingle();
+
+              if (orgData) {
+                existingOrgIds.add(orgData.id);
+                orgs.push({
+                  id: `accepted-${row.role}-${row.organization_id}`,
+                  role: row.role,
+                  status: "active",
+                  joined_at: row.updated_at || new Date().toISOString(),
+                  organizations: orgData,
+                });
+              }
+            }
+          }
+        } catch (e) {
+          console.error("getUserOrganizations accepted requests fetch error:", e);
+        }
+      }
+
+      return orgs;
+    })();
+
+    inFlightUserOrgs.set(cacheKey, fetchPromise);
+    try {
+      const result = await fetchPromise;
+      userOrgsCache.set(cacheKey, { data: result, timestamp: Date.now() });
+      return result;
+    } finally {
+      inFlightUserOrgs.delete(cacheKey);
+    }
   },
 
   /**
@@ -336,14 +573,26 @@ export const organizationService = {
    * @param {Object} [context] - { currentUserId, currentUserRole }
    * @returns {Promise<Array>}
    */
-  async getOrganizationMembers(organizationId, context = {}) {
+  async getOrganizationMembers(organizationId, context = {}, force = false) {
     if (!organizationId) return [];
 
     const { currentUserId, currentUserRole } = context;
+    const cacheKey = `${organizationId}:${currentUserId || ""}:${currentUserRole || ""}`;
 
-    // 1. Try secure stored RPC that guarantees real full names and emails without RLS issues
-    let rawMembers = [];
-    let rpcSucceeded = false;
+    if (!force) {
+      const cached = orgMembersCache.get(cacheKey);
+      if (cached && Date.now() - cached.timestamp < ORG_CACHE_TTL) {
+        return cached.data;
+      }
+      if (inFlightOrgMembers.has(cacheKey)) {
+        return inFlightOrgMembers.get(cacheKey);
+      }
+    }
+
+    const fetchPromise = (async () => {
+      // 1. Try secure stored RPC that guarantees real full names and emails without RLS issues
+      let rawMembers = [];
+      let rpcSucceeded = false;
     try {
       const { data: rpcRows, error: rpcErr } = await supabase.rpc(
         "get_organization_team_members",
@@ -355,6 +604,31 @@ export const organizationService = {
       }
     } catch (_) {
       rpcSucceeded = false;
+    }
+
+    if (rpcSucceeded) {
+      return rawMembers.map((m) => {
+        const fn =
+          m.full_name ||
+          (m.role === OWNER_ROLE
+            ? "Workspace Owner"
+            : m.role === MANAGER_ROLE
+            ? "Manager"
+            : "Team Member");
+        const em = m.email || "";
+        return {
+          ...m,
+          full_name: fn,
+          email: em,
+          is_owner: m.role === OWNER_ROLE,
+          profiles: {
+            id: m.user_id,
+            full_name: fn,
+            email: em,
+            phone: m.phone || "",
+          },
+        };
+      });
     }
 
     if (!rpcSucceeded) {
@@ -540,151 +814,19 @@ export const organizationService = {
       } catch (_) {}
     }
 
-    // 2. Fetch requests created by this owner to cross-reference invited members
-    let ownerInvitedIdentifiers = new Set();
-    if (currentUserRole === OWNER_ROLE && currentUserId) {
-      try {
-        const [reqMembers, reqManagers] = await Promise.all([
-          supabase
-            .from("request_member")
-            .select("email, accepted_by, invited_by, requested_by")
-            .eq("organization_id", organizationId)
-            .or(`requested_by.eq.${currentUserId},invited_by.eq.${currentUserId}`),
-          supabase
-            .from("request_manager")
-            .select("email, accepted_by, invited_by, requested_by")
-            .eq("organization_id", organizationId)
-            .or(`requested_by.eq.${currentUserId},invited_by.eq.${currentUserId}`),
-        ]);
-
-        (reqMembers.data || []).forEach((r) => {
-          if (r.email) ownerInvitedIdentifiers.add(r.email.toLowerCase().trim());
-          if (r.accepted_by) ownerInvitedIdentifiers.add(r.accepted_by);
-        });
-        (reqManagers.data || []).forEach((r) => {
-          if (r.email) ownerInvitedIdentifiers.add(r.email.toLowerCase().trim());
-          if (r.accepted_by) ownerInvitedIdentifiers.add(r.accepted_by);
-        });
-      } catch (_) {}
-    }
-
-    // 3. Apply role-based filtering and visibility rules
-
-    // A. OWNER:
-    // Sign in: owner; show details; organisation member or manager
-    // Owner sees all members and managers in their organization.
-    if (currentUserRole === OWNER_ROLE) {
-      return members;
-    }
-
-    // B. MANAGER:
-    // Sign in: manager; show lisitng of members only who create your shelf member
-    // Manager: present owner, who created
-    if (currentUserRole === MANAGER_ROLE && currentUserId) {
-      let managerInvitedEmails = new Set();
-      try {
-        const { data: reqMembers } = await supabase
-          .from("request_member")
-          .select("email, accepted_by, invited_by, requested_by")
-          .eq("organization_id", organizationId)
-          .or(`requested_by.eq.${currentUserId},invited_by.eq.${currentUserId}`);
-
-        (reqMembers || []).forEach((r) => {
-          if (r.email) managerInvitedEmails.add(r.email.toLowerCase().trim());
-          if (r.accepted_by) managerInvitedEmails.add(r.accepted_by);
-        });
-      } catch (_) {}
-
-      return members.filter((m) => {
-        // 1. Present Owner, who created
-        if (m.role === OWNER_ROLE || (orgOwnerId && m.user_id === orgOwnerId)) {
-          return true;
-        }
-
-        // 2. SELF (the manager themselves) MUST be shown!
-        if (m.user_id === currentUserId) {
-          return true;
-        }
-
-        // 3. Hide all other managers completely (no other manager listing shown)
-        if (m.role === MANAGER_ROLE) {
-          return false;
-        }
-
-        // 4. ONLY show members created or invited by this manager itself
-        if (m.created_by === currentUserId || m.invited_by === currentUserId) return true;
-        if (
-          managerInvitedEmails.has(m.user_id) ||
-          (m.profiles?.email && managerInvitedEmails.has(m.profiles.email.toLowerCase().trim()))
-        ) {
-          return true;
-        }
-
-        return false;
-      });
-    }
-
-    // C. MEMBER:
-    // Sign in: member: no organisation details; manager listing and other member listing shown
-    // Member: present owner and manager who created
-    if (currentUserRole === MEMBER_ROLE) {
-      const myRecord = members.find((m) => m.user_id === currentUserId);
-      let creatorManagerId = myRecord?.created_by || myRecord?.invited_by || null;
-
-      if (!creatorManagerId) {
-        try {
-          const { data: req } = await supabase
-            .from("request_member")
-            .select("requested_by, invited_by")
-            .eq("organization_id", organizationId)
-            .or(
-              `accepted_by.eq.${currentUserId}${
-                myRecord?.profiles?.email ? `,email.eq.${myRecord.profiles.email}` : ""
-              }`
-            )
-            .maybeSingle();
-          creatorManagerId = req?.requested_by || req?.invited_by || null;
-        } catch (_) {}
-      }
-
-      if (!creatorManagerId) {
-        // Fallback: if only 1 manager exists in the org, they are the manager
-        const managers = members.filter((m) => m.role === MANAGER_ROLE);
-        if (managers.length === 1) {
-          creatorManagerId = managers[0].user_id;
-        }
-      }
-
-      return members.filter((m) => {
-        // 1. Present Owner, who created
-        if (m.role === OWNER_ROLE || (orgOwnerId && m.user_id === orgOwnerId)) {
-          return true;
-        }
-
-        // 2. Present Manager, who created this member
-        if (creatorManagerId && m.user_id === creatorManagerId && m.role === MANAGER_ROLE) {
-          return true;
-        }
-
-        // 3. Self is always shown
-        if (m.user_id === currentUserId) {
-          return true;
-        }
-
-        // 4. Other member listing shown (teammates created by that same manager/creator)
-        if (
-          creatorManagerId &&
-          m.role === MEMBER_ROLE &&
-          (m.created_by === creatorManagerId || m.invited_by === creatorManagerId)
-        ) {
-          return true;
-        }
-
-        return false;
-      });
-    }
-
+    // Complete organization members and managers are shown
+    // All members and managers are visible so managers and owners can select full teams for projects.
     return members;
+    })();
+
+    inFlightOrgMembers.set(cacheKey, fetchPromise);
+    try {
+      const result = await fetchPromise;
+      orgMembersCache.set(cacheKey, { data: result, timestamp: Date.now() });
+      return result;
+    } finally {
+      inFlightOrgMembers.delete(cacheKey);
+    }
   },
 
   /**
@@ -693,90 +835,37 @@ export const organizationService = {
    * @param {Object} [context] - { currentUserId, currentUserRole }
    * @returns {Promise<{ owner: Object|null, manager: Object|null }>}
    */
-  async getOrganizationLeadership(organizationId, context = {}) {
+  async getOrganizationLeadership(organizationId, context = {}, preloadedMembers = null) {
     if (!organizationId) return { owner: null, manager: null };
     const { currentUserId, currentUserRole } = context;
 
     try {
-      const allMembers = await this.getOrganizationMembers(organizationId, {
-        currentUserId,
-        currentUserRole: OWNER_ROLE, // fetch full list to extract leadership profiles
-      });
+      const allMembers =
+        preloadedMembers && preloadedMembers.length > 0
+          ? preloadedMembers
+          : await this.getOrganizationMembers(organizationId, {
+              currentUserId,
+              currentUserRole,
+            });
 
-      const { data: orgData } = await supabase
-        .from("organizations")
-        .select("id, name, created_by, owner_id")
-        .eq("id", organizationId)
-        .maybeSingle();
-
-      let owner =
-        allMembers.find(
-          (m) => m.role === OWNER_ROLE || (orgOwnerId && m.user_id === orgOwnerId)
-        ) || null;
-
-      if (!owner && orgOwnerId) {
-        try {
-          const { data: ownerProf } = await supabase
-            .from("profiles")
-            .select("id, full_name, email, phone")
-            .eq("id", orgOwnerId)
-            .maybeSingle();
-          if (ownerProf) {
-            owner = {
-              id: `owner-${orgOwnerId}`,
-              user_id: orgOwnerId,
-              role: OWNER_ROLE,
-              is_owner: true,
-              profiles: ownerProf,
-            };
-          }
-        } catch (_) {}
-      }
+      const owner =
+        allMembers.find((m) => m.role === OWNER_ROLE || m.is_owner) ||
+        (allMembers.length > 0 && allMembers[0]?.role === OWNER_ROLE ? allMembers[0] : null);
 
       let manager = null;
       if (currentUserRole === MEMBER_ROLE && currentUserId) {
         const myMember = allMembers.find((m) => m.user_id === currentUserId);
-        let managerId = myMember?.created_by || myMember?.invited_by;
-        if (!managerId) {
-          const { data: req } = await supabase
-            .from("request_member")
-            .select("requested_by, invited_by")
-            .eq("organization_id", organizationId)
-            .or(
-              `accepted_by.eq.${currentUserId}${
-                myMember?.profiles?.email ? `,email.eq.${myMember.profiles.email}` : ""
-              }`
-            )
-            .maybeSingle();
-          managerId = req?.requested_by || req?.invited_by;
-        }
-
+        const managerId = myMember?.created_by || myMember?.invited_by;
         if (managerId) {
           manager =
             allMembers.find((m) => m.user_id === managerId && m.role === MANAGER_ROLE) ||
             null;
-
-          if (!manager) {
-            try {
-              const { data: managerProf } = await supabase
-                .from("profiles")
-                .select("id, full_name, email, phone")
-                .eq("id", managerId)
-                .maybeSingle();
-              if (managerProf) {
-                manager = {
-                  id: `manager-${managerId}`,
-                  user_id: managerId,
-                  role: MANAGER_ROLE,
-                  profiles: managerProf,
-                };
-              }
-            } catch (_) {}
-          }
         }
         if (!manager) {
           manager = allMembers.find((m) => m.role === MANAGER_ROLE) || null;
         }
+      } else {
+        manager = allMembers.find((m) => m.role === MANAGER_ROLE) || null;
       }
 
       return { owner, manager };
@@ -784,6 +873,41 @@ export const organizationService = {
       console.error("getOrganizationLeadership error:", err);
       return { owner: null, manager: null };
     }
+  },
+
+  /**
+   * Synchronously extract leadership from a loaded members array without any API calls.
+   * @param {Array} allMembers
+   * @param {string} currentUserId
+   * @param {string} currentUserRole
+   * @returns {{ owner: Object|null, manager: Object|null }}
+   */
+  getOrganizationLeadershipSync(allMembers = [], currentUserId = null, currentUserRole = MEMBER_ROLE) {
+    if (!Array.isArray(allMembers) || allMembers.length === 0) {
+      return { owner: null, manager: null };
+    }
+
+    const owner =
+      allMembers.find((m) => m.role === OWNER_ROLE || m.is_owner) ||
+      (allMembers[0]?.role === OWNER_ROLE ? allMembers[0] : null);
+
+    let manager = null;
+    if (currentUserRole === MEMBER_ROLE && currentUserId) {
+      const myMember = allMembers.find((m) => m.user_id === currentUserId);
+      const managerId = myMember?.created_by || myMember?.invited_by;
+      if (managerId) {
+        manager =
+          allMembers.find((m) => m.user_id === managerId && m.role === MANAGER_ROLE) ||
+          null;
+      }
+      if (!manager) {
+        manager = allMembers.find((m) => m.role === MANAGER_ROLE) || null;
+      }
+    } else {
+      manager = allMembers.find((m) => m.role === MANAGER_ROLE) || null;
+    }
+
+    return { owner, manager };
   },
 
   /**
@@ -952,8 +1076,8 @@ export const organizationService = {
       .select("*")
       .eq("organization_id", organizationId);
 
-    // If owner or manager, show only requests created/invited by them
-    if ((currentUserRole === OWNER_ROLE || currentUserRole === MANAGER_ROLE) && currentUserId) {
+    // If manager, show only requests created/invited by them. Owner sees all requests.
+    if (currentUserRole === MANAGER_ROLE && currentUserId) {
       query = query.or(`requested_by.eq.${currentUserId},invited_by.eq.${currentUserId}`);
     }
 
@@ -969,8 +1093,8 @@ export const organizationService = {
       status: r.status === "approved" ? "pending" : r.status,
     }));
 
-    // Strict in-memory check to ensure managers and owners only see requests created/invited by themselves
-    if ((currentUserRole === OWNER_ROLE || currentUserRole === MANAGER_ROLE) && currentUserId) {
+    // Strict in-memory check to ensure managers only see requests created/invited by themselves
+    if (currentUserRole === MANAGER_ROLE && currentUserId) {
       results = results.filter(
         (r) => r.requested_by === currentUserId || r.invited_by === currentUserId
       );
@@ -1152,55 +1276,70 @@ export const organizationService = {
    * @param {Object} [context] - { currentUserId, currentUserRole }
    * @returns {Promise<Array>}
    */
-  async getAllRequests(organizationId, context = {}) {
+  async getAllRequests(organizationId, context = {}, force = false) {
     if (!organizationId) return [];
     const { currentUserId, currentUserRole } = context;
 
     if (currentUserRole === MEMBER_ROLE) return [];
 
-    // If manager, strictly return only member requests created by this manager
-    if (currentUserRole === MANAGER_ROLE) {
-      const members = await this.getMemberRequests(organizationId, context);
-      return members
-        .filter(
-          (item) =>
-            !currentUserId ||
-            item.requested_by === currentUserId ||
-            item.invited_by === currentUserId
-        )
-        .map((item) => ({
-          ...item,
-          request_type: MEMBER_ROLE,
-        }))
-        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    const cacheKey = `${organizationId}:${currentUserId || ""}:${currentUserRole || ""}`;
+
+    if (!force) {
+      const cached = allRequestsCache.get(cacheKey);
+      if (cached && Date.now() - cached.timestamp < ORG_CACHE_TTL) {
+        return cached.data;
+      }
+      if (inFlightAllRequests.has(cacheKey)) {
+        return inFlightAllRequests.get(cacheKey);
+      }
     }
 
-    const [members, managers] = await Promise.all([
-      this.getMemberRequests(organizationId, context),
-      this.getManagerRequests(organizationId, context),
-    ]);
+    const fetchPromise = (async () => {
+      // If manager, strictly return only member requests created by this manager
+      if (currentUserRole === MANAGER_ROLE) {
+        const members = await this.getMemberRequests(organizationId, context);
+        return members
+          .filter(
+            (item) =>
+              !currentUserId ||
+              item.requested_by === currentUserId ||
+              item.invited_by === currentUserId
+          )
+          .map((item) => ({
+            ...item,
+            request_type: MEMBER_ROLE,
+          }))
+          .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      }
 
-    const formattedMembers = members.map((item) => ({
-      ...item,
-      request_type: MEMBER_ROLE,
-    }));
+      const [members, managers] = await Promise.all([
+        this.getMemberRequests(organizationId, context),
+        this.getManagerRequests(organizationId, context),
+      ]);
 
-    const formattedManagers = managers.map((item) => ({
-      ...item,
-      request_type: MANAGER_ROLE,
-    }));
+      const formattedMembers = members.map((item) => ({
+        ...item,
+        request_type: MEMBER_ROLE,
+      }));
 
-    let combined = [...formattedMembers, ...formattedManagers].sort(
-      (a, b) => new Date(b.created_at) - new Date(a.created_at)
-    );
+      const formattedManagers = managers.map((item) => ({
+        ...item,
+        request_type: MANAGER_ROLE,
+      }));
 
-    if (currentUserRole === OWNER_ROLE && currentUserId) {
-      combined = combined.filter(
-        (r) => r.requested_by === currentUserId || r.invited_by === currentUserId
+      return [...formattedMembers, ...formattedManagers].sort(
+        (a, b) => new Date(b.created_at) - new Date(a.created_at)
       );
-    }
+    })();
 
-    return combined;
+    inFlightAllRequests.set(cacheKey, fetchPromise);
+    try {
+      const result = await fetchPromise;
+      allRequestsCache.set(cacheKey, { data: result, timestamp: Date.now() });
+      return result;
+    } finally {
+      inFlightAllRequests.delete(cacheKey);
+    }
   },
 
   // ============================================================
@@ -1298,6 +1437,7 @@ export const organizationService = {
         );
     }
 
+    clearOrganizationCache();
     return { success: true, status: "accepted", request_id: requestId, assigned_user_id: targetUserId };
   },
 
@@ -1320,6 +1460,7 @@ export const organizationService = {
       });
 
       if (!rpcError && rpcData?.success) {
+        clearOrganizationCache();
         return rpcData;
       }
     } catch (_) {}
@@ -1335,28 +1476,145 @@ export const organizationService = {
       throw updateError;
     }
 
+    clearOrganizationCache();
     return { success: true, status: "rejected", request_id: requestId };
   },
 
   /**
-   * Delete a request record.
+   * Delete a request record everywhere across the system (request tables, project invitations, localStorage).
    * @param {Object} params
    * @param {string} params.requestId
-   * @param {'member'|'manager'} params.type
+   * @param {'member'|'manager'} [params.type]
+   * @param {string} [params.email]
+   * @param {string} [params.organizationId]
    * @returns {Promise<boolean>}
    */
-  async deleteRequest({ requestId, type }) {
-    if (!requestId) return false;
-    const tableName = type === MANAGER_ROLE ? "request_manager" : "request_member";
+  async deleteRequest({ requestId, type, email, organizationId }) {
+    if (!requestId && !email) return false;
 
-    const { error } = await supabase
-      .from(tableName)
-      .delete()
-      .eq("id", requestId);
+    let targetEmail = email;
+    let targetOrgId = organizationId;
 
-    if (error) {
-      console.error("deleteRequest error:", error);
-      throw error;
+    // Fetch the request record first if email is missing
+    if (!targetEmail && requestId) {
+      try {
+        const preferredTable = type === MANAGER_ROLE ? "request_manager" : "request_member";
+        const { data: rec } = await supabase
+          .from(preferredTable)
+          .select("email, organization_id")
+          .eq("id", requestId)
+          .maybeSingle();
+
+        if (rec) {
+          targetEmail = rec.email;
+          targetOrgId = targetOrgId || rec.organization_id;
+        } else {
+          // Check alternate request table
+          const altTable = type === MANAGER_ROLE ? "request_member" : "request_manager";
+          const { data: altRec } = await supabase
+            .from(altTable)
+            .select("email, organization_id")
+            .eq("id", requestId)
+            .maybeSingle();
+          if (altRec) {
+            targetEmail = altRec.email;
+            targetOrgId = targetOrgId || altRec.organization_id;
+          } else {
+            // Also check project_invitations in case requestId is project_invitations id
+            const { data: piRec } = await supabase
+              .from("project_invitations")
+              .select("email, organization_id")
+              .eq("id", requestId)
+              .maybeSingle();
+            if (piRec) {
+              targetEmail = piRec.email;
+              targetOrgId = targetOrgId || piRec.organization_id;
+            }
+          }
+        }
+      } catch (_) {}
+    }
+
+    const cleanEmail = targetEmail?.trim()?.toLowerCase();
+
+    // 1. Delete from request_member
+    try {
+      if (requestId) {
+        await supabase.from("request_member").delete().eq("id", requestId);
+      }
+      if (cleanEmail) {
+        let q = supabase.from("request_member").delete().eq("email", cleanEmail);
+        if (targetOrgId) q = q.eq("organization_id", targetOrgId);
+        await q;
+      }
+    } catch (err) {
+      console.error("deleteRequest request_member error:", err);
+    }
+
+    // 2. Delete from request_manager
+    try {
+      if (requestId) {
+        await supabase.from("request_manager").delete().eq("id", requestId);
+      }
+      if (cleanEmail) {
+        let q = supabase.from("request_manager").delete().eq("email", cleanEmail);
+        if (targetOrgId) q = q.eq("organization_id", targetOrgId);
+        await q;
+      }
+    } catch (err) {
+      console.error("deleteRequest request_manager error:", err);
+    }
+
+    // 3. Delete everywhere from project_invitations!
+    try {
+      if (requestId) {
+        await supabase.from("project_invitations").delete().eq("id", requestId);
+      }
+      if (cleanEmail) {
+        let q = supabase.from("project_invitations").delete().eq("email", cleanEmail);
+        if (targetOrgId) q = q.eq("organization_id", targetOrgId);
+        await q;
+      }
+    } catch (err) {
+      console.error("deleteRequest project_invitations error:", err);
+    }
+
+    // 4. Clean up localStorage for project invitations
+    if (typeof window !== "undefined") {
+      try {
+        ["workgrid_project_invitations_data", "jira_project_invitations_data"].forEach((k) => {
+          const raw = localStorage.getItem(k);
+          if (raw) {
+            const list = JSON.parse(raw);
+            if (Array.isArray(list)) {
+              const filtered = list.filter((item) => {
+                if (requestId && item.id === requestId) return false;
+                if (cleanEmail && item.email?.trim()?.toLowerCase() === cleanEmail) return false;
+                return true;
+              });
+              localStorage.setItem(k, JSON.stringify(filtered));
+            }
+          }
+        });
+      } catch (_) {}
+    }
+
+    clearOrganizationCache();
+    try {
+      clearProjectsCache();
+    } catch (_) {}
+
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent("invitation-deleted", {
+          detail: { requestId, email: cleanEmail, organizationId: targetOrgId },
+        })
+      );
+      window.dispatchEvent(
+        new CustomEvent("project-updated", {
+          detail: { email: cleanEmail, organizationId: targetOrgId },
+        })
+      );
     }
 
     return true;
@@ -1371,81 +1629,103 @@ export const organizationService = {
    * @param {string} userEmail
    * @returns {Promise<Array>}
    */
-  async getUserPendingInvitations(userEmail) {
+  async getUserPendingInvitations(userEmail, force = false) {
     if (!userEmail) return [];
     const normalizedEmail = userEmail.trim().toLowerCase();
+    const cacheKey = normalizedEmail;
 
-    try {
-      const [membersRes, managersRes] = await Promise.all([
-        supabase
-          .from("request_member")
-          .select("*, organizations(id, name, slug, logo_url)")
-          .eq("email", normalizedEmail),
-        supabase
-          .from("request_manager")
-          .select("*, organizations(id, name, slug, logo_url)")
-          .eq("email", normalizedEmail),
-      ]);
+    if (!force) {
+      const cached = userPendingInvitesCache.get(cacheKey);
+      if (cached && Date.now() - cached.timestamp < ORG_CACHE_TTL) {
+        return cached.data;
+      }
+      if (inFlightUserPendingInvites.has(cacheKey)) {
+        return inFlightUserPendingInvites.get(cacheKey);
+      }
+    }
 
-      const memberInvites = (membersRes.data || []).map((m) => ({
-        ...m,
-        request_type: MEMBER_ROLE,
-        status: m.status === "approved" ? "pending" : m.status,
-      }));
-
-      const managerInvites = (managersRes.data || []).map((m) => ({
-        ...m,
-        request_type: MANAGER_ROLE,
-        status: m.status === "approved" ? "pending" : m.status,
-      }));
-
-      // Project invitations
-      let projectInvites = [];
+    const fetchPromise = (async () => {
       try {
-        const { data: pInvites } = await supabase
-          .from("project_invitations")
-          .select("*, organizations(id, name, slug, logo_url), projects(id, name, status)")
-          .eq("email", normalizedEmail)
-          .eq("status", "pending");
+        const [membersRes, managersRes] = await Promise.all([
+          supabase
+            .from("request_member")
+            .select("*, organizations(id, name, slug, logo_url)")
+            .eq("email", normalizedEmail),
+          supabase
+            .from("request_manager")
+            .select("*, organizations(id, name, slug, logo_url)")
+            .eq("email", normalizedEmail),
+        ]);
 
-        if (pInvites && pInvites.length > 0) {
-          projectInvites = pInvites.map((pi) => ({
-            ...pi,
-            request_type: pi.intended_role || MEMBER_ROLE,
-            is_project_invite: true,
-            project_name: pi.projects?.name,
-          }));
-        }
-      } catch (_) {}
+        const memberInvites = (membersRes.data || []).map((m) => ({
+          ...m,
+          request_type: MEMBER_ROLE,
+          status: m.status === "approved" ? "pending" : m.status,
+        }));
 
-      // Fallback local project invites
-      if (typeof window !== "undefined") {
+        const managerInvites = (managersRes.data || []).map((m) => ({
+          ...m,
+          request_type: MANAGER_ROLE,
+          status: m.status === "approved" ? "pending" : m.status,
+        }));
+
+        // Project invitations
+        let projectInvites = [];
         try {
-          const raw =
-            localStorage.getItem("workgrid_project_invitations_data") ||
-            localStorage.getItem("jira_project_invitations_data");
-          if (raw) {
-            const list = JSON.parse(raw);
-            const matches = list.filter(
-              (i) => i.email === normalizedEmail && i.status === "pending"
-            );
-            matches.forEach((pi) => {
-              if (!projectInvites.some((item) => item.id === pi.id)) {
-                projectInvites.push({
-                  ...pi,
-                  request_type: pi.intended_role || MEMBER_ROLE,
-                  is_project_invite: true,
-                });
-              }
-            });
+          const { data: pInvites } = await supabase
+            .from("project_invitations")
+            .select("*, organizations(id, name, slug, logo_url), projects(id, name, status)")
+            .eq("email", normalizedEmail)
+            .eq("status", "pending");
+
+          if (pInvites && pInvites.length > 0) {
+            projectInvites = pInvites.map((pi) => ({
+              ...pi,
+              request_type: pi.intended_role || MEMBER_ROLE,
+              is_project_invite: true,
+              project_name: pi.projects?.name,
+            }));
           }
         } catch (_) {}
-      }
 
-      return [...memberInvites, ...managerInvites, ...projectInvites];
-    } catch (err) {
-      console.error("getUserPendingInvitations error:", err);
-      return [];
+        // Fallback local project invites
+        if (typeof window !== "undefined") {
+          try {
+            const raw =
+              localStorage.getItem("workgrid_project_invitations_data") ||
+              localStorage.getItem("jira_project_invitations_data");
+            if (raw) {
+              const list = JSON.parse(raw);
+              const matches = list.filter(
+                (i) => i.email === normalizedEmail && i.status === "pending"
+              );
+              matches.forEach((pi) => {
+                if (!projectInvites.some((item) => item.id === pi.id)) {
+                  projectInvites.push({
+                    ...pi,
+                    request_type: pi.intended_role || MEMBER_ROLE,
+                    is_project_invite: true,
+                  });
+                }
+              });
+            }
+          } catch (_) {}
+        }
+
+        return [...memberInvites, ...managerInvites, ...projectInvites];
+      } catch (err) {
+        console.error("getUserPendingInvitations error:", err);
+        return [];
+      }
+    })();
+
+    inFlightUserPendingInvites.set(cacheKey, fetchPromise);
+    try {
+      const result = await fetchPromise;
+      userPendingInvitesCache.set(cacheKey, { data: result, timestamp: Date.now() });
+      return result;
+    } finally {
+      inFlightUserPendingInvites.delete(cacheKey);
     }
   },
 

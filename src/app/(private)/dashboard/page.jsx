@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -36,7 +36,6 @@ import {
   FiRefreshCw,
   FiFolder,
   FiFolderPlus,
-  FiCheckCircle,
 } from "react-icons/fi";
 import organizationService from "@/services/organization.service";
 import projectService from "@/services/project.service";
@@ -46,9 +45,25 @@ import { emptyStore } from "@/store/rootReducer";
 import AddMemberModal from "@/components/AddMemberModal";
 import CreateProjectModal from "@/components/CreateProjectModal";
 import ProjectDetailsModal from "@/components/ProjectDetailsModal";
+import DeleteConfirmModal from "@/components/DeleteConfirmModal";
 import JiraLogo from "@/components/JiraLogo";
 import { useOrganization } from "@/context/OrganizationContext";
 import { MEMBER_ROLE, MANAGER_ROLE, OWNER_ROLE } from "@/utils/constants";
+import { formatTaskKey } from "@/utils/commonFunction";
+
+// Vibrant avatar colors matching [V][H][M][A] overlapping style
+const AVATAR_STACK_COLORS = [
+  "bg-pink-500 text-white",     // Pink (V)
+  "bg-orange-500 text-white",   // Orange (H)
+  "bg-blue-500 text-white",     // Blue (M)
+  "bg-teal-500 text-white",     // Teal (A)
+  "bg-purple-600 text-white",
+  "bg-indigo-500 text-white",
+  "bg-rose-500 text-white",
+  "bg-amber-500 text-white",
+  "bg-cyan-600 text-white",
+  "bg-emerald-600 text-white",
+];
 
 // ─────────────────────────────────────────────────────────
 // Skeleton loader
@@ -82,15 +97,15 @@ function DashboardSkeleton() {
 // ─────────────────────────────────────────────────────────
 function NoOrganizationView({ userName, userEmail, userInvitations, onCreateOrg, onLogout, user, onRefresh }) {
   return (
-    <div className="min-h-screen w-full bg-gradient-to-br from-slate-50 via-teal-50/20 to-slate-100 p-6 sm:p-10 flex flex-col justify-between items-center">
+    <div className="min-h-screen w-full bg-slate-50/70 p-4 sm:p-8 flex flex-col justify-between items-center select-none">
       {/* Top minimal header bar */}
-      <div className="w-full max-w-4xl flex items-center justify-between py-2">
+      <div className="w-full max-w-4xl flex items-center justify-between py-2 border-b border-slate-200/70 pb-4">
         <div className="flex items-center gap-2">
-          <JiraLogo className="w-7 h-7" textColor="text-slate-900" />
+          <JiraLogo className="w-6.5 h-6.5" textColor="text-slate-900" />
         </div>
         <div className="flex items-center gap-3">
           {userEmail && (
-            <span className="text-xs text-slate-500 hidden sm:inline-block">
+            <span className="text-xs text-slate-500 hidden sm:inline-block font-mono">
               {userEmail}
             </span>
           )}
@@ -98,7 +113,7 @@ function NoOrganizationView({ userName, userEmail, userInvitations, onCreateOrg,
             <button
               type="button"
               onClick={onLogout}
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-red-600 px-3 py-1.5 rounded-lg hover:bg-slate-200/60 transition-colors cursor-pointer"
+              className="btn-secondary px-3 py-1.5 text-xs text-slate-600 hover:text-red-600 transition-colors cursor-pointer"
             >
               <FiLogOut className="w-3.5 h-3.5" />
               <span>Sign Out</span>
@@ -107,41 +122,41 @@ function NoOrganizationView({ userName, userEmail, userInvitations, onCreateOrg,
         </div>
       </div>
 
-      <div className="w-full max-w-2xl space-y-8 animate-fadeIn my-auto">
+      <div className="w-full max-w-xl space-y-6 animate-fadeIn my-auto py-8">
         {/* Pending Invitations Banner if invited */}
         {userInvitations && userInvitations.length > 0 && (
-          <div className="bg-amber-50/90 border border-amber-200 rounded-lg p-5 shadow-xs space-y-3">
+          <div className="bg-amber-50/80 border border-amber-200/80 rounded-lg p-4 sm:p-5 shadow-2xs space-y-3">
             <div className="flex items-start gap-3">
-              <div className="w-9 h-9 rounded-lg bg-amber-500 text-white flex items-center justify-center font-bold shrink-0">
-                <FiClock className="w-5 h-5" />
+              <div className="w-8 h-8 rounded-lg bg-amber-500 text-white flex items-center justify-center font-bold shrink-0">
+                <FiClock className="w-4 h-4" />
               </div>
               <div className="flex-1">
                 <h3 className="text-sm font-bold text-amber-900">
                   Pending Invitations ({userInvitations.length})
                 </h3>
-                <p className="text-xs text-amber-700 mt-0.5">
-                  You have been invited to join the following workspaces or project teams. Click accept to join immediately.
+                <p className="text-xs text-amber-700 mt-0.5 leading-relaxed">
+                  You have been invited to join the following workspace or project team. Click accept to join immediately.
                 </p>
               </div>
             </div>
 
-            <div className="space-y-2.5 pt-2">
+            <div className="space-y-2 pt-1">
               {userInvitations.map((inv) => (
                 <div
                   key={inv.id}
-                  className="bg-white/95 p-3.5 rounded-lg border border-amber-200/70 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-2xs"
+                  className="bg-white p-3 rounded-lg border border-amber-200/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-2xs"
                 >
                   <div className="space-y-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-bold text-slate-800">
+                      <span className="font-bold text-slate-900">
                         {inv.organizations?.name || "Organization"}
                       </span>
                       {inv.project_name && (
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-teal-100 text-[#0F766E] border border-teal-200">
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-lg bg-teal-50 text-[#0F766E] border border-teal-200/70">
                           Project: {inv.project_name}
                         </span>
                       )}
-                      <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-lg bg-purple-100 text-purple-700">
+                      <span className="text-[10px] uppercase font-semibold px-2 py-0.5 rounded-lg bg-purple-50 text-purple-700 border border-purple-200/70">
                         Role: {inv.request_type}
                       </span>
                     </div>
@@ -153,8 +168,8 @@ function NoOrganizationView({ userName, userEmail, userInvitations, onCreateOrg,
                   </div>
 
                   <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-[11px] font-semibold text-amber-700 bg-amber-100 px-2.5 py-0.5 rounded-lg">
-                      Status: {inv.status}
+                    <span className="text-[10px] font-semibold text-amber-800 bg-amber-100/70 px-2 py-0.5 rounded-lg capitalize">
+                      {inv.status}
                     </span>
                     <button
                       type="button"
@@ -180,7 +195,7 @@ function NoOrganizationView({ userName, userEmail, userInvitations, onCreateOrg,
                           toast.error(err?.message || "Failed to accept invitation.");
                         }
                       }}
-                      className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer"
+                      className="btn-primary px-3 py-1.5 text-xs font-semibold"
                     >
                       Accept & Join
                     </button>
@@ -192,16 +207,16 @@ function NoOrganizationView({ userName, userEmail, userInvitations, onCreateOrg,
         )}
 
         {/* Main Welcome & Create Organization Card */}
-        <div className="bg-white rounded-lg border border-slate-200/80 p-8 sm:p-10 text-center shadow-sm space-y-6">
-          <div className="mx-auto w-20 h-20 rounded-lg bg-gradient-to-br from-[#0F766E] to-teal-800 flex items-center justify-center text-white shadow-xl shadow-teal-900/25">
-            <FiGlobe className="w-10 h-10" />
+        <div className="bg-white rounded-lg border border-slate-200/90 p-8 sm:p-10 text-center shadow-xs space-y-5">
+          <div className="mx-auto w-12 h-12 rounded-lg bg-teal-50 text-[#0F766E] border border-teal-200/60 flex items-center justify-center">
+            <FiGlobe className="w-6 h-6" />
           </div>
 
-          <div className="space-y-2">
-            <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+          <div className="space-y-1.5">
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
               Welcome to WorkGrid, {userName || "there"}!
             </h1>
-            <p className="text-sm text-slate-500 max-w-md mx-auto leading-relaxed">
+            <p className="text-xs sm:text-sm text-slate-500 max-w-sm mx-auto leading-relaxed">
               You haven&apos;t created or joined an organization yet. Set up your organization to start collaborating with members and managers on agile sprints.
             </p>
           </div>
@@ -210,9 +225,9 @@ function NoOrganizationView({ userName, userEmail, userInvitations, onCreateOrg,
             <button
               type="button"
               onClick={onCreateOrg}
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3.5 bg-[#0F766E] hover:bg-[#0D655E] active:bg-[#115E59] active:scale-[0.98] text-white font-bold rounded-lg shadow-lg shadow-teal-900/25 transition-all cursor-pointer text-sm"
+              className="btn-primary w-full sm:w-auto px-6 py-2.5 text-xs sm:text-sm font-semibold"
             >
-              <FiPlus className="w-5 h-5" />
+              <FiPlus className="w-4 h-4" />
               <span>Create Organization</span>
             </button>
           </div>
@@ -220,8 +235,8 @@ function NoOrganizationView({ userName, userEmail, userInvitations, onCreateOrg,
       </div>
 
       {/* Footer */}
-      <div className="py-2 text-center text-xs text-slate-400">
-        WorkGrid Cloud • Workspace Onboarding
+      <div className="py-3 text-center text-xs text-slate-400">
+        WorkGrid Cloud • Agile Workspace Setup
       </div>
     </div>
   );
@@ -271,27 +286,36 @@ function OrganizationDashboardContent({
     }
   }, [userRole, activeTab]);
 
+  const orgId = org?.id;
+  const lastFetchedProjectsOrgIdRef = useRef(null);
+  const lastFetchedRequestsOrgIdRef = useRef(null);
+
   // Load Projects
-  const loadProjects = useCallback(async () => {
-    if (!org?.id) return;
+  const loadProjects = useCallback(async (force = false) => {
+    if (!orgId) return;
+    if (!force && lastFetchedProjectsOrgIdRef.current === orgId && projects.length > 0) return;
     try {
       setLoadingProjects(true);
       const data = await projectService.getProjects({
-        organizationId: org.id,
+        organizationId: orgId,
         userId: currentUserId,
         userRole,
+        force,
       });
+      lastFetchedProjectsOrgIdRef.current = orgId;
       setProjects(data || []);
     } catch (err) {
       console.error("loadProjects error:", err);
     } finally {
       setLoadingProjects(false);
     }
-  }, [org?.id, currentUserId, userRole]);
+  }, [orgId, currentUserId, userRole, projects.length]);
 
   useEffect(() => {
-    loadProjects();
-  }, [loadProjects]);
+    if (orgId) {
+      loadProjects();
+    }
+  }, [orgId, loadProjects]);
 
   // Requests state
   const [requests, setRequests] = useState([]);
@@ -300,68 +324,82 @@ function OrganizationDashboardContent({
   const [requestStatusFilter, setRequestStatusFilter] = useState("all"); // 'all' | 'pending' | 'approved' | 'rejected'
   const [requestSearch, setRequestSearch] = useState("");
   const [processingRequestId, setProcessingRequestId] = useState(null);
+  const [deleteRequestConfirmState, setDeleteRequestConfirmState] = useState({
+    isOpen: false,
+    req: null,
+  });
+  const [isDeletingRequest, setIsDeletingRequest] = useState(false);
 
   // Fetch Requests
-  const loadRequests = useCallback(async () => {
-    if (!org?.id) return;
+  const loadRequests = useCallback(async (force = false) => {
+    if (!orgId) return;
+    if (!force && lastFetchedRequestsOrgIdRef.current === orgId && requests.length > 0) return;
     try {
       setLoadingRequests(true);
-      const data = await organizationService.getAllRequests(org.id, {
-        currentUserId,
-        currentUserRole: userRole,
-      });
-      setRequests(data);
+      const data = await organizationService.getAllRequests(
+        orgId,
+        {
+          currentUserId,
+          currentUserRole: userRole,
+        },
+        force
+      );
+      lastFetchedRequestsOrgIdRef.current = orgId;
+      setRequests(data || []);
     } catch (err) {
       console.error("loadRequests error:", err);
     } finally {
       setLoadingRequests(false);
     }
-  }, [org?.id, currentUserId, userRole]);
+  }, [orgId, currentUserId, userRole, requests.length]);
 
   useEffect(() => {
-    loadRequests();
-  }, [loadRequests]);
-
-  // Handle Approve / Accept Request
-  const handleApproveRequest = async (req) => {
-    if (!isAuthorizedAdmin) return;
-
-    setProcessingRequestId(req.id);
-    try {
-      await organizationService.approveRequest({
-        requestId: req.id,
-        type: req.request_type,
-        organizationId: org?.id,
-        email: req.email,
-      });
-      toast.success(`${req.full_name || req.email} accepted into workspace!`);
-      await Promise.all([
-        loadRequests(),
-        onRefresh ? onRefresh() : Promise.resolve(),
-      ]);
-    } catch (err) {
-      toast.error(err?.message || "Failed to accept request.");
-    } finally {
-      setProcessingRequestId(null);
+    if (orgId) {
+      loadRequests();
     }
-  };
+  }, [orgId, loadRequests]);
+
+  // Synchronize when invitations or members are modified elsewhere
+  useEffect(() => {
+    const handleSync = () => {
+      if (orgId) loadRequests();
+    };
+    window.addEventListener("invitation-deleted", handleSync);
+    window.addEventListener("member-removed", handleSync);
+    return () => {
+      window.removeEventListener("invitation-deleted", handleSync);
+      window.removeEventListener("member-removed", handleSync);
+    };
+  }, [orgId, loadRequests]);
 
   // Handle Delete Request
-  const handleDeleteRequest = async (req) => {
+  const handleDeleteRequest = (req) => {
     if (!isAuthorizedAdmin) return;
-    if (!confirm(`Are you sure you want to delete this invitation?`)) return;
+    setDeleteRequestConfirmState({
+      isOpen: true,
+      req,
+    });
+  };
 
+  const handleConfirmDeleteRequest = async () => {
+    const req = deleteRequestConfirmState.req;
+    if (!req) return;
+    setIsDeletingRequest(true);
     setProcessingRequestId(req.id);
     try {
       await organizationService.deleteRequest({
         requestId: req.id,
         type: req.request_type,
+        email: req.email,
+        organizationId: orgId,
       });
       toast.success("Invitation removed.");
+      setDeleteRequestConfirmState({ isOpen: false, req: null });
       await loadRequests();
     } catch (err) {
       toast.error("Failed to delete invitation.");
     } finally {
+      setIsDeletingRequest(false);
       setProcessingRequestId(null);
     }
   };
@@ -426,10 +464,10 @@ function OrganizationDashboardContent({
   }, [filteredProjects, projectPage]);
   const totalProjectPages = Math.ceil(filteredProjects.length / 5) || 1;
 
-  // Managers List
+  // Managers List (Only managers, excluding workspace owner)
   const managersList = useMemo(() => {
     return (members || []).filter(
-      (m) => m.role === MANAGER_ROLE || m.role === OWNER_ROLE || m.is_owner
+      (m) => m.role === MANAGER_ROLE && m.role !== OWNER_ROLE && !m.is_owner
     );
   }, [members]);
 
@@ -494,15 +532,15 @@ function OrganizationDashboardContent({
   };
 
   return (
-    <div className="min-h-full bg-slate-50/50 p-4 sm:p-6 lg:p-8 space-y-6 animate-fadeIn select-none">
+    <div className="min-h-full bg-slate-50/60 p-4 sm:p-6 lg:p-7 space-y-5 animate-fadeIn select-none">
       {/* ───────────────────────────────────────────────────── */}
       {/* 1. Header Card with Org Details & Primary Action Buttons */}
       {/* ───────────────────────────────────────────────────── */}
-      <div className="bg-white rounded-lg border border-slate-200/80 p-5 sm:p-6 shadow-xs">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+      <div className="bg-white rounded-lg border border-slate-200/80 p-4 sm:p-5 shadow-2xs">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           {/* Org Identity */}
-          <div className="flex items-start sm:items-center gap-4">
-            <div className="w-16 h-16 rounded-lg bg-gradient-to-br from-[#0F766E] to-teal-800 flex items-center justify-center text-white text-2xl font-black shadow-lg shadow-teal-900/20 shrink-0">
+          <div className="flex items-start sm:items-center gap-3.5">
+            <div className="w-12 h-12 rounded-lg bg-[#0F766E] flex items-center justify-center text-white text-lg font-bold shrink-0 shadow-2xs">
               {org?.logo_url ? (
                 <img
                   src={org.logo_url}
@@ -516,18 +554,18 @@ function OrganizationDashboardContent({
 
             <div className="space-y-1">
               <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+                <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
                   {org?.name || "Organization"}
                 </h1>
                 <span
-                  className={`px-2.5 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wider border ${
+                  className={`px-2 py-0.5 rounded-lg text-[10px] font-semibold uppercase tracking-wider border ${
                     roleBadgeClasses[userRole] || roleBadgeClasses.member
                   }`}
                 >
-                  Your Role: {userRole}
+                  Role: {userRole}
                 </span>
                 {org?.status === "active" && (
-                  <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-700 border border-emerald-200">
+                  <span className="px-2 py-0.5 rounded-lg text-[10px] font-semibold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200/70">
                     Active
                   </span>
                 )}
@@ -570,10 +608,10 @@ function OrganizationDashboardContent({
             {userRole === OWNER_ROLE && (
               <Link
                 href="/settings"
-                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200/70 transition-colors"
+                className="btn-secondary px-3 py-1.5 text-xs text-slate-700"
                 title="Workspace Settings"
               >
-                <FiSettings className="w-3.5 h-3.5" />
+                <FiSettings className="w-3.5 h-3.5 text-slate-500" />
                 <span>Settings</span>
               </Link>
             )}
@@ -583,12 +621,11 @@ function OrganizationDashboardContent({
               onClick={() => {
                 loadRequests();
                 onRefresh();
-                toast.info("Refreshed workspace data.");
               }}
-              className="p-2 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600 transition-colors cursor-pointer"
+              className="p-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 transition-colors cursor-pointer"
               title="Refresh data"
             >
-              <FiRefreshCw className="w-4 h-4" />
+              <FiRefreshCw className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
@@ -598,28 +635,28 @@ function OrganizationDashboardContent({
       {/* Workspace Owner Presentation Card (for Manager)       */}
       {/* ───────────────────────────────────────────────────── */}
       {userRole === MANAGER_ROLE && ownerMember && (
-        <div className="bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-white border border-amber-200/80 rounded-lg p-4 sm:p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3.5">
-            <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-amber-500 to-amber-600 text-white font-black text-lg flex items-center justify-center shadow-md shadow-amber-500/20 shrink-0">
+        <div className="bg-slate-50 border border-slate-200/80 rounded-lg p-3.5 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-amber-500 text-white font-bold text-sm flex items-center justify-center shrink-0">
               {ownerMember.profiles?.full_name?.charAt(0)?.toUpperCase() || "O"}
             </div>
             <div className="space-y-0.5">
               <div className="flex items-center gap-2">
-                <span className="text-sm font-black text-slate-900">
+                <span className="text-xs sm:text-sm font-bold text-slate-900">
                   {ownerMember.profiles?.full_name || "Workspace Owner"}
                 </span>
-                <span className="text-[10px] font-bold text-amber-800 bg-amber-100 px-2.5 py-0.5 rounded-lg border border-amber-300">
+                <span className="text-[10px] font-semibold text-amber-800 bg-amber-100/70 px-2 py-0.2 rounded-md border border-amber-200/80">
                   Workspace Creator
                 </span>
               </div>
-              <p className="text-xs text-slate-600 font-mono">
+              <p className="text-xs text-slate-500 font-mono">
                 {ownerMember.profiles?.email || "—"}
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2 text-xs font-semibold text-amber-900 bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-200/60 w-fit">
+          <div className="flex items-center gap-1.5 text-xs font-medium text-slate-600 bg-white px-2.5 py-1 rounded-md border border-slate-200/80 w-fit">
             <FiShield className="w-3.5 h-3.5 text-amber-600" />
-            <span>Workspace Created & Owned By This Administrator</span>
+            <span>Workspace Administrator</span>
           </div>
         </div>
       )}
@@ -631,18 +668,18 @@ function OrganizationDashboardContent({
         {/* Total Projects */}
         <div
           onClick={() => setActiveTab("projects")}
-          className={`p-4 bg-white rounded-lg border transition-all cursor-pointer shadow-xs hover:shadow-md flex items-center gap-3.5 ${
-            activeTab === "projects" ? "border-[#0F766E] ring-2 ring-[#0F766E]/20" : "border-slate-200/80"
+          className={`p-3.5 bg-white rounded-lg border transition-all cursor-pointer shadow-2xs hover:border-slate-300 flex items-center gap-3 ${
+            activeTab === "projects" ? "border-[#0F766E] ring-1 ring-[#0F766E]/40" : "border-slate-200/80"
           }`}
         >
-          <div className="w-11 h-11 rounded-lg bg-teal-50 text-[#0F766E] flex items-center justify-center shrink-0">
+          <div className="w-10 h-10 rounded-lg bg-teal-50 text-[#0F766E] flex items-center justify-center shrink-0">
             <FiFolder className="w-5 h-5" />
           </div>
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
               Projects
             </p>
-            <p className="text-xl sm:text-2xl font-black text-slate-900">
+            <p className="text-xl sm:text-2xl font-bold text-slate-900">
               {projects.length}
             </p>
           </div>
@@ -651,18 +688,18 @@ function OrganizationDashboardContent({
         {/* Total Managers */}
         <div
           onClick={() => setActiveTab("managers")}
-          className={`p-4 bg-white rounded-lg border transition-all cursor-pointer shadow-xs hover:shadow-md flex items-center gap-3.5 ${
-            activeTab === "managers" ? "border-purple-500 ring-2 ring-purple-500/20" : "border-slate-200/80"
+          className={`p-3.5 bg-white rounded-lg border transition-all cursor-pointer shadow-2xs hover:border-slate-300 flex items-center gap-3 ${
+            activeTab === "managers" ? "border-purple-600 ring-1 ring-purple-600/40" : "border-slate-200/80"
           }`}
         >
-          <div className="w-11 h-11 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
+          <div className="w-10 h-10 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
             <FiShield className="w-5 h-5" />
           </div>
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
               Managers
             </p>
-            <p className="text-xl sm:text-2xl font-black text-slate-900">
+            <p className="text-xl sm:text-2xl font-bold text-slate-900">
               {managerCount}
             </p>
           </div>
@@ -671,18 +708,18 @@ function OrganizationDashboardContent({
         {/* Total Active Members */}
         <div
           onClick={() => setActiveTab("members")}
-          className={`p-4 bg-white rounded-lg border transition-all cursor-pointer shadow-xs hover:shadow-md flex items-center gap-3.5 ${
-            activeTab === "members" ? "border-indigo-500 ring-2 ring-indigo-500/20" : "border-slate-200/80"
+          className={`p-3.5 bg-white rounded-lg border transition-all cursor-pointer shadow-2xs hover:border-slate-300 flex items-center gap-3 ${
+            activeTab === "members" ? "border-indigo-600 ring-1 ring-indigo-600/40" : "border-slate-200/80"
           }`}
         >
-          <div className="w-11 h-11 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+          <div className="w-10 h-10 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
             <FiUsers className="w-5 h-5" />
           </div>
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
               Members
             </p>
-            <p className="text-xl sm:text-2xl font-black text-slate-900">
+            <p className="text-xl sm:text-2xl font-bold text-slate-900">
               {memberCount}
             </p>
           </div>
@@ -694,23 +731,23 @@ function OrganizationDashboardContent({
             setActiveTab("requests");
             setRequestStatusFilter("pending");
           }}
-          className={`p-4 bg-white rounded-lg border transition-all cursor-pointer shadow-xs hover:shadow-md flex items-center gap-3.5 ${
-            activeTab === "requests" ? "border-amber-500 ring-2 ring-amber-500/20" : "border-slate-200/80"
+          className={`p-3.5 bg-white rounded-lg border transition-all cursor-pointer shadow-2xs hover:border-slate-300 flex items-center gap-3 ${
+            activeTab === "requests" ? "border-amber-500 ring-1 ring-amber-500/40" : "border-slate-200/80"
           }`}
         >
-          <div className="w-11 h-11 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+          <div className="w-10 h-10 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
             <FiClock className="w-5 h-5" />
           </div>
           <div>
             <div className="flex items-center gap-1.5">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
                 Pending Requests
               </p>
               {pendingRequestsCount > 0 && (
                 <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
               )}
             </div>
-            <p className="text-xl sm:text-2xl font-black text-slate-900">
+            <p className="text-xl sm:text-2xl font-bold text-slate-900">
               {pendingRequestsCount}
             </p>
           </div>
@@ -870,12 +907,12 @@ function OrganizationDashboardContent({
               <table className="w-full text-left text-xs">
                 <thead>
                   <tr className="border-b border-slate-100 text-slate-400 font-bold uppercase tracking-wider text-[10px]">
-                    <th className="py-3 px-3">Project</th>
-                    <th className="py-3 px-3">Assigned Managers</th>
-                    <th className="py-3 px-3">Assigned Members</th>
-                    <th className="py-3 px-3">Status</th>
-                    <th className="py-3 px-3">Created Date</th>
-                    <th className="py-3 px-3 text-right">Actions</th>
+                    <th className="py-3 px-3 w-64">Project</th>
+                    <th className="py-3 px-3 w-44 whitespace-nowrap">Assigned Managers</th>
+                    <th className="py-3 px-3 w-44 whitespace-nowrap">Assigned Members</th>
+                    <th className="py-3 px-3 w-28 whitespace-nowrap">Status</th>
+                    <th className="py-3 px-3 w-32 whitespace-nowrap">Created Date</th>
+                    <th className="py-3 px-3 text-right w-36 whitespace-nowrap">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -895,42 +932,39 @@ function OrganizationDashboardContent({
                           onClick={() => setSelectedProject(p)}
                         >
                           <td className="py-3 px-3">
-                            <div className="flex items-start gap-3">
-                              <div className="w-9 h-9 rounded-lg bg-teal-100 text-[#0F766E] flex items-center justify-center font-bold text-sm shrink-0 mt-0.5">
+                            <div className="flex items-center gap-2.5">
+                              <div className="w-8 h-8 rounded-lg bg-teal-100 text-[#0F766E] flex items-center justify-center font-bold text-xs shrink-0">
                                 {p.name?.charAt(0)?.toUpperCase() || "P"}
                               </div>
-                              <div className="max-w-xs">
-                                <p className="font-bold text-slate-900 group-hover:text-[#0F766E] transition-colors">
-                                  {p.name}
-                                </p>
-                                {p.description && (
-                                  <p className="text-[11px] text-slate-500 line-clamp-1 mt-0.5">
-                                    {p.description}
-                                  </p>
-                                )}
-                              </div>
+                              <span className="font-bold text-slate-900 group-hover:text-[#0F766E] transition-colors truncate">
+                                {p.name}
+                              </span>
                             </div>
                           </td>
 
                           {/* Assigned Managers */}
                           <td className="py-3 px-3">
                             {(p.assignedManagers || []).length > 0 ? (
-                              <div className="flex flex-wrap items-center gap-1">
-                                {(p.assignedManagers || []).slice(0, 3).map((mgr) => (
-                                  <span
-                                    key={mgr.id || mgr.userId}
-                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-semibold bg-purple-100 text-purple-800 border border-purple-200"
-                                    title={mgr.email}
-                                  >
-                                    <span className="w-1.5 h-1.5 rounded-full bg-purple-500" />
-                                    <span>{mgr.fullName}</span>
-                                  </span>
-                                ))}
-                                {(p.assignedManagers || []).length > 3 && (
-                                  <span className="text-[10px] font-bold text-slate-400">
-                                    +{(p.assignedManagers || []).length - 3}
-                                  </span>
-                                )}
+                              <div className="flex items-center -space-x-2">
+                                {(p.assignedManagers || []).map((mgr, idx) => {
+                                  const name =
+                                    mgr.fullName || mgr.name || mgr.profiles?.full_name || mgr.email || "Manager";
+                                  const initial = name.charAt(0).toUpperCase();
+                                  const colorClass = AVATAR_STACK_COLORS[idx % AVATAR_STACK_COLORS.length];
+                                  return (
+                                    <div
+                                      key={mgr.id || mgr.userId || mgr.email}
+                                      className={`group/avatar relative inline-flex items-center justify-center w-7 h-7 rounded-full ${colorClass} ring-2 ring-white font-bold text-xs shadow-2xs hover:z-30 hover:scale-110 transition-all cursor-pointer`}
+                                    >
+                                      <span>{initial}</span>
+                                      {/* Only show name of the hovered avatar */}
+                                      <span className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 hidden group-hover/avatar:flex items-center px-3 py-1 bg-[#1877F2] text-white text-[11px] font-semibold rounded-full shadow-lg whitespace-nowrap z-50 pointer-events-none">
+                                        {name}
+                                        <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-[#1877F2]" />
+                                      </span>
+                                    </div>
+                                  );
+                                })}
                               </div>
                             ) : (
                               <span className="text-slate-400 italic text-[11px]">None</span>
@@ -940,22 +974,30 @@ function OrganizationDashboardContent({
                           {/* Assigned Members */}
                           <td className="py-3 px-3">
                             {(p.assignedMembers || []).length > 0 ? (
-                              <div className="flex flex-wrap items-center gap-1">
-                                {(p.assignedMembers || []).slice(0, 3).map((mem) => (
-                                  <span
-                                    key={mem.id || mem.userId}
-                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-semibold bg-teal-50 text-teal-800 border border-teal-200"
-                                    title={mem.email}
-                                  >
-                                    <span className="w-1.5 h-1.5 rounded-full bg-[#0F766E]" />
-                                    <span>{mem.fullName}</span>
-                                  </span>
-                                ))}
-                                {(p.assignedMembers || []).length > 3 && (
-                                  <span className="text-[10px] font-bold text-slate-400">
-                                    +{(p.assignedMembers || []).length - 3}
-                                  </span>
-                                )}
+                              <div className="flex items-center -space-x-2">
+                                {(p.assignedMembers || []).map((mem, idx) => {
+                                  const name =
+                                    mem.fullName || mem.name || mem.profiles?.full_name || mem.email || "Member";
+                                  const initial = name.charAt(0).toUpperCase();
+                                  // Offset by managers count so members get different colors too
+                                  const colorClass =
+                                    AVATAR_STACK_COLORS[
+                                      ((p.assignedManagers?.length || 0) + idx) % AVATAR_STACK_COLORS.length
+                                    ];
+                                  return (
+                                    <div
+                                      key={mem.id || mem.userId || mem.email}
+                                      className={`group/avatar relative inline-flex items-center justify-center w-7 h-7 rounded-full ${colorClass} ring-2 ring-white font-bold text-xs shadow-2xs hover:z-30 hover:scale-110 transition-all cursor-pointer`}
+                                    >
+                                      <span>{initial}</span>
+                                      {/* Only show name of the hovered avatar */}
+                                      <span className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 hidden group-hover/avatar:flex items-center px-3 py-1 bg-[#1877F2] text-white text-[11px] font-semibold rounded-full shadow-lg whitespace-nowrap z-50 pointer-events-none">
+                                        {name}
+                                        <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-[#1877F2]" />
+                                      </span>
+                                    </div>
+                                  );
+                                })}
                               </div>
                             ) : (
                               <span className="text-slate-400 italic text-[11px]">None</span>
@@ -1538,17 +1580,7 @@ function OrganizationDashboardContent({
                             {isProcessing ? (
                               <div className="inline-block w-4 h-4 border-2 border-slate-300 border-t-[#0F766E] rounded-full animate-spin" />
                             ) : isAuthorizedAdmin ? (
-                              <div className="flex items-center justify-end gap-1.5">
-                                {isPending && (
-                                  <button
-                                    type="button"
-                                    onClick={() => handleApproveRequest(req)}
-                                    className="p-1.5 rounded-lg text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 transition-colors cursor-pointer"
-                                    title="Accept into workspace"
-                                  >
-                                    <FiCheckCircle className="w-4 h-4" />
-                                  </button>
-                                )}
+                              <div className="flex items-center justify-end">
                                 <button
                                   type="button"
                                   onClick={() => handleDeleteRequest(req)}
@@ -1778,6 +1810,7 @@ function OrganizationDashboardContent({
         onClose={() => setSelectedProject(null)}
         project={selectedProject}
         currentUserRole={userRole}
+        currentUserId={currentUserId}
         onProjectUpdated={() => {
           loadProjects();
         }}
@@ -1798,6 +1831,23 @@ function OrganizationDashboardContent({
         onSuccess={() => {
           loadRequests();
           setActiveTab("requests");
+        }}
+      />
+
+      {/* Delete Invitation / Request Confirm Modal */}
+      <DeleteConfirmModal
+        isOpen={deleteRequestConfirmState.isOpen}
+        onClose={() => setDeleteRequestConfirmState({ isOpen: false, req: null })}
+        onConfirm={handleConfirmDeleteRequest}
+        isLoading={isDeletingRequest}
+        title={deleteRequestConfirmState.req?.status === "pending" ? "Cancel Invitation" : "Delete Request"}
+        subtitle="This action cannot be undone."
+        message={`Are you sure you want to cancel the invitation for ${deleteRequestConfirmState.req?.email}? They will no longer be able to join using this invite link.`}
+        confirmButtonText={deleteRequestConfirmState.req?.status === "pending" ? "Cancel Invitation" : "Delete"}
+        item={{
+          name: deleteRequestConfirmState.req?.profiles?.full_name || deleteRequestConfirmState.req?.email,
+          email: deleteRequestConfirmState.req?.email,
+          role: deleteRequestConfirmState.req?.intended_role,
         }}
       />
     </div>
@@ -1957,17 +2007,17 @@ function MemberTasksView({ membership, user, onRefresh }) {
   };
 
   return (
-    <div className="min-h-full bg-slate-50/50 p-4 sm:p-6 lg:p-8 space-y-6 select-none animate-fadeIn">
+    <div className="min-h-full bg-slate-50/60 p-4 sm:p-6 lg:p-7 space-y-5 select-none animate-fadeIn">
       {/* ───────────────────────────────────────────────────── */}
       {/* 1. Member Header Card (No Org Settings Leaked)        */}
       {/* ───────────────────────────────────────────────────── */}
-      <div className="bg-white rounded-lg border border-slate-200/80 p-6 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-white rounded-lg border border-slate-200/80 p-4 sm:p-5 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="space-y-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
               Workspace Overview
             </h1>
-            <span className="px-2.5 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-teal-100 text-[#0F766E] border border-teal-200">
+            <span className="px-2 py-0.5 rounded-lg text-[10px] font-semibold uppercase tracking-wider bg-teal-50 text-[#0F766E] border border-teal-200/70">
               Role: Member
             </span>
           </div>
@@ -1976,11 +2026,11 @@ function MemberTasksView({ membership, user, onRefresh }) {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
           <button
             type="button"
             onClick={() => router.push("/projects")}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-[#0F766E] hover:bg-[#0D655E] active:bg-[#115E59] active:scale-[0.98] text-white text-xs font-bold rounded-lg shadow-md shadow-teal-900/20 transition-all cursor-pointer"
+            className="btn-primary px-3.5 py-2 text-xs font-semibold"
           >
             <FiLayers className="w-4 h-4" />
             <span>Open Kanban Board</span>
@@ -1991,66 +2041,59 @@ function MemberTasksView({ membership, user, onRefresh }) {
               loadMemberTasks();
               loadMemberTeam();
               if (onRefresh) onRefresh();
-              toast.info("Refreshed workspace data.");
             }}
-            className="p-2.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600 transition-colors cursor-pointer"
+            className="p-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 transition-colors cursor-pointer"
             title="Refresh data"
           >
-            <FiRefreshCw className="w-4 h-4" />
+            <FiRefreshCw className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
 
       {/* ───────────────────────────────────────────────────── */}
-      {/* 2. Leadership Presentation (Owner and Manager Who Created) */}
+      {/* 2. Leadership Presentation (Owner and Manager)        */}
       {/* ───────────────────────────────────────────────────── */}
       {(leadership.owner || leadership.manager) && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Workspace Owner Who Created */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+          {/* Workspace Owner */}
           {leadership.owner && (
-            <div className="bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-white border border-amber-200/80 rounded-lg p-4 shadow-xs flex items-center gap-3.5">
-              <div className="w-12 h-12 rounded-lg bg-amber-500 text-white font-black text-lg flex items-center justify-center shadow-md shadow-amber-500/20 shrink-0">
+            <div className="bg-white border border-slate-200/80 rounded-lg p-3.5 shadow-2xs flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg bg-amber-500 text-white font-bold text-sm flex items-center justify-center shrink-0">
                 {leadership.owner.profiles?.full_name?.charAt(0)?.toUpperCase() || "O"}
               </div>
-              <div className="space-y-0.5">
+              <div className="space-y-0.5 min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-black text-slate-900">
+                  <span className="text-xs sm:text-sm font-bold text-slate-900 truncate">
                     {leadership.owner.profiles?.full_name || "Workspace Owner"}
                   </span>
-                  <span className="text-[10px] font-bold text-amber-800 bg-amber-100 px-2.5 py-0.5 rounded-lg border border-amber-300">
-                    Workspace Creator
+                  <span className="text-[10px] font-semibold text-amber-800 bg-amber-100/70 px-2 py-0.2 rounded-md border border-amber-200/70 shrink-0">
+                    Workspace Owner
                   </span>
                 </div>
-                <p className="text-xs text-slate-600 font-mono">
+                <p className="text-xs text-slate-500 font-mono truncate">
                   {leadership.owner.profiles?.email || "—"}
-                </p>
-                <p className="text-[11px] text-amber-800 font-medium">
-                  Workspace Creator & Primary Organization Owner
                 </p>
               </div>
             </div>
           )}
 
-          {/* Reporting Manager Who Created / Invited You */}
+          {/* Reporting Manager */}
           {leadership.manager && (
-            <div className="bg-gradient-to-r from-purple-500/10 via-purple-500/5 to-white border border-purple-200/80 rounded-lg p-4 shadow-xs flex items-center gap-3.5">
-              <div className="w-12 h-12 rounded-lg bg-purple-600 text-white font-black text-lg flex items-center justify-center shadow-md shadow-purple-500/20 shrink-0">
+            <div className="bg-white border border-slate-200/80 rounded-lg p-3.5 shadow-2xs flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg bg-purple-600 text-white font-bold text-sm flex items-center justify-center shrink-0">
                 {leadership.manager.profiles?.full_name?.charAt(0)?.toUpperCase() || "M"}
               </div>
-              <div className="space-y-0.5">
+              <div className="space-y-0.5 min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-black text-slate-900">
+                  <span className="text-xs sm:text-sm font-bold text-slate-900 truncate">
                     {leadership.manager.profiles?.full_name || "Reporting Manager"}
                   </span>
-                  <span className="text-[10px] font-bold text-purple-800 bg-purple-100 px-2.5 py-0.5 rounded-lg border border-purple-300">
-                    Who Created You
+                  <span className="text-[10px] font-semibold text-purple-800 bg-purple-100/70 px-2 py-0.2 rounded-md border border-purple-200/70 shrink-0">
+                    Reporting Manager
                   </span>
                 </div>
-                <p className="text-xs text-slate-600 font-mono">
+                <p className="text-xs text-slate-500 font-mono truncate">
                   {leadership.manager.profiles?.email || "—"}
-                </p>
-                <p className="text-[11px] text-purple-800 font-medium">
-                  Assigned Team Manager (Created / Invited Your Account)
                 </p>
               </div>
             </div>
@@ -2124,8 +2167,8 @@ function MemberTasksView({ membership, user, onRefresh }) {
                   <FiLayers className="w-5 h-5" />
                 </div>
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Total Assigned</p>
-                  <p className="text-xl sm:text-2xl font-black text-slate-900">{stats.total}</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Total Assigned</p>
+                  <p className="text-xl sm:text-2xl font-bold text-slate-900">{stats.total}</p>
                 </div>
               </div>
 
@@ -2134,8 +2177,8 @@ function MemberTasksView({ membership, user, onRefresh }) {
                   <FiClock className="w-5 h-5" />
                 </div>
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">To Do</p>
-                  <p className="text-xl sm:text-2xl font-black text-slate-900">{stats.todo}</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">To Do</p>
+                  <p className="text-xl sm:text-2xl font-bold text-slate-900">{stats.todo}</p>
                 </div>
               </div>
 
@@ -2144,8 +2187,8 @@ function MemberTasksView({ membership, user, onRefresh }) {
                   <FiActivity className="w-5 h-5" />
                 </div>
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">In Progress</p>
-                  <p className="text-xl sm:text-2xl font-black text-slate-900">{stats.inProgress}</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">In Progress</p>
+                  <p className="text-xl sm:text-2xl font-bold text-slate-900">{stats.inProgress}</p>
                 </div>
               </div>
 
@@ -2154,8 +2197,8 @@ function MemberTasksView({ membership, user, onRefresh }) {
                   <FiCheck className="w-5 h-5" />
                 </div>
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Completed</p>
-                  <p className="text-xl sm:text-2xl font-black text-slate-900">{stats.done}</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Completed</p>
+                  <p className="text-xl sm:text-2xl font-bold text-slate-900">{stats.done}</p>
                 </div>
               </div>
             </div>
@@ -2223,7 +2266,7 @@ function MemberTasksView({ membership, user, onRefresh }) {
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
                       <div className="flex items-center gap-2.5">
                         <span className="font-mono text-xs font-bold text-[#0F766E] bg-teal-50 px-2.5 py-0.5 rounded-lg">
-                          {task.id}
+                          {formatTaskKey(task, memberProjects, task.project_name)}
                         </span>
                         <span className="text-[11px] font-bold text-slate-500">
                           Project: <span className="text-slate-800">{task.project_name || "Main Project"}</span>
@@ -2268,8 +2311,8 @@ function MemberTasksView({ membership, user, onRefresh }) {
                         </span>
                       </div>
 
-                      <div className="flex items-center gap-2">
-                        <label className="text-[11px] text-slate-400 font-semibold">Move Status:</label>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] text-slate-400 font-semibold">Move:</span>
                         <select
                           value={task.status}
                           onChange={(e) => handleUpdateStatus(task.id, e.target.value)}
@@ -2330,7 +2373,7 @@ function MemberTasksView({ membership, user, onRefresh }) {
                     >
                       <div className="space-y-2.5">
                         <div className="flex items-start justify-between gap-2">
-                          <h4 className="font-black text-slate-900 text-sm">{proj.name}</h4>
+                          <h4 className="font-bold text-slate-900 text-sm">{proj.name}</h4>
                           <span
                             className={`px-2.5 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wider ${
                               proj.status === "completed"
@@ -2588,25 +2631,35 @@ export default function DashboardPage() {
   } = useOrganization();
 
   const [userInvitations, setUserInvitations] = useState([]);
+  const hasFetchedInvitesRef = useRef(false);
 
-  const fetchInvites = useCallback(async () => {
+  const fetchInvites = useCallback(async (force = false) => {
     if (!user?.email) {
       setUserInvitations([]);
       return;
     }
+    // Only fetch invitations when user has no active organizations
+    if (!force && orgMemberships && orgMemberships.length > 0) {
+      return;
+    }
+    if (!force && hasFetchedInvitesRef.current) return;
     try {
+      hasFetchedInvitesRef.current = true;
       const invites = await organizationService.getUserPendingInvitations(
-        user.email
+        user.email,
+        force
       );
       setUserInvitations(invites || []);
     } catch (err) {
       console.error("fetchInvites error:", err);
     }
-  }, [user?.email]);
+  }, [user?.email, orgMemberships?.length]);
 
   useEffect(() => {
-    fetchInvites();
-  }, [fetchInvites]);
+    if (!loadingOrgs && (!orgMemberships || orgMemberships.length === 0)) {
+      fetchInvites();
+    }
+  }, [loadingOrgs, orgMemberships?.length, fetchInvites]);
 
   const handleLogout = async () => {
     try {
@@ -2620,6 +2673,12 @@ export default function DashboardPage() {
   const handleCreateOrg = () => {
     router.push("/dashboard/create-organization");
   };
+
+  const handleRefreshAll = useCallback(async () => {
+    await refreshOrganizations();
+    await refreshMembers();
+    await fetchInvites(true);
+  }, [refreshOrganizations, refreshMembers, fetchInvites]);
 
   // Loading state
   if (loadingOrgs) {
@@ -2638,10 +2697,7 @@ export default function DashboardPage() {
         onCreateOrg={handleCreateOrg}
         onLogout={handleLogout}
         user={user}
-        onRefresh={async () => {
-          await refreshOrganizations();
-          await fetchInvites();
-        }}
+        onRefresh={handleRefreshAll}
       />
     );
   }
@@ -2653,10 +2709,7 @@ export default function DashboardPage() {
       <MemberTasksView
         membership={activeMembership}
         user={user}
-        onRefresh={async () => {
-          await refreshOrganizations();
-          await fetchInvites();
-        }}
+        onRefresh={handleRefreshAll}
       />
     );
   }
@@ -2667,11 +2720,7 @@ export default function DashboardPage() {
       membership={activeMembership}
       members={members}
       currentUserId={user?.id}
-      onRefresh={async () => {
-        await refreshOrganizations();
-        await refreshMembers();
-        await fetchInvites();
-      }}
+      onRefresh={handleRefreshAll}
     />
   );
 }

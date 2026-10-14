@@ -66,7 +66,7 @@ export default function SignInPage() {
         <div className="w-full max-w-[500px] mx-auto my-auto flex flex-col justify-center">
           {/* Form Header */}
           <div className="mb-6">
-            <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-slate-900">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
               Sign in to your account
             </h1>
             <p className="mt-1.5 text-sm sm:text-base text-slate-500 leading-relaxed">
@@ -232,7 +232,7 @@ export default function SignInPage() {
             Active Sprint 24 • Engineering & Product
           </div>
 
-          <h2 className="text-3xl xl:text-4xl 2xl:text-5xl font-black leading-tight text-white tracking-tight">
+          <h2 className="text-2xl xl:text-3xl 2xl:text-4xl font-bold leading-tight text-white tracking-tight">
             Move fast, stay aligned, and deliver great software.
           </h2>
           <p className="text-teal-100/80 text-sm sm:text-base leading-relaxed">

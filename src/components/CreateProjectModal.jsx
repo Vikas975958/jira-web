@@ -220,7 +220,6 @@ export default function CreateProjectModal({
         }
       );
 
-      toast.success(`Project "${created.name}" created successfully!`);
       setCreatedResult(created);
       if (onProjectCreated) {
         onProjectCreated(created);
@@ -240,25 +239,21 @@ export default function CreateProjectModal({
       <div
         ref={overlayRef}
         onClick={handleOverlayClick}
-        className="fixed inset-0 z-[9999] flex items-center justify-center p-4 select-none"
-        style={{ backgroundColor: "rgba(15, 23, 42, 0.65)", backdropFilter: "blur(4px)" }}
+        className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs select-none animate-fadeIn"
       >
         <div
-          className="relative w-full max-w-2xl bg-white rounded-lg shadow-2xl overflow-hidden flex flex-col"
-          style={{ maxHeight: "90vh", animation: "modalSlideIn 0.2s ease-out" }}
+          className="relative w-full max-w-2xl bg-white rounded-lg shadow-xl border border-slate-200/90 overflow-hidden flex flex-col animate-scaleUp"
+          style={{ maxHeight: "90vh" }}
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Accent Top Bar */}
-          <div className="h-1.5 w-full bg-gradient-to-r from-[#0F766E] via-teal-600 to-indigo-600" />
-
         {/* Modal Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50 shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-teal-100 text-[#0F766E] flex items-center justify-center font-bold shadow-xs">
-              <FiFolderPlus className="w-5 h-5" />
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-200/80 bg-slate-50/50 shrink-0">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-teal-50 text-[#0F766E] border border-teal-200/60 flex items-center justify-center font-bold">
+              <FiFolderPlus className="w-4 h-4" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-slate-900">Create New Project</h2>
+              <h2 className="text-sm font-bold text-slate-900">Create New Project</h2>
               <p className="text-xs text-slate-500">
                 Workspace: <span className="font-semibold text-slate-700">{organizationName}</span>
               </p>
@@ -267,9 +262,9 @@ export default function CreateProjectModal({
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+            className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
           >
-            <FiX className="w-5 h-5" />
+            <FiX className="w-4 h-4" />
           </button>
         </div>
 
