@@ -16,12 +16,71 @@ import {
   FiClock,
   FiDollarSign,
   FiBell,
+  FiImage,
+  FiMapPin,
+  FiLayers,
+  FiInfo,
 } from "react-icons/fi";
 import { useOrganization } from "@/context/OrganizationContext";
 import organizationService from "@/services/organization.service";
 import { profileService } from "@/services/profile.service";
 import { updateProfile } from "@/store/slices/authSlices";
 import { OWNER_ROLE, MANAGER_ROLE, MEMBER_ROLE } from "@/utils/constants";
+
+// Industry choices
+const INDUSTRY_OPTIONS = [
+  "Technology & Software",
+  "Finance & Banking",
+  "Healthcare & Life Sciences",
+  "E-Commerce & Retail",
+  "Education & EdTech",
+  "Media & Entertainment",
+  "Manufacturing & Supply Chain",
+  "Consulting & Professional Services",
+  "Real Estate & Construction",
+  "Telecommunications",
+  "Non-Profit",
+  "Other",
+];
+
+// Company size options
+const COMPANY_SIZE_OPTIONS = [
+  "1-10 employees",
+  "11-50 employees",
+  "51-200 employees",
+  "201-500 employees",
+  "501-1000 employees",
+  "1000+ employees",
+];
+
+// Common Timezones
+const TIMEZONE_OPTIONS = [
+  { value: "UTC", label: "UTC (Coordinated Universal Time)" },
+  { value: "America/New_York", label: "America/New_York (EST / EDT)" },
+  { value: "America/Chicago", label: "America/Chicago (CST / CDT)" },
+  { value: "America/Denver", label: "America/Denver (MST / MDT)" },
+  { value: "America/Los_Angeles", label: "America/Los_Angeles (PST / PDT)" },
+  { value: "Europe/London", label: "Europe/London (GMT / BST)" },
+  { value: "Europe/Paris", label: "Europe/Paris (CET / CEST)" },
+  { value: "Europe/Berlin", label: "Europe/Berlin (CET / CEST)" },
+  { value: "Asia/Dubai", label: "Asia/Dubai (GST +4)" },
+  { value: "Asia/Kolkata", label: "Asia/Kolkata (IST +5:30)" },
+  { value: "Asia/Singapore", label: "Asia/Singapore (SGT +8)" },
+  { value: "Asia/Tokyo", label: "Asia/Tokyo (JST +9)" },
+  { value: "Australia/Sydney", label: "Australia/Sydney (AEST / AEDT)" },
+];
+
+// Common Currencies
+const CURRENCY_OPTIONS = [
+  { code: "USD", symbol: "$", label: "USD - US Dollar ($)" },
+  { code: "EUR", symbol: "€", label: "EUR - Euro (€)" },
+  { code: "GBP", symbol: "£", label: "GBP - British Pound (£)" },
+  { code: "INR", symbol: "₹", label: "INR - Indian Rupee (₹)" },
+  { code: "CAD", symbol: "$", label: "CAD - Canadian Dollar ($)" },
+  { code: "AUD", symbol: "$", label: "AUD - Australian Dollar ($)" },
+  { code: "JPY", symbol: "¥", label: "JPY - Japanese Yen (¥)" },
+  { code: "SGD", symbol: "$", label: "SGD - Singapore Dollar ($)" },
+];
 
 export default function SettingsPage() {
   const dispatch = useDispatch();
@@ -40,10 +99,18 @@ export default function SettingsPage() {
   const [orgData, setOrgData] = useState({
     name: "",
     slug: "",
+    logo_url: "",
+    email: "",
+    phone: "",
     website: "",
     industry: "Technology & Software",
     company_size: "1-10 employees",
     description: "",
+    address: "",
+    city: "",
+    state: "",
+    country: "United States",
+    postal_code: "",
     timezone: "UTC",
     currency: "USD",
   });
@@ -68,10 +135,18 @@ export default function SettingsPage() {
       setOrgData({
         name: activeOrg.name || "",
         slug: activeOrg.slug || "",
+        logo_url: activeOrg.logo_url || "",
+        email: activeOrg.email || "",
+        phone: activeOrg.phone || "",
         website: activeOrg.website || "",
         industry: activeOrg.industry || "Technology & Software",
         company_size: activeOrg.company_size || "1-10 employees",
         description: activeOrg.description || "",
+        address: activeOrg.address || "",
+        city: activeOrg.city || "",
+        state: activeOrg.state || "",
+        country: activeOrg.country || "United States",
+        postal_code: activeOrg.postal_code || "",
         timezone: activeOrg.timezone || "UTC",
         currency: activeOrg.currency || "USD",
       });
@@ -102,10 +177,18 @@ export default function SettingsPage() {
       setSavingOrg(true);
       await organizationService.updateOrganization(activeOrg.id, {
         name: orgData.name.trim(),
+        logo_url: orgData.logo_url.trim() || null,
+        email: orgData.email.trim() || null,
+        phone: orgData.phone.trim() || null,
         website: orgData.website.trim() || null,
         industry: orgData.industry || null,
         company_size: orgData.company_size || null,
         description: orgData.description.trim() || null,
+        address: orgData.address.trim() || null,
+        city: orgData.city.trim() || null,
+        state: orgData.state.trim() || null,
+        country: orgData.country.trim() || null,
+        postal_code: orgData.postal_code.trim() || null,
         timezone: orgData.timezone || "UTC",
         currency: orgData.currency || "USD",
       });
@@ -209,102 +292,346 @@ export default function SettingsPage() {
       {/* TAB 1: ORGANIZATION / WORKSPACE SETTINGS */}
       {activeTab === "organization" && (
         <div className="bg-white rounded-lg border border-slate-200/80 p-6 shadow-xs animate-fadeIn space-y-6">
-          <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-            <div>
-              <h2 className="text-base font-bold text-slate-900">
-                Workspace Configuration
-              </h2>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Details for {activeOrg?.name || "your organization"}.
-              </p>
+          {/* Workspace Banner */}
+          <div className="p-4 rounded-lg bg-teal-50/70 border border-teal-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-[#0F766E] text-white flex items-center justify-center font-bold text-base shrink-0 shadow-xs">
+                {orgData.logo_url ? (
+                  <img
+                    src={orgData.logo_url}
+                    alt="Logo"
+                    className="w-full h-full object-cover rounded-lg"
+                    onError={(e) => {
+                      e.target.style.display = "none";
+                    }}
+                  />
+                ) : (
+                  orgData.name?.charAt(0)?.toUpperCase() || "W"
+                )}
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-bold text-slate-900 text-sm">
+                    {activeOrg?.name || "Your Workspace"}
+                  </h3>
+                  <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-teal-100 text-[#0F766E] border border-teal-200">
+                    Active Workspace
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  Single workspace mode • You can update your workspace details and branding below.
+                </p>
+              </div>
             </div>
-            <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-lg bg-slate-100 text-slate-700">
-              Role: {userRole}
+
+            <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-700 self-start sm:self-auto shrink-0">
+              Role: {userRole === OWNER_ROLE ? "Workspace Owner" : userRole}
             </span>
           </div>
 
-          <form onSubmit={handleSaveOrg} className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
-                  Workspace Name
-                </label>
-                <input
-                  type="text"
-                  required
-                  disabled={!isOwner}
-                  value={orgData.name}
-                  onChange={(e) => setOrgData({ ...orgData, name: e.target.value })}
-                  className="w-full px-3.5 py-2 text-xs bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-[#0F766E] text-slate-900 disabled:bg-slate-50 disabled:text-slate-500"
-                />
+          {!isOwner && (
+            <div className="p-3.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-xs flex items-center gap-2.5">
+              <FiInfo className="w-4 h-4 text-amber-600 shrink-0" />
+              <span>
+                Workspace settings are in read-only mode for your role ({userRole}). Only the Workspace Owner can modify these settings.
+              </span>
+            </div>
+          )}
+
+          <form onSubmit={handleSaveOrg} className="space-y-6">
+            {/* Section 1: General & Branding */}
+            <div className="space-y-4">
+              <div className="pb-2 border-b border-slate-100 flex items-center gap-2">
+                <FiGlobe className="w-4 h-4 text-[#0F766E]" />
+                <h3 className="text-xs font-black uppercase tracking-wider text-slate-800">
+                  General & Branding
+                </h3>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+                    Workspace Name <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    disabled={!isOwner}
+                    value={orgData.name}
+                    onChange={(e) => setOrgData({ ...orgData, name: e.target.value })}
+                    className="w-full px-3.5 py-2 text-xs bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-[#0F766E] text-slate-900 disabled:bg-slate-50 disabled:text-slate-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+                    Workspace Slug / URL Path
+                  </label>
+                  <input
+                    type="text"
+                    readOnly
+                    disabled
+                    value={orgData.slug}
+                    className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-500 font-mono outline-none cursor-not-allowed"
+                  />
+                  <p className="mt-1 text-[10px] text-slate-400">
+                    Unique identifier used in URLs and member invitations.
+                  </p>
+                </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
-                  Workspace Slug / Path
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+                  Logo Image URL
                 </label>
-                <input
-                  type="text"
-                  readOnly
-                  disabled
-                  value={orgData.slug}
-                  className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-500 font-mono outline-none cursor-not-allowed"
+                <div className="relative">
+                  <input
+                    type="url"
+                    disabled={!isOwner}
+                    value={orgData.logo_url}
+                    onChange={(e) => setOrgData({ ...orgData, logo_url: e.target.value })}
+                    placeholder="https://example.com/logo.png"
+                    className="w-full px-3.5 py-2 text-xs bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-[#0F766E] text-slate-900 disabled:bg-slate-50 disabled:text-slate-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+                  Description
+                </label>
+                <textarea
+                  rows={2}
+                  disabled={!isOwner}
+                  value={orgData.description}
+                  onChange={(e) => setOrgData({ ...orgData, description: e.target.value })}
+                  placeholder="Summary of this organization and team mission..."
+                  className="w-full px-3.5 py-2 text-xs bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-[#0F766E] text-slate-900 disabled:bg-slate-50 disabled:text-slate-500 resize-none"
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Section 2: Company Details & Contact */}
+            <div className="space-y-4 pt-2">
+              <div className="pb-2 border-b border-slate-100 flex items-center gap-2">
+                <FiBriefcase className="w-4 h-4 text-purple-600" />
+                <h3 className="text-xs font-black uppercase tracking-wider text-slate-800">
+                  Company Details & Contact
+                </h3>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+                    Industry
+                  </label>
+                  <select
+                    disabled={!isOwner}
+                    value={orgData.industry}
+                    onChange={(e) => setOrgData({ ...orgData, industry: e.target.value })}
+                    className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-[#0F766E] text-slate-900 disabled:bg-slate-50 disabled:text-slate-500"
+                  >
+                    {INDUSTRY_OPTIONS.map((ind) => (
+                      <option key={ind} value={ind}>
+                        {ind}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+                    Company Size
+                  </label>
+                  <select
+                    disabled={!isOwner}
+                    value={orgData.company_size}
+                    onChange={(e) => setOrgData({ ...orgData, company_size: e.target.value })}
+                    className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-[#0F766E] text-slate-900 disabled:bg-slate-50 disabled:text-slate-500"
+                  >
+                    {COMPANY_SIZE_OPTIONS.map((size) => (
+                      <option key={size} value={size}>
+                        {size}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+                    Website URL
+                  </label>
+                  <input
+                    type="url"
+                    disabled={!isOwner}
+                    value={orgData.website}
+                    onChange={(e) => setOrgData({ ...orgData, website: e.target.value })}
+                    placeholder="https://company.com"
+                    className="w-full px-3.5 py-2 text-xs bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-[#0F766E] text-slate-900 disabled:bg-slate-50 disabled:text-slate-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+                    Support / Contact Email
+                  </label>
+                  <input
+                    type="email"
+                    disabled={!isOwner}
+                    value={orgData.email}
+                    onChange={(e) => setOrgData({ ...orgData, email: e.target.value })}
+                    placeholder="contact@company.com"
+                    className="w-full px-3.5 py-2 text-xs bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-[#0F766E] text-slate-900 disabled:bg-slate-50 disabled:text-slate-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+                    Phone Number
+                  </label>
+                  <input
+                    type="tel"
+                    disabled={!isOwner}
+                    value={orgData.phone}
+                    onChange={(e) => setOrgData({ ...orgData, phone: e.target.value })}
+                    placeholder="+1 (555) 000-0000"
+                    className="w-full px-3.5 py-2 text-xs bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-[#0F766E] text-slate-900 disabled:bg-slate-50 disabled:text-slate-500"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Section 3: Location & Localization */}
+            <div className="space-y-4 pt-2">
+              <div className="pb-2 border-b border-slate-100 flex items-center gap-2">
+                <FiMapPin className="w-4 h-4 text-emerald-600" />
+                <h3 className="text-xs font-black uppercase tracking-wider text-slate-800">
+                  Location & Localization
+                </h3>
+              </div>
+
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
-                  Industry
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+                  Street Address
                 </label>
                 <input
                   type="text"
                   disabled={!isOwner}
-                  value={orgData.industry}
-                  onChange={(e) => setOrgData({ ...orgData, industry: e.target.value })}
+                  value={orgData.address}
+                  onChange={(e) => setOrgData({ ...orgData, address: e.target.value })}
+                  placeholder="100 Market St, Suite 400"
                   className="w-full px-3.5 py-2 text-xs bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-[#0F766E] text-slate-900 disabled:bg-slate-50 disabled:text-slate-500"
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
-                  Website URL
-                </label>
-                <input
-                  type="url"
-                  disabled={!isOwner}
-                  value={orgData.website}
-                  onChange={(e) => setOrgData({ ...orgData, website: e.target.value })}
-                  placeholder="https://company.com"
-                  className="w-full px-3.5 py-2 text-xs bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-[#0F766E] text-slate-900 disabled:bg-slate-50 disabled:text-slate-500"
-                />
-              </div>
-            </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+                    City
+                  </label>
+                  <input
+                    type="text"
+                    disabled={!isOwner}
+                    value={orgData.city}
+                    onChange={(e) => setOrgData({ ...orgData, city: e.target.value })}
+                    placeholder="San Francisco"
+                    className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-[#0F766E] text-slate-900 disabled:bg-slate-50 disabled:text-slate-500"
+                  />
+                </div>
 
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
-                Description
-              </label>
-              <textarea
-                rows={3}
-                disabled={!isOwner}
-                value={orgData.description}
-                onChange={(e) => setOrgData({ ...orgData, description: e.target.value })}
-                placeholder="High-level description of this workspace..."
-                className="w-full px-3.5 py-2 text-xs bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-[#0F766E] text-slate-900 disabled:bg-slate-50 disabled:text-slate-500"
-              />
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+                    State / Province
+                  </label>
+                  <input
+                    type="text"
+                    disabled={!isOwner}
+                    value={orgData.state}
+                    onChange={(e) => setOrgData({ ...orgData, state: e.target.value })}
+                    placeholder="CA"
+                    className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-[#0F766E] text-slate-900 disabled:bg-slate-50 disabled:text-slate-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+                    Country
+                  </label>
+                  <input
+                    type="text"
+                    disabled={!isOwner}
+                    value={orgData.country}
+                    onChange={(e) => setOrgData({ ...orgData, country: e.target.value })}
+                    placeholder="United States"
+                    className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-[#0F766E] text-slate-900 disabled:bg-slate-50 disabled:text-slate-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+                    Postal Code
+                  </label>
+                  <input
+                    type="text"
+                    disabled={!isOwner}
+                    value={orgData.postal_code}
+                    onChange={(e) => setOrgData({ ...orgData, postal_code: e.target.value })}
+                    placeholder="94105"
+                    className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-[#0F766E] text-slate-900 disabled:bg-slate-50 disabled:text-slate-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+                    Workspace Timezone
+                  </label>
+                  <select
+                    disabled={!isOwner}
+                    value={orgData.timezone}
+                    onChange={(e) => setOrgData({ ...orgData, timezone: e.target.value })}
+                    className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-[#0F766E] text-slate-900 disabled:bg-slate-50 disabled:text-slate-500"
+                  >
+                    {TIMEZONE_OPTIONS.map((tz) => (
+                      <option key={tz.value} value={tz.value}>
+                        {tz.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+                    Project & Billing Currency
+                  </label>
+                  <select
+                    disabled={!isOwner}
+                    value={orgData.currency}
+                    onChange={(e) => setOrgData({ ...orgData, currency: e.target.value })}
+                    className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-[#0F766E] text-slate-900 disabled:bg-slate-50 disabled:text-slate-500"
+                  >
+                    {CURRENCY_OPTIONS.map((c) => (
+                      <option key={c.code} value={c.code}>
+                        {c.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
             </div>
 
             {isOwner && (
-              <div className="flex justify-end pt-3 border-t border-slate-100">
+              <div className="flex justify-end pt-4 border-t border-slate-100">
                 <button
                   type="submit"
                   disabled={savingOrg}
-                  className="inline-flex items-center gap-2 px-5 py-2 bg-[#0F766E] hover:bg-[#0D655E] active:bg-[#115E59] active:scale-[0.98] text-white text-xs font-bold rounded-lg shadow-md shadow-teal-900/20 transition-all disabled:opacity-50 cursor-pointer"
+                  className="inline-flex items-center gap-2 px-6 py-2.5 bg-[#0F766E] hover:bg-[#0D655E] active:bg-[#115E59] active:scale-[0.98] text-white text-xs font-bold rounded-lg shadow-md shadow-teal-900/20 transition-all disabled:opacity-50 cursor-pointer"
                 >
                   <FiCheck className="w-4 h-4" />
-                  <span>{savingOrg ? "Saving..." : "Save Workspace"}</span>
+                  <span>{savingOrg ? "Saving..." : "Save Workspace Settings"}</span>
                 </button>
               </div>
             )}

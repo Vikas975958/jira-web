@@ -64,21 +64,13 @@ export function OrganizationProvider({ children }) {
         setLoadingOrgs(true);
 
         const orgs = await organizationService.getUserOrganizations(user.id);
-        const validOrgs = orgs || [];
+        // Single workspace policy: strictly keep only the single organization
+        const validOrgs = orgs && orgs.length > 0 ? [orgs[0]] : [];
         lastFetchedUserIdRef.current = user.id;
         setOrganizations(validOrgs);
 
         if (validOrgs.length > 0) {
-          setCurrentOrg((prev) => {
-            if (prev) {
-              const prevId = prev.organizations?.id || prev.id;
-              const found = validOrgs.find(
-                (o) => (o.organizations?.id || o.id) === prevId
-              );
-              if (found) return found;
-            }
-            return validOrgs[0];
-          });
+          setCurrentOrg(validOrgs[0]);
         } else {
           setCurrentOrg(null);
           setMembers([]);

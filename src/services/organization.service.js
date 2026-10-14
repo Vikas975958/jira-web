@@ -90,6 +90,27 @@ export const organizationService = {
       throw new Error("Authentication required to create an organization.");
     }
 
+    // Verify user does not already have an active organization (single workspace policy)
+    const { data: existingMemberships } = await supabase
+      .from("organization_members")
+      .select("id, organization_id")
+      .eq("user_id", authenticatedUserId)
+      .limit(1);
+
+    if (existingMemberships && existingMemberships.length > 0) {
+      throw new Error("You already have an active workspace. Multiple workspaces are not allowed.");
+    }
+
+    const { data: existingCreated } = await supabase
+      .from("organizations")
+      .select("id")
+      .eq("created_by", authenticatedUserId)
+      .limit(1);
+
+    if (existingCreated && existingCreated.length > 0) {
+      throw new Error("You already have an active workspace. Multiple workspaces are not allowed.");
+    }
+
     // Ensure slug is generated if not provided
     let finalSlug = slug ? slugify(slug) : slugify(name);
     if (!finalSlug) {

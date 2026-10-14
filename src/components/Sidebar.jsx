@@ -128,16 +128,6 @@ export default function Sidebar() {
                   </p>
                 </div>
               </div>
-
-              {userRole === OWNER_ROLE && (
-                <Link
-                  href="/dashboard/create-organization"
-                  className="p-1 rounded-lg text-slate-400 hover:text-[#0F766E] hover:bg-slate-200/50 transition-colors"
-                  title="Create New Organization"
-                >
-                  <LuPlus className="w-4 h-4" />
-                </Link>
-              )}
             </div>
           )}
 
@@ -174,42 +164,6 @@ export default function Sidebar() {
               );
             })}
           </nav>
-
-          {/* Show alternate workspaces only when user belongs to multiple organizations */}
-          {organizations && organizations.length > 1 && (
-            <div className="space-y-1.5">
-              <div className="px-3 text-[11px] font-semibold text-slate-400 tracking-wider uppercase">
-                <span>Other Workspaces</span>
-              </div>
-              <div className="space-y-0.5">
-                {organizations
-                  .filter((orgItem) => {
-                    const orgData = orgItem.organizations || orgItem;
-                    return orgData?.id !== activeOrg?.id;
-                  })
-                  .map((orgItem) => {
-                    const orgData = orgItem.organizations || orgItem;
-                    return (
-                      <Link
-                        key={orgData.id}
-                        href="/dashboard"
-                        className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
-                      >
-                        <div className="flex items-center gap-2 min-w-0">
-                          <div className="w-5 h-5 rounded-lg bg-white border border-slate-200 flex items-center justify-center shrink-0 text-[10px] font-bold text-[#0F766E]">
-                            {orgData.name?.charAt(0)?.toUpperCase() || "O"}
-                          </div>
-                          <span className="truncate text-xs">{orgData.name}</span>
-                        </div>
-                        <span className="text-[10px] text-slate-400 capitalize shrink-0 ml-1">
-                          {orgItem.role || MEMBER_ROLE}
-                        </span>
-                      </Link>
-                    );
-                  })}
-              </div>
-            </div>
-          )}
 
           {/* ALL PROJECTS Section */}
           <div className="space-y-1.5">

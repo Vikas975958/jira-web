@@ -86,7 +86,15 @@ export default function CreateOrganizationPage() {
   const router = useRouter();
   const authState = useSelector((state) => state.authSlice);
   const user = authState?.userData;
-  const { refreshOrganizations } = useOrganization();
+  const { hasOrganization, loadingOrgs, refreshOrganizations } = useOrganization();
+
+  // If user already has an active organization, redirect immediately to dashboard
+  useEffect(() => {
+    if (!loadingOrgs && hasOrganization) {
+      toast.info("You already have an active workspace. You can edit it in Settings.");
+      router.replace("/dashboard");
+    }
+  }, [hasOrganization, loadingOrgs, router]);
 
   const [activeTab, setActiveTab] = useState("general"); // 'general' | 'company' | 'location'
   const [loading, setLoading] = useState(false);
@@ -137,6 +145,13 @@ export default function CreateOrganizationPage() {
   const handleSubmit = async (e) => {
     if (e) e.preventDefault();
     setErrorMsg("");
+
+    if (hasOrganization) {
+      setErrorMsg("You already have an active workspace. Multiple workspaces are not allowed.");
+      toast.error("You already have an active workspace.");
+      router.replace("/dashboard");
+      return;
+    }
 
     const trimmedName = formData.name.trim();
     if (!trimmedName) {
@@ -206,6 +221,24 @@ export default function CreateOrganizationPage() {
       setLoading(false);
     }
   };
+
+  if (loadingOrgs) {
+    return (
+      <div className="min-h-screen w-full flex items-center justify-center bg-slate-50 text-slate-500 text-sm">
+        <div className="w-5 h-5 border-2 border-[#0F766E] border-t-transparent rounded-full animate-spin mr-2.5" />
+        Loading workspace information...
+      </div>
+    );
+  }
+
+  if (hasOrganization) {
+    return (
+      <div className="min-h-screen w-full flex flex-col items-center justify-center bg-slate-50 text-slate-600 text-sm space-y-3">
+        <div className="w-5 h-5 border-2 border-[#0F766E] border-t-transparent rounded-full animate-spin" />
+        <p>You already have an active workspace. Redirecting to dashboard...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50/80 py-8 px-4 sm:px-6 lg:px-8">

@@ -120,7 +120,7 @@ function NoOrganizationView({ userName, userEmail, userInvitations, onCreateOrg,
                   Pending Invitations ({userInvitations.length})
                 </h3>
                 <p className="text-xs text-amber-700 mt-0.5">
-                  You have been invited to join the following workspaces or project teams. Click accept to join immediately.
+                  You have been invited to join the following workspace or project team. Click accept to join immediately.
                 </p>
               </div>
             </div>
