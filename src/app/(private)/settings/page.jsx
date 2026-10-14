@@ -236,66 +236,66 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="p-6 sm:p-8 space-y-6 max-w-5xl mx-auto select-none">
+    <div className="p-4 sm:p-6 space-y-5 max-w-5xl mx-auto select-none">
       {/* Header */}
-      <div className="pb-4 border-b border-slate-200">
-        <h1 className="text-2xl font-black text-slate-900 tracking-tight">
+      <div className="pb-3.5 border-b border-slate-200">
+        <h1 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">
           Settings
         </h1>
-        <p className="text-xs sm:text-sm text-slate-500 mt-1">
+        <p className="text-xs text-slate-500 mt-0.5">
           Manage your workspace configuration, account profile, and notifications.
         </p>
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-slate-200 gap-2">
+      <div className="flex border-b border-slate-200 gap-1">
         <button
           type="button"
           onClick={() => setActiveTab("organization")}
-          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition-all cursor-pointer ${
+          className={`flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold border-b-2 transition-all cursor-pointer ${
             activeTab === "organization"
               ? "border-[#0F766E] text-[#0F766E]"
               : "border-transparent text-slate-500 hover:text-slate-900"
           }`}
         >
-          <FiGlobe className="w-4 h-4" />
+          <FiGlobe className="w-3.5 h-3.5" />
           <span>Workspace</span>
         </button>
 
         <button
           type="button"
           onClick={() => setActiveTab("profile")}
-          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition-all cursor-pointer ${
+          className={`flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold border-b-2 transition-all cursor-pointer ${
             activeTab === "profile"
               ? "border-[#0F766E] text-[#0F766E]"
               : "border-transparent text-slate-500 hover:text-slate-900"
           }`}
         >
-          <FiUser className="w-4 h-4" />
+          <FiUser className="w-3.5 h-3.5" />
           <span>Profile</span>
         </button>
 
         <button
           type="button"
           onClick={() => setActiveTab("preferences")}
-          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition-all cursor-pointer ${
+          className={`flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold border-b-2 transition-all cursor-pointer ${
             activeTab === "preferences"
               ? "border-[#0F766E] text-[#0F766E]"
               : "border-transparent text-slate-500 hover:text-slate-900"
           }`}
         >
-          <FiSliders className="w-4 h-4" />
+          <FiSliders className="w-3.5 h-3.5" />
           <span>Preferences</span>
         </button>
       </div>
 
       {/* TAB 1: ORGANIZATION / WORKSPACE SETTINGS */}
       {activeTab === "organization" && (
-        <div className="bg-white rounded-lg border border-slate-200/80 p-6 shadow-xs animate-fadeIn space-y-6">
+        <div className="bg-white rounded-lg border border-slate-200/80 p-5 sm:p-6 shadow-2xs space-y-5">
           {/* Workspace Banner */}
-          <div className="p-4 rounded-lg bg-teal-50/70 border border-teal-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+          <div className="p-3.5 rounded-lg bg-slate-50 border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-[#0F766E] text-white flex items-center justify-center font-bold text-base shrink-0 shadow-xs">
+              <div className="w-9 h-9 rounded-lg bg-teal-50 border border-teal-200 text-[#0F766E] flex items-center justify-center font-bold text-sm shrink-0">
                 {orgData.logo_url ? (
                   <img
                     src={orgData.logo_url}
@@ -314,7 +314,7 @@ export default function SettingsPage() {
                   <h3 className="font-bold text-slate-900 text-sm">
                     {activeOrg?.name || "Your Workspace"}
                   </h3>
-                  <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-teal-100 text-[#0F766E] border border-teal-200">
+                  <span className="px-2 py-0.2 rounded-md text-[10px] font-semibold uppercase tracking-wider bg-teal-100 text-[#0F766E] border border-teal-200">
                     Active Workspace
                   </span>
                 </div>
@@ -324,33 +324,33 @@ export default function SettingsPage() {
               </div>
             </div>
 
-            <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-700 self-start sm:self-auto shrink-0">
+            <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-md bg-white border border-slate-200 text-slate-700 self-start sm:self-auto shrink-0">
               Role: {userRole === OWNER_ROLE ? "Workspace Owner" : userRole}
             </span>
           </div>
 
           {!isOwner && (
-            <div className="p-3.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-xs flex items-center gap-2.5">
-              <FiInfo className="w-4 h-4 text-amber-600 shrink-0" />
+            <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-xs flex items-center gap-2">
+              <FiInfo className="w-3.5 h-3.5 text-amber-600 shrink-0" />
               <span>
                 Workspace settings are in read-only mode for your role ({userRole}). Only the Workspace Owner can modify these settings.
               </span>
             </div>
           )}
 
-          <form onSubmit={handleSaveOrg} className="space-y-6">
+          <form onSubmit={handleSaveOrg} className="space-y-5">
             {/* Section 1: General & Branding */}
-            <div className="space-y-4">
-              <div className="pb-2 border-b border-slate-100 flex items-center gap-2">
-                <FiGlobe className="w-4 h-4 text-[#0F766E]" />
-                <h3 className="text-xs font-black uppercase tracking-wider text-slate-800">
+            <div className="space-y-3.5">
+              <div className="pb-1.5 border-b border-slate-100 flex items-center gap-2">
+                <FiGlobe className="w-3.5 h-3.5 text-[#0F766E]" />
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700">
                   General & Branding
                 </h3>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-600 mb-1">
                     Workspace Name <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -359,12 +359,12 @@ export default function SettingsPage() {
                     disabled={!isOwner}
                     value={orgData.name}
                     onChange={(e) => setOrgData({ ...orgData, name: e.target.value })}
-                    className="w-full px-3.5 py-2 text-xs bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-[#0F766E] text-slate-900 disabled:bg-slate-50 disabled:text-slate-500"
+                    className="jira-input w-full text-xs h-8.5 px-3 disabled:bg-slate-50 disabled:text-slate-500"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-600 mb-1">
                     Workspace Slug / URL Path
                   </label>
                   <input
@@ -372,7 +372,7 @@ export default function SettingsPage() {
                     readOnly
                     disabled
                     value={orgData.slug}
-                    className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-500 font-mono outline-none cursor-not-allowed"
+                    className="jira-input w-full text-xs h-8.5 px-3 bg-slate-50 text-slate-500 font-mono cursor-not-allowed"
                   />
                   <p className="mt-1 text-[10px] text-slate-400">
                     Unique identifier used in URLs and member invitations.
@@ -381,23 +381,21 @@ export default function SettingsPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+                <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-600 mb-1">
                   Logo Image URL
                 </label>
-                <div className="relative">
-                  <input
-                    type="url"
-                    disabled={!isOwner}
-                    value={orgData.logo_url}
-                    onChange={(e) => setOrgData({ ...orgData, logo_url: e.target.value })}
-                    placeholder="https://example.com/logo.png"
-                    className="w-full px-3.5 py-2 text-xs bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-[#0F766E] text-slate-900 disabled:bg-slate-50 disabled:text-slate-500"
-                  />
-                </div>
+                <input
+                  type="url"
+                  disabled={!isOwner}
+                  value={orgData.logo_url}
+                  onChange={(e) => setOrgData({ ...orgData, logo_url: e.target.value })}
+                  placeholder="https://example.com/logo.png"
+                  className="jira-input w-full text-xs h-8.5 px-3 disabled:bg-slate-50 disabled:text-slate-500"
+                />
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+                <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-600 mb-1">
                   Description
                 </label>
                 <textarea
@@ -406,30 +404,30 @@ export default function SettingsPage() {
                   value={orgData.description}
                   onChange={(e) => setOrgData({ ...orgData, description: e.target.value })}
                   placeholder="Summary of this organization and team mission..."
-                  className="w-full px-3.5 py-2 text-xs bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-[#0F766E] text-slate-900 disabled:bg-slate-50 disabled:text-slate-500 resize-none"
+                  className="jira-input w-full text-xs p-2.5 disabled:bg-slate-50 disabled:text-slate-500 resize-none"
                 />
               </div>
             </div>
 
             {/* Section 2: Company Details & Contact */}
-            <div className="space-y-4 pt-2">
-              <div className="pb-2 border-b border-slate-100 flex items-center gap-2">
-                <FiBriefcase className="w-4 h-4 text-purple-600" />
-                <h3 className="text-xs font-black uppercase tracking-wider text-slate-800">
+            <div className="space-y-3.5 pt-1">
+              <div className="pb-1.5 border-b border-slate-100 flex items-center gap-2">
+                <FiBriefcase className="w-3.5 h-3.5 text-purple-600" />
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700">
                   Company Details & Contact
                 </h3>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-600 mb-1">
                     Industry
                   </label>
                   <select
                     disabled={!isOwner}
                     value={orgData.industry}
                     onChange={(e) => setOrgData({ ...orgData, industry: e.target.value })}
-                    className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-[#0F766E] text-slate-900 disabled:bg-slate-50 disabled:text-slate-500"
+                    className="jira-input w-full text-xs font-medium h-8.5 px-2.5 disabled:bg-slate-50 disabled:text-slate-500"
                   >
                     {INDUSTRY_OPTIONS.map((ind) => (
                       <option key={ind} value={ind}>
@@ -440,14 +438,14 @@ export default function SettingsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-600 mb-1">
                     Company Size
                   </label>
                   <select
                     disabled={!isOwner}
                     value={orgData.company_size}
                     onChange={(e) => setOrgData({ ...orgData, company_size: e.target.value })}
-                    className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-[#0F766E] text-slate-900 disabled:bg-slate-50 disabled:text-slate-500"
+                    className="jira-input w-full text-xs font-medium h-8.5 px-2.5 disabled:bg-slate-50 disabled:text-slate-500"
                   >
                     {COMPANY_SIZE_OPTIONS.map((size) => (
                       <option key={size} value={size}>
@@ -458,9 +456,9 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-600 mb-1">
                     Website URL
                   </label>
                   <input
@@ -469,13 +467,13 @@ export default function SettingsPage() {
                     value={orgData.website}
                     onChange={(e) => setOrgData({ ...orgData, website: e.target.value })}
                     placeholder="https://company.com"
-                    className="w-full px-3.5 py-2 text-xs bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-[#0F766E] text-slate-900 disabled:bg-slate-50 disabled:text-slate-500"
+                    className="jira-input w-full text-xs h-8.5 px-3 disabled:bg-slate-50 disabled:text-slate-500"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
-                    Support / Contact Email
+                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-600 mb-1">
+                    Support Email
                   </label>
                   <input
                     type="email"
@@ -483,12 +481,12 @@ export default function SettingsPage() {
                     value={orgData.email}
                     onChange={(e) => setOrgData({ ...orgData, email: e.target.value })}
                     placeholder="contact@company.com"
-                    className="w-full px-3.5 py-2 text-xs bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-[#0F766E] text-slate-900 disabled:bg-slate-50 disabled:text-slate-500"
+                    className="jira-input w-full text-xs h-8.5 px-3 disabled:bg-slate-50 disabled:text-slate-500"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-600 mb-1">
                     Phone Number
                   </label>
                   <input
@@ -497,23 +495,23 @@ export default function SettingsPage() {
                     value={orgData.phone}
                     onChange={(e) => setOrgData({ ...orgData, phone: e.target.value })}
                     placeholder="+1 (555) 000-0000"
-                    className="w-full px-3.5 py-2 text-xs bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-[#0F766E] text-slate-900 disabled:bg-slate-50 disabled:text-slate-500"
+                    className="jira-input w-full text-xs h-8.5 px-3 disabled:bg-slate-50 disabled:text-slate-500"
                   />
                 </div>
               </div>
             </div>
 
             {/* Section 3: Location & Localization */}
-            <div className="space-y-4 pt-2">
-              <div className="pb-2 border-b border-slate-100 flex items-center gap-2">
-                <FiMapPin className="w-4 h-4 text-emerald-600" />
-                <h3 className="text-xs font-black uppercase tracking-wider text-slate-800">
+            <div className="space-y-3.5 pt-1">
+              <div className="pb-1.5 border-b border-slate-100 flex items-center gap-2">
+                <FiMapPin className="w-3.5 h-3.5 text-emerald-600" />
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700">
                   Location & Localization
                 </h3>
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+                <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-600 mb-1">
                   Street Address
                 </label>
                 <input
@@ -522,13 +520,13 @@ export default function SettingsPage() {
                   value={orgData.address}
                   onChange={(e) => setOrgData({ ...orgData, address: e.target.value })}
                   placeholder="100 Market St, Suite 400"
-                  className="w-full px-3.5 py-2 text-xs bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-[#0F766E] text-slate-900 disabled:bg-slate-50 disabled:text-slate-500"
+                  className="jira-input w-full text-xs h-8.5 px-3 disabled:bg-slate-50 disabled:text-slate-500"
                 />
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-600 mb-1">
                     City
                   </label>
                   <input
@@ -537,12 +535,12 @@ export default function SettingsPage() {
                     value={orgData.city}
                     onChange={(e) => setOrgData({ ...orgData, city: e.target.value })}
                     placeholder="San Francisco"
-                    className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-[#0F766E] text-slate-900 disabled:bg-slate-50 disabled:text-slate-500"
+                    className="jira-input w-full text-xs h-8.5 px-3 disabled:bg-slate-50 disabled:text-slate-500"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-600 mb-1">
                     State / Province
                   </label>
                   <input
@@ -551,12 +549,12 @@ export default function SettingsPage() {
                     value={orgData.state}
                     onChange={(e) => setOrgData({ ...orgData, state: e.target.value })}
                     placeholder="CA"
-                    className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-[#0F766E] text-slate-900 disabled:bg-slate-50 disabled:text-slate-500"
+                    className="jira-input w-full text-xs h-8.5 px-3 disabled:bg-slate-50 disabled:text-slate-500"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-600 mb-1">
                     Country
                   </label>
                   <input
@@ -565,12 +563,12 @@ export default function SettingsPage() {
                     value={orgData.country}
                     onChange={(e) => setOrgData({ ...orgData, country: e.target.value })}
                     placeholder="United States"
-                    className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-[#0F766E] text-slate-900 disabled:bg-slate-50 disabled:text-slate-500"
+                    className="jira-input w-full text-xs h-8.5 px-3 disabled:bg-slate-50 disabled:text-slate-500"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-600 mb-1">
                     Postal Code
                   </label>
                   <input
@@ -579,21 +577,21 @@ export default function SettingsPage() {
                     value={orgData.postal_code}
                     onChange={(e) => setOrgData({ ...orgData, postal_code: e.target.value })}
                     placeholder="94105"
-                    className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-[#0F766E] text-slate-900 disabled:bg-slate-50 disabled:text-slate-500"
+                    className="jira-input w-full text-xs h-8.5 px-3 disabled:bg-slate-50 disabled:text-slate-500"
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-600 mb-1">
                     Workspace Timezone
                   </label>
                   <select
                     disabled={!isOwner}
                     value={orgData.timezone}
                     onChange={(e) => setOrgData({ ...orgData, timezone: e.target.value })}
-                    className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-[#0F766E] text-slate-900 disabled:bg-slate-50 disabled:text-slate-500"
+                    className="jira-input w-full text-xs font-medium h-8.5 px-2.5 disabled:bg-slate-50 disabled:text-slate-500"
                   >
                     {TIMEZONE_OPTIONS.map((tz) => (
                       <option key={tz.value} value={tz.value}>
@@ -604,14 +602,14 @@ export default function SettingsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
-                    Project & Billing Currency
+                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-600 mb-1">
+                    Currency
                   </label>
                   <select
                     disabled={!isOwner}
                     value={orgData.currency}
                     onChange={(e) => setOrgData({ ...orgData, currency: e.target.value })}
-                    className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-[#0F766E] text-slate-900 disabled:bg-slate-50 disabled:text-slate-500"
+                    className="jira-input w-full text-xs font-medium h-8.5 px-2.5 disabled:bg-slate-50 disabled:text-slate-500"
                   >
                     {CURRENCY_OPTIONS.map((c) => (
                       <option key={c.code} value={c.code}>
@@ -624,13 +622,13 @@ export default function SettingsPage() {
             </div>
 
             {isOwner && (
-              <div className="flex justify-end pt-4 border-t border-slate-100">
+              <div className="flex justify-end pt-3 border-t border-slate-100">
                 <button
                   type="submit"
                   disabled={savingOrg}
-                  className="inline-flex items-center gap-2 px-6 py-2.5 bg-[#0F766E] hover:bg-[#0D655E] active:bg-[#115E59] active:scale-[0.98] text-white text-xs font-bold rounded-lg shadow-md shadow-teal-900/20 transition-all disabled:opacity-50 cursor-pointer"
+                  className="btn-primary px-4 py-1.5 text-xs font-semibold"
                 >
-                  <FiCheck className="w-4 h-4" />
+                  <FiCheck className="w-3.5 h-3.5" />
                   <span>{savingOrg ? "Saving..." : "Save Workspace Settings"}</span>
                 </button>
               </div>
@@ -641,9 +639,9 @@ export default function SettingsPage() {
 
       {/* TAB 2: PROFILE SETTINGS */}
       {activeTab === "profile" && (
-        <div className="bg-white rounded-lg border border-slate-200/80 p-6 shadow-xs animate-fadeIn space-y-6">
-          <div className="pb-4 border-b border-slate-100">
-            <h2 className="text-base font-bold text-slate-900">
+        <div className="bg-white rounded-lg border border-slate-200/80 p-5 sm:p-6 shadow-2xs space-y-4">
+          <div className="pb-3 border-b border-slate-100">
+            <h2 className="text-sm sm:text-base font-bold text-slate-900">
               Personal Information
             </h2>
             <p className="text-xs text-slate-500 mt-0.5">
@@ -651,10 +649,10 @@ export default function SettingsPage() {
             </p>
           </div>
 
-          <form onSubmit={handleSaveProfile} className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <form onSubmit={handleSaveProfile} className="space-y-3.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
+                <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-600 mb-1">
                   Full Name
                 </label>
                 <input
@@ -664,12 +662,12 @@ export default function SettingsPage() {
                   onChange={(e) =>
                     setProfileData({ ...profileData, full_name: e.target.value })
                   }
-                  className="w-full px-3.5 py-2 text-xs bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-[#0F766E] text-slate-900"
+                  className="jira-input w-full text-xs h-8.5 px-3"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
+                <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-600 mb-1">
                   Email Address
                 </label>
                 <input
@@ -677,13 +675,13 @@ export default function SettingsPage() {
                   readOnly
                   disabled
                   value={profileData.email}
-                  className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-500 outline-none cursor-not-allowed"
+                  className="jira-input w-full text-xs h-8.5 px-3 bg-slate-50 text-slate-500 font-mono cursor-not-allowed"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
+              <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-600 mb-1">
                 Phone Number
               </label>
               <input
@@ -693,7 +691,7 @@ export default function SettingsPage() {
                   setProfileData({ ...profileData, phone: e.target.value })
                 }
                 placeholder="+1 (555) 000-0000"
-                className="w-full max-w-sm px-3.5 py-2 text-xs bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-[#0F766E] text-slate-900"
+                className="jira-input w-full max-w-sm text-xs h-8.5 px-3"
               />
             </div>
 
@@ -701,9 +699,9 @@ export default function SettingsPage() {
               <button
                 type="submit"
                 disabled={savingProfile}
-                className="inline-flex items-center gap-2 px-5 py-2 bg-[#0F766E] hover:bg-[#0D655E] active:bg-[#115E59] active:scale-[0.98] text-white text-xs font-bold rounded-lg shadow-md shadow-teal-900/20 transition-all disabled:opacity-50 cursor-pointer"
+                className="btn-primary px-4 py-1.5 text-xs font-semibold"
               >
-                <FiCheck className="w-4 h-4" />
+                <FiCheck className="w-3.5 h-3.5" />
                 <span>{savingProfile ? "Saving..." : "Save Profile"}</span>
               </button>
             </div>
@@ -713,9 +711,9 @@ export default function SettingsPage() {
 
       {/* TAB 3: PREFERENCES */}
       {activeTab === "preferences" && (
-        <div className="bg-white rounded-lg border border-slate-200/80 p-6 shadow-xs animate-fadeIn space-y-6">
-          <div className="pb-4 border-b border-slate-100">
-            <h2 className="text-base font-bold text-slate-900">
+        <div className="bg-white rounded-lg border border-slate-200/80 p-5 sm:p-6 shadow-2xs space-y-4">
+          <div className="pb-3 border-b border-slate-100">
+            <h2 className="text-sm sm:text-base font-bold text-slate-900">
               Notification Preferences
             </h2>
             <p className="text-xs text-slate-500 mt-0.5">
@@ -723,17 +721,17 @@ export default function SettingsPage() {
             </p>
           </div>
 
-          <form onSubmit={handleSavePreferences} className="space-y-4">
-            <div className="space-y-3">
-              <label className="flex items-start gap-3 p-3.5 rounded-lg border border-slate-200/80 hover:bg-slate-50 transition-colors cursor-pointer">
+          <form onSubmit={handleSavePreferences} className="space-y-3">
+            <div className="space-y-2.5">
+              <label className="flex items-start gap-3 p-3 rounded-lg border border-slate-200/80 hover:bg-slate-50/70 transition-colors cursor-pointer">
                 <input
                   type="checkbox"
                   checked={emailAlerts}
                   onChange={(e) => setEmailAlerts(e.target.checked)}
-                  className="mt-0.5 w-4 h-4 rounded-lg text-[#0F766E] focus:ring-[#0F766E]"
+                  className="mt-0.5 w-4 h-4 rounded text-[#0F766E] focus:ring-[#0F766E]"
                 />
                 <div>
-                  <p className="text-xs font-bold text-slate-800">
+                  <p className="text-xs font-semibold text-slate-800">
                     Task Assignments & Mentions
                   </p>
                   <p className="text-[11px] text-slate-500 mt-0.5">
@@ -742,15 +740,15 @@ export default function SettingsPage() {
                 </div>
               </label>
 
-              <label className="flex items-start gap-3 p-3.5 rounded-lg border border-slate-200/80 hover:bg-slate-50 transition-colors cursor-pointer">
+              <label className="flex items-start gap-3 p-3 rounded-lg border border-slate-200/80 hover:bg-slate-50/70 transition-colors cursor-pointer">
                 <input
                   type="checkbox"
                   checked={sprintDigest}
                   onChange={(e) => setSprintDigest(e.target.checked)}
-                  className="mt-0.5 w-4 h-4 rounded-lg text-[#0F766E] focus:ring-[#0F766E]"
+                  className="mt-0.5 w-4 h-4 rounded text-[#0F766E] focus:ring-[#0F766E]"
                 />
                 <div>
-                  <p className="text-xs font-bold text-slate-800">
+                  <p className="text-xs font-semibold text-slate-800">
                     Weekly Sprint Digest
                   </p>
                   <p className="text-[11px] text-slate-500 mt-0.5">
@@ -764,9 +762,9 @@ export default function SettingsPage() {
               <button
                 type="submit"
                 disabled={savingPrefs}
-                className="inline-flex items-center gap-2 px-5 py-2 bg-[#0F766E] hover:bg-[#0D655E] active:bg-[#115E59] active:scale-[0.98] text-white text-xs font-bold rounded-lg shadow-md shadow-teal-900/20 transition-all disabled:opacity-50 cursor-pointer"
+                className="btn-primary px-4 py-1.5 text-xs font-semibold"
               >
-                <FiCheck className="w-4 h-4" />
+                <FiCheck className="w-3.5 h-3.5" />
                 <span>{savingPrefs ? "Saving..." : "Save Preferences"}</span>
               </button>
             </div>

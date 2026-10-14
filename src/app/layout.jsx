@@ -23,6 +23,13 @@ const playfair = Playfair_Display({
 export const metadata = {
   title: "WorkGrid - Agile Project & Issue Tracking",
   description: "Streamlined agile project management, sprint planning, and issue tracking for software teams.",
+  icons: {
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico" },
+    ],
+    apple: "/apple-icon.png",
+  },
 };
 
 export default function RootLayout({ children }) {

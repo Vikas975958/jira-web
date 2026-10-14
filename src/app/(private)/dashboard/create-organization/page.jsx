@@ -241,51 +241,49 @@ export default function CreateOrganizationPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50/80 py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-5xl mx-auto space-y-6">
+    <div className="min-h-screen bg-slate-50/70 py-6 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-5xl mx-auto space-y-5">
         {/* Navigation & Breadcrumb */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <JiraLogo className="w-7 h-7" textColor="text-slate-900" />
+            <JiraLogo className="w-6 h-6" textColor="text-slate-900" />
             <div className="h-4 w-px bg-slate-300" />
             <button
               type="button"
               onClick={() => router.push("/dashboard")}
-              className="inline-flex items-center gap-2 text-sm font-semibold text-slate-600 hover:text-slate-900 transition-colors group cursor-pointer"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors group cursor-pointer"
             >
-              <FiArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
+              <FiArrowLeft className="w-3.5 h-3.5 transition-transform group-hover:-translate-x-1" />
               <span>Back to Dashboard</span>
             </button>
           </div>
 
-          <span className="text-xs font-semibold px-2.5 py-1 bg-teal-50 text-[#0F766E] rounded-lg border border-teal-200">
+          <span className="text-[10px] font-semibold px-2 py-0.5 bg-teal-50 text-[#0F766E] rounded-md border border-teal-200">
             WorkGrid Workspace Setup
           </span>
         </div>
 
         {/* Page Title & Intro */}
-        <div className="bg-white rounded-lg border border-slate-200/80 p-6 sm:p-8 shadow-xs">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-lg bg-gradient-to-br from-[#0F766E] to-teal-800 flex items-center justify-center text-white shadow-lg shadow-teal-900/20 shrink-0">
-                <FiGlobe className="w-7 h-7" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-black text-slate-900 tracking-tight">
-                  Create Organization
-                </h1>
-                <p className="text-sm text-slate-500 mt-1">
-                  Configure your company workspace, branding, team defaults, and localization.
-                </p>
-              </div>
+        <div className="bg-white rounded-lg border border-slate-200/80 p-5 shadow-2xs">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-teal-50 border border-teal-200/70 text-[#0F766E] flex items-center justify-center font-bold shrink-0">
+              <FiGlobe className="w-4 h-4" />
+            </div>
+            <div>
+              <h1 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">
+                Create Organization
+              </h1>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Configure your company workspace, branding, team defaults, and localization.
+              </p>
             </div>
           </div>
         </div>
 
         {/* Error Alert */}
         {errorMsg && (
-          <div className="p-4 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm flex items-start gap-3 animate-fadeIn">
-            <span className="text-base mt-0.5">⚠️</span>
+          <div className="p-3.5 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs flex items-start gap-2.5">
+            <span className="text-sm mt-0.5">⚠️</span>
             <div className="flex-1">
               <p className="font-bold">Error creating organization</p>
               <p className="text-xs text-red-600 mt-0.5">{errorMsg}</p>
@@ -294,67 +292,67 @@ export default function CreateOrganizationPage() {
         )}
 
         {/* Main Content Grid: Form (left) + Live Preview (right) */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
           {/* Left Form: Tabs & Fields */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="lg:col-span-2 space-y-4">
             {/* Step Tabs */}
-            <div className="flex border-b border-slate-200 bg-white rounded-t-lg px-3 pt-2">
+            <div className="flex border-b border-slate-200 bg-white rounded-t-lg px-3 pt-1 gap-1">
               <button
                 type="button"
                 onClick={() => setActiveTab("general")}
-                className={`flex items-center gap-2 px-4 py-3 text-xs sm:text-sm font-bold border-b-2 transition-all cursor-pointer ${
+                className={`flex items-center gap-1.5 px-3.5 py-2.5 text-xs font-semibold border-b-2 transition-all cursor-pointer ${
                   activeTab === "general"
                     ? "border-[#0F766E] text-[#0F766E]"
                     : "border-transparent text-slate-500 hover:text-slate-800"
                 }`}
               >
-                <FiInfo className="w-4 h-4" />
+                <FiInfo className="w-3.5 h-3.5" />
                 <span>1. General Info</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setActiveTab("company")}
-                className={`flex items-center gap-2 px-4 py-3 text-xs sm:text-sm font-bold border-b-2 transition-all cursor-pointer ${
+                className={`flex items-center gap-1.5 px-3.5 py-2.5 text-xs font-semibold border-b-2 transition-all cursor-pointer ${
                   activeTab === "company"
                     ? "border-[#0F766E] text-[#0F766E]"
                     : "border-transparent text-slate-500 hover:text-slate-800"
                 }`}
               >
-                <FiBriefcase className="w-4 h-4" />
+                <FiBriefcase className="w-3.5 h-3.5" />
                 <span>2. Company Details</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setActiveTab("location")}
-                className={`flex items-center gap-2 px-4 py-3 text-xs sm:text-sm font-bold border-b-2 transition-all cursor-pointer ${
+                className={`flex items-center gap-1.5 px-3.5 py-2.5 text-xs font-semibold border-b-2 transition-all cursor-pointer ${
                   activeTab === "location"
                     ? "border-[#0F766E] text-[#0F766E]"
                     : "border-transparent text-slate-500 hover:text-slate-800"
                 }`}
               >
-                <FiMapPin className="w-4 h-4" />
+                <FiMapPin className="w-3.5 h-3.5" />
                 <span>3. Location & Localization</span>
               </button>
             </div>
 
             {/* Form Container */}
-            <form onSubmit={handleSubmit} className="bg-white rounded-b-lg border border-t-0 border-slate-200/80 p-6 sm:p-8 space-y-6 shadow-xs">
+            <form onSubmit={handleSubmit} className="bg-white rounded-b-lg border border-t-0 border-slate-200/80 p-5 sm:p-6 space-y-5 shadow-2xs">
               {/* TAB 1: GENERAL INFO */}
               {activeTab === "general" && (
-                <div className="space-y-5 animate-fadeIn">
+                <div className="space-y-4">
                   {/* Organization Name */}
                   <div>
                     <label
                       htmlFor="org-name"
-                      className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5"
+                      className="block text-[11px] font-semibold uppercase tracking-wider text-slate-700 mb-1"
                     >
                       Organization Name <span className="text-red-500">*</span>
                     </label>
                     <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                        <FiGlobe className="w-4 h-4" />
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                        <FiGlobe className="w-3.5 h-3.5" />
                       </div>
                       <input
                         id="org-name"
@@ -365,7 +363,7 @@ export default function CreateOrganizationPage() {
                         value={formData.name}
                         onChange={handleChange}
                         placeholder="e.g. Acme Corporation"
-                        className="w-full h-11 pl-10 pr-4 bg-white border border-slate-300 rounded-lg text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-[#0F766E] focus:border-transparent transition-all placeholder:text-slate-400"
+                        className="jira-input w-full h-8.5 pl-8 pr-3 text-xs"
                       />
                     </div>
                   </div>
@@ -374,12 +372,12 @@ export default function CreateOrganizationPage() {
                   <div>
                     <label
                       htmlFor="org-slug"
-                      className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5"
+                      className="block text-[11px] font-semibold uppercase tracking-wider text-slate-700 mb-1"
                     >
                       Organization Slug (Workspace URL) <span className="text-red-500">*</span>
                     </label>
-                    <div className="flex rounded-lg shadow-2xs border border-slate-300 overflow-hidden focus-within:ring-2 focus-within:ring-[#0F766E] focus-within:border-transparent">
-                      <span className="inline-flex items-center px-3.5 bg-slate-50 text-slate-500 text-xs font-mono border-r border-slate-200">
+                    <div className="flex rounded-lg border border-slate-300 overflow-hidden focus-within:ring-2 focus-within:ring-[#0F766E] focus-within:border-transparent">
+                      <span className="inline-flex items-center px-3 bg-slate-50 text-slate-500 text-xs font-mono border-r border-slate-200">
                         workgrid.web/org/
                       </span>
                       <input
@@ -391,11 +389,11 @@ export default function CreateOrganizationPage() {
                         onChange={handleChange}
                         onBlur={handleSlugBlur}
                         placeholder="acme-corp"
-                        className="flex-1 h-11 px-3 bg-white text-slate-900 text-sm font-mono focus:outline-none"
+                        className="flex-1 h-8.5 px-3 bg-white text-slate-900 text-xs font-mono focus:outline-none"
                       />
                     </div>
-                    <p className="mt-1 text-xs text-slate-400">
-                      Unique identifier used in URLs, reports, and API references.
+                    <p className="mt-1 text-[10px] text-slate-400">
+                      Unique identifier used in URLs and member invitations.
                     </p>
                   </div>
 
@@ -403,13 +401,13 @@ export default function CreateOrganizationPage() {
                   <div>
                     <label
                       htmlFor="logo_url"
-                      className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5"
+                      className="block text-[11px] font-semibold uppercase tracking-wider text-slate-700 mb-1"
                     >
                       Logo Image URL <span className="text-slate-400 font-normal normal-case">(optional)</span>
                     </label>
                     <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                        <FiImage className="w-4 h-4" />
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                        <FiImage className="w-3.5 h-3.5" />
                       </div>
                       <input
                         id="logo_url"
@@ -418,41 +416,36 @@ export default function CreateOrganizationPage() {
                         value={formData.logo_url}
                         onChange={handleChange}
                         placeholder="https://example.com/logo.png"
-                        className="w-full h-11 pl-10 pr-4 bg-white border border-slate-300 rounded-lg text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-[#0F766E] focus:border-transparent transition-all placeholder:text-slate-400"
+                        className="jira-input w-full h-8.5 pl-8 pr-3 text-xs"
                       />
                     </div>
-                    <p className="mt-1 text-xs text-slate-400">
-                      Direct URL to your company logo (PNG, JPG, or SVG).
-                    </p>
                   </div>
 
                   {/* Description */}
                   <div>
                     <label
                       htmlFor="description"
-                      className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5"
+                      className="block text-[11px] font-semibold uppercase tracking-wider text-slate-700 mb-1"
                     >
                       Description <span className="text-slate-400 font-normal normal-case">(optional)</span>
                     </label>
-                    <div className="relative">
-                      <textarea
-                        id="description"
-                        name="description"
-                        rows={3}
-                        value={formData.description}
-                        onChange={handleChange}
-                        placeholder="Brief summary of your company, mission, or projects..."
-                        className="w-full p-3.5 bg-white border border-slate-300 rounded-lg text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-[#0F766E] focus:border-transparent transition-all placeholder:text-slate-400 resize-none"
-                      />
-                    </div>
+                    <textarea
+                      id="description"
+                      name="description"
+                      rows={3}
+                      value={formData.description}
+                      onChange={handleChange}
+                      placeholder="Brief summary of your company, mission, or projects..."
+                      className="jira-input w-full p-2.5 text-xs resize-none"
+                    />
                   </div>
 
                   {/* Actions: Direct Create or Continue */}
-                  <div className="pt-3 flex items-center justify-between border-t border-slate-100">
+                  <div className="pt-2 flex items-center justify-between border-t border-slate-100">
                     <button
                       type="button"
                       onClick={() => setActiveTab("company")}
-                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-[#0F766E] transition-colors cursor-pointer"
+                      className="inline-flex items-center gap-1 text-xs font-semibold text-slate-600 hover:text-[#0F766E] transition-colors cursor-pointer"
                     >
                       <span>Configure Company Details →</span>
                     </button>
@@ -460,7 +453,7 @@ export default function CreateOrganizationPage() {
                     <button
                       type="submit"
                       disabled={loading || !formData.name.trim()}
-                      className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#0F766E] hover:bg-[#0D655E] active:bg-[#115E59] active:scale-[0.98] text-white text-xs sm:text-sm font-bold rounded-lg shadow-md shadow-teal-900/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                      className="btn-primary px-4 py-1.5 text-xs font-semibold"
                     >
                       {loading ? "Creating..." : "Create Organization"}
                     </button>
@@ -470,13 +463,13 @@ export default function CreateOrganizationPage() {
 
               {/* TAB 2: COMPANY DETAILS */}
               {activeTab === "company" && (
-                <div className="space-y-5 animate-fadeIn">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                     {/* Industry */}
                     <div>
                       <label
                         htmlFor="industry"
-                        className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5"
+                        className="block text-[11px] font-semibold uppercase tracking-wider text-slate-700 mb-1"
                       >
                         Industry
                       </label>
@@ -485,7 +478,7 @@ export default function CreateOrganizationPage() {
                         name="industry"
                         value={formData.industry}
                         onChange={handleChange}
-                        className="w-full h-11 px-3 bg-white border border-slate-300 rounded-lg text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-[#0F766E] focus:border-transparent transition-all"
+                        className="jira-input w-full text-xs font-medium h-8.5 px-2.5"
                       >
                         {INDUSTRY_OPTIONS.map((ind) => (
                           <option key={ind} value={ind}>
@@ -499,7 +492,7 @@ export default function CreateOrganizationPage() {
                     <div>
                       <label
                         htmlFor="company_size"
-                        className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5"
+                        className="block text-[11px] font-semibold uppercase tracking-wider text-slate-700 mb-1"
                       >
                         Company Size
                       </label>
@@ -508,7 +501,7 @@ export default function CreateOrganizationPage() {
                         name="company_size"
                         value={formData.company_size}
                         onChange={handleChange}
-                        className="w-full h-11 px-3 bg-white border border-slate-300 rounded-lg text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-[#0F766E] focus:border-transparent transition-all"
+                        className="jira-input w-full text-xs font-medium h-8.5 px-2.5"
                       >
                         {COMPANY_SIZE_OPTIONS.map((size) => (
                           <option key={size} value={size}>
@@ -523,13 +516,13 @@ export default function CreateOrganizationPage() {
                   <div>
                     <label
                       htmlFor="website"
-                      className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5"
+                      className="block text-[11px] font-semibold uppercase tracking-wider text-slate-700 mb-1"
                     >
                       Website URL
                     </label>
                     <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                        <FiGlobe className="w-4 h-4" />
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                        <FiGlobe className="w-3.5 h-3.5" />
                       </div>
                       <input
                         id="website"
@@ -538,23 +531,23 @@ export default function CreateOrganizationPage() {
                         value={formData.website}
                         onChange={handleChange}
                         placeholder="https://acme.com"
-                        className="w-full h-11 pl-10 pr-4 bg-white border border-slate-300 rounded-lg text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-[#0F766E] focus:border-transparent transition-all placeholder:text-slate-400"
+                        className="jira-input w-full h-8.5 pl-8 pr-3 text-xs"
                       />
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                     {/* Work Email */}
                     <div>
                       <label
                         htmlFor="email"
-                        className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5"
+                        className="block text-[11px] font-semibold uppercase tracking-wider text-slate-700 mb-1"
                       >
                         Contact / Support Email
                       </label>
                       <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                          <FiMail className="w-4 h-4" />
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                          <FiMail className="w-3.5 h-3.5" />
                         </div>
                         <input
                           id="email"
@@ -563,7 +556,7 @@ export default function CreateOrganizationPage() {
                           value={formData.email}
                           onChange={handleChange}
                           placeholder="contact@acme.com"
-                          className="w-full h-11 pl-10 pr-4 bg-white border border-slate-300 rounded-lg text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-[#0F766E] focus:border-transparent transition-all placeholder:text-slate-400"
+                          className="jira-input w-full h-8.5 pl-8 pr-3 text-xs"
                         />
                       </div>
                     </div>
@@ -572,13 +565,13 @@ export default function CreateOrganizationPage() {
                     <div>
                       <label
                         htmlFor="phone"
-                        className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5"
+                        className="block text-[11px] font-semibold uppercase tracking-wider text-slate-700 mb-1"
                       >
                         Phone Number
                       </label>
                       <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                          <FiPhone className="w-4 h-4" />
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                          <FiPhone className="w-3.5 h-3.5" />
                         </div>
                         <input
                           id="phone"
@@ -587,25 +580,25 @@ export default function CreateOrganizationPage() {
                           value={formData.phone}
                           onChange={handleChange}
                           placeholder="+1 (555) 000-0000"
-                          className="w-full h-11 pl-10 pr-4 bg-white border border-slate-300 rounded-lg text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-[#0F766E] focus:border-transparent transition-all placeholder:text-slate-400"
+                          className="jira-input w-full h-8.5 pl-8 pr-3 text-xs"
                         />
                       </div>
                     </div>
                   </div>
 
                   {/* Buttons */}
-                  <div className="pt-2 flex items-center justify-between">
+                  <div className="pt-2 flex items-center justify-between border-t border-slate-100">
                     <button
                       type="button"
                       onClick={() => setActiveTab("general")}
-                      className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors cursor-pointer"
+                      className="btn-secondary px-3 py-1.5 text-xs font-semibold"
                     >
                       ← Back to General
                     </button>
                     <button
                       type="button"
                       onClick={() => setActiveTab("location")}
-                      className="inline-flex items-center gap-2 px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-lg transition-all cursor-pointer"
+                      className="btn-primary px-4 py-1.5 text-xs font-semibold"
                     >
                       <span>Continue to Localization</span>
                       <FiArrowRight className="w-3.5 h-3.5" />
@@ -616,18 +609,18 @@ export default function CreateOrganizationPage() {
 
               {/* TAB 3: LOCATION & LOCALIZATION */}
               {activeTab === "location" && (
-                <div className="space-y-5 animate-fadeIn">
+                <div className="space-y-4">
                   {/* Address */}
                   <div>
                     <label
                       htmlFor="address"
-                      className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5"
+                      className="block text-[11px] font-semibold uppercase tracking-wider text-slate-700 mb-1"
                     >
                       Street Address
                     </label>
                     <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                        <FiMapPin className="w-4 h-4" />
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                        <FiMapPin className="w-3.5 h-3.5" />
                       </div>
                       <input
                         id="address"
@@ -636,7 +629,7 @@ export default function CreateOrganizationPage() {
                         value={formData.address}
                         onChange={handleChange}
                         placeholder="100 Market St, Suite 400"
-                        className="w-full h-11 pl-10 pr-4 bg-white border border-slate-300 rounded-lg text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-[#0F766E] focus:border-transparent transition-all placeholder:text-slate-400"
+                        className="jira-input w-full h-8.5 pl-8 pr-3 text-xs"
                       />
                     </div>
                   </div>
@@ -646,7 +639,7 @@ export default function CreateOrganizationPage() {
                     <div>
                       <label
                         htmlFor="city"
-                        className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5"
+                        className="block text-[11px] font-semibold uppercase tracking-wider text-slate-700 mb-1"
                       >
                         City
                       </label>
@@ -657,14 +650,14 @@ export default function CreateOrganizationPage() {
                         value={formData.city}
                         onChange={handleChange}
                         placeholder="San Francisco"
-                        className="w-full h-11 px-3 bg-white border border-slate-300 rounded-lg text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-[#0F766E] focus:border-transparent transition-all placeholder:text-slate-400"
+                        className="jira-input w-full h-8.5 px-3 text-xs"
                       />
                     </div>
 
                     <div>
                       <label
                         htmlFor="state"
-                        className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5"
+                        className="block text-[11px] font-semibold uppercase tracking-wider text-slate-700 mb-1"
                       >
                         State / Province
                       </label>
@@ -675,14 +668,14 @@ export default function CreateOrganizationPage() {
                         value={formData.state}
                         onChange={handleChange}
                         placeholder="CA"
-                        className="w-full h-11 px-3 bg-white border border-slate-300 rounded-lg text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-[#0F766E] focus:border-transparent transition-all placeholder:text-slate-400"
+                        className="jira-input w-full h-8.5 px-3 text-xs"
                       />
                     </div>
 
                     <div>
                       <label
                         htmlFor="country"
-                        className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5"
+                        className="block text-[11px] font-semibold uppercase tracking-wider text-slate-700 mb-1"
                       >
                         Country
                       </label>
@@ -693,14 +686,14 @@ export default function CreateOrganizationPage() {
                         value={formData.country}
                         onChange={handleChange}
                         placeholder="United States"
-                        className="w-full h-11 px-3 bg-white border border-slate-300 rounded-lg text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-[#0F766E] focus:border-transparent transition-all placeholder:text-slate-400"
+                        className="jira-input w-full h-8.5 px-3 text-xs"
                       />
                     </div>
 
                     <div>
                       <label
                         htmlFor="postal_code"
-                        className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5"
+                        className="block text-[11px] font-semibold uppercase tracking-wider text-slate-700 mb-1"
                       >
                         Postal Code
                       </label>
@@ -711,93 +704,83 @@ export default function CreateOrganizationPage() {
                         value={formData.postal_code}
                         onChange={handleChange}
                         placeholder="94105"
-                        className="w-full h-11 px-3 bg-white border border-slate-300 rounded-lg text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-[#0F766E] focus:border-transparent transition-all placeholder:text-slate-400"
+                        className="jira-input w-full h-8.5 px-3 text-xs"
                       />
                     </div>
                   </div>
 
                   {/* Timezone & Currency */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
                     {/* Timezone */}
                     <div>
                       <label
                         htmlFor="timezone"
-                        className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5"
+                        className="block text-[11px] font-semibold uppercase tracking-wider text-slate-700 mb-1"
                       >
                         Workspace Timezone
                       </label>
-                      <div className="relative">
-                        <select
-                          id="timezone"
-                          name="timezone"
-                          value={formData.timezone}
-                          onChange={handleChange}
-                          className="w-full h-11 px-3 bg-white border border-slate-300 rounded-lg text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-[#0F766E] focus:border-transparent transition-all"
-                        >
-                          {TIMEZONE_OPTIONS.map((tz) => (
-                            <option key={tz.value} value={tz.value}>
-                              {tz.label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <p className="mt-1 text-xs text-slate-400">
-                        Default timezone for sprint schedules, issue timestamps, and SLA metrics.
-                      </p>
+                      <select
+                        id="timezone"
+                        name="timezone"
+                        value={formData.timezone}
+                        onChange={handleChange}
+                        className="jira-input w-full text-xs font-medium h-8.5 px-2.5"
+                      >
+                        {TIMEZONE_OPTIONS.map((tz) => (
+                          <option key={tz.value} value={tz.value}>
+                            {tz.label}
+                          </option>
+                        ))}
+                      </select>
                     </div>
 
                     {/* Currency */}
                     <div>
                       <label
                         htmlFor="currency"
-                        className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5"
+                        className="block text-[11px] font-semibold uppercase tracking-wider text-slate-700 mb-1"
                       >
                         Billing & Project Currency
                       </label>
-                      <div className="relative">
-                        <select
-                          id="currency"
-                          name="currency"
-                          value={formData.currency}
-                          onChange={handleChange}
-                          className="w-full h-11 px-3 bg-white border border-slate-300 rounded-lg text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-[#0F766E] focus:border-transparent transition-all"
-                        >
-                          {CURRENCY_OPTIONS.map((c) => (
-                            <option key={c.code} value={c.code}>
-                              {c.label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <p className="mt-1 text-xs text-slate-400">
-                        Used for budget management, billing, and project rate cards.
-                      </p>
+                      <select
+                        id="currency"
+                        name="currency"
+                        value={formData.currency}
+                        onChange={handleChange}
+                        className="jira-input w-full text-xs font-medium h-8.5 px-2.5"
+                      >
+                        {CURRENCY_OPTIONS.map((c) => (
+                          <option key={c.code} value={c.code}>
+                            {c.label}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                   </div>
 
                   {/* Buttons */}
-                  <div className="pt-4 flex items-center justify-between border-t border-slate-100">
+                  <div className="pt-3 flex items-center justify-between border-t border-slate-100">
                     <button
                       type="button"
                       onClick={() => setActiveTab("company")}
-                      className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors cursor-pointer"
+                      className="btn-secondary px-3 py-1.5 text-xs font-semibold"
                     >
                       ← Back to Company Details
                     </button>
                     <button
                       type="submit"
                       disabled={loading || !formData.name.trim()}
-                      className="inline-flex items-center gap-2 px-6 py-3 bg-[#0F766E] hover:bg-[#0D655E] active:scale-[0.98] text-white text-sm font-bold rounded-lg shadow-md shadow-teal-900/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                      className="btn-primary px-5 py-2 text-xs font-semibold"
                     >
                       {loading ? (
                         <>
-                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                           <span>Creating Organization...</span>
                         </>
                       ) : (
                         <>
                           <span>Create Organization</span>
-                          <FiArrowRight className="w-4 h-4" />
+                          <FiArrowRight className="w-3.5 h-3.5" />
                         </>
                       )}
                     </button>
@@ -808,19 +791,19 @@ export default function CreateOrganizationPage() {
           </div>
 
           {/* Right Column: Live Workspace Preview Card */}
-          <div className="lg:col-span-1 space-y-5">
-            <div className="sticky top-20 bg-white rounded-lg border border-slate-200/80 shadow-xs overflow-hidden">
+          <div className="lg:col-span-1 space-y-4">
+            <div className="sticky top-20 bg-white rounded-lg border border-slate-200/80 shadow-2xs overflow-hidden">
               {/* Card Header Banner */}
-              <div className="h-20 bg-gradient-to-r from-[#0F766E] via-teal-700 to-teal-800 relative p-4 flex items-end">
-                <span className="text-[10px] uppercase font-bold text-white/80 tracking-wider bg-black/20 px-2.5 py-0.5 rounded-lg backdrop-blur-xs">
+              <div className="h-16 bg-[#0F766E] relative p-3 flex items-end">
+                <span className="text-[10px] uppercase font-semibold text-white/90 tracking-wider bg-black/20 px-2 py-0.2 rounded-md">
                   Live Preview
                 </span>
               </div>
 
               {/* Avatar & Org Info */}
-              <div className="px-6 pb-6 pt-0 relative">
-                <div className="-mt-10 mb-3 flex items-end justify-between">
-                  <div className="w-18 h-18 rounded-lg bg-white p-1 border border-slate-200 shadow-md">
+              <div className="px-5 pb-5 pt-0 relative">
+                <div className="-mt-8 mb-2.5 flex items-end justify-between">
+                  <div className="w-14 h-14 rounded-lg bg-white p-1 border border-slate-200 shadow-sm">
                     {formData.logo_url ? (
                       <img
                         src={formData.logo_url}
@@ -828,60 +811,60 @@ export default function CreateOrganizationPage() {
                         onError={(e) => {
                           e.target.style.display = "none";
                         }}
-                        className="w-full h-full object-cover rounded-lg"
+                        className="w-full h-full object-cover rounded-md"
                       />
                     ) : (
-                      <div className="w-full h-full rounded-lg bg-gradient-to-br from-[#0F766E] to-teal-800 flex items-center justify-center text-white text-2xl font-black">
+                      <div className="w-full h-full rounded-md bg-teal-50 border border-teal-200 text-[#0F766E] flex items-center justify-center text-lg font-bold">
                         {formData.name?.charAt(0)?.toUpperCase() || "O"}
                       </div>
                     )}
                   </div>
-                  <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-700 border border-emerald-200">
+                  <span className="px-2 py-0.2 rounded-md text-[10px] font-semibold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200">
                     Active
                   </span>
                 </div>
 
-                <h3 className="text-lg font-black text-slate-900 leading-tight">
+                <h3 className="text-base font-bold text-slate-900 leading-tight">
                   {formData.name || "Acme Corporation"}
                 </h3>
-                <p className="text-xs font-mono text-[#0F766E] mt-0.5">
+                <p className="text-[11px] font-mono text-[#0F766E] mt-0.5">
                   workgrid.web/org/{formData.slug || "acme-corp"}
                 </p>
 
                 {formData.description ? (
-                  <p className="text-xs text-slate-500 mt-2 line-clamp-3 leading-relaxed">
+                  <p className="text-xs text-slate-500 mt-1.5 line-clamp-3 leading-relaxed">
                     {formData.description}
                   </p>
                 ) : (
-                  <p className="text-xs text-slate-400 italic mt-2">
+                  <p className="text-xs text-slate-400 italic mt-1.5">
                     No description provided yet.
                   </p>
                 )}
 
                 {/* Metadata items */}
-                <div className="mt-4 pt-4 border-t border-slate-100 space-y-2 text-xs">
+                <div className="mt-3.5 pt-3.5 border-t border-slate-100 space-y-1.5 text-xs">
                   <div className="flex items-center justify-between text-slate-600">
-                    <span className="flex items-center gap-1.5 text-slate-400">
+                    <span className="flex items-center gap-1.5 text-slate-400 text-[11px]">
                       <FiBriefcase className="w-3.5 h-3.5" />
                       Industry
                     </span>
-                    <span className="font-semibold text-slate-800">
+                    <span className="font-semibold text-slate-800 text-[11px]">
                       {formData.industry || "—"}
                     </span>
                   </div>
 
                   <div className="flex items-center justify-between text-slate-600">
-                    <span className="flex items-center gap-1.5 text-slate-400">
+                    <span className="flex items-center gap-1.5 text-slate-400 text-[11px]">
                       <FiUsers className="w-3.5 h-3.5" />
                       Team Size
                     </span>
-                    <span className="font-semibold text-slate-800">
+                    <span className="font-semibold text-slate-800 text-[11px]">
                       {formData.company_size || "—"}
                     </span>
                   </div>
 
                   <div className="flex items-center justify-between text-slate-600">
-                    <span className="flex items-center gap-1.5 text-slate-400">
+                    <span className="flex items-center gap-1.5 text-slate-400 text-[11px]">
                       <FiClock className="w-3.5 h-3.5" />
                       Timezone
                     </span>
@@ -891,34 +874,34 @@ export default function CreateOrganizationPage() {
                   </div>
 
                   <div className="flex items-center justify-between text-slate-600">
-                    <span className="flex items-center gap-1.5 text-slate-400">
+                    <span className="flex items-center gap-1.5 text-slate-400 text-[11px]">
                       <FiDollarSign className="w-3.5 h-3.5" />
                       Currency
                     </span>
-                    <span className="font-semibold text-slate-800 font-mono">
+                    <span className="font-semibold text-slate-800 font-mono text-[11px]">
                       {formData.currency || "USD"}
                     </span>
                   </div>
 
                   {formData.city && (
                     <div className="flex items-center justify-between text-slate-600">
-                      <span className="flex items-center gap-1.5 text-slate-400">
+                      <span className="flex items-center gap-1.5 text-slate-400 text-[11px]">
                         <FiMapPin className="w-3.5 h-3.5" />
                         Location
                       </span>
-                      <span className="font-semibold text-slate-800">
+                      <span className="font-semibold text-slate-800 text-[11px]">
                         {formData.city}{formData.country ? `, ${formData.country}` : ""}
                       </span>
                     </div>
                   )}
 
                   {formData.website && (
-                    <div className="flex items-center justify-between text-slate-600 pt-1">
-                      <span className="flex items-center gap-1.5 text-slate-400">
+                    <div className="flex items-center justify-between text-slate-600 pt-0.5">
+                      <span className="flex items-center gap-1.5 text-slate-400 text-[11px]">
                         <FiGlobe className="w-3.5 h-3.5" />
                         Website
                       </span>
-                      <span className="font-semibold text-[#0F766E] truncate max-w-[150px]">
+                      <span className="font-semibold text-[#0F766E] truncate max-w-[140px] text-[11px]">
                         {formData.website.replace(/^https?:\/\//, "")}
                       </span>
                     </div>
@@ -926,9 +909,9 @@ export default function CreateOrganizationPage() {
                 </div>
 
                 {/* Creator badge */}
-                <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
-                  <span>Organization Creator</span>
-                  <span className="font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-200">
+                <div className="mt-3.5 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+                  <span>Workspace Creator</span>
+                  <span className="font-semibold text-slate-700 bg-slate-50 px-2 py-0.2 rounded-md border border-slate-200">
                     Owner Role
                   </span>
                 </div>
@@ -936,14 +919,14 @@ export default function CreateOrganizationPage() {
             </div>
 
             {/* Included Features */}
-            <div className="bg-slate-50 rounded-lg border border-slate-200/60 p-4 space-y-3">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700">
+            <div className="bg-white rounded-lg border border-slate-200/80 p-4 space-y-2.5 shadow-2xs">
+              <h4 className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
                 Included in Your Workspace
               </h4>
-              <ul className="text-xs text-slate-600 space-y-2">
+              <ul className="text-xs text-slate-600 space-y-1.5">
                 <li className="flex items-center gap-2">
                   <FiCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                  <span>Unlimited Kanban & Scrum sprint boards</span>
+                  <span>Kanban & Scrum sprint boards</span>
                 </li>
                 <li className="flex items-center gap-2">
                   <FiCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
@@ -951,7 +934,7 @@ export default function CreateOrganizationPage() {
                 </li>
                 <li className="flex items-center gap-2">
                   <FiCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                  <span>Organization settings & member invitations</span>
+                  <span>Workspace settings & member invitations</span>
                 </li>
               </ul>
             </div>

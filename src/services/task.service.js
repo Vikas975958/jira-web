@@ -286,7 +286,13 @@ export const taskService = {
       } catch (_) {}
     }
 
-    const nextId = taskData.id || `JIRA-${Math.floor(100 + Math.random() * 900)}`;
+    const projectPrefix = (finalProjectName || "TASK")
+      .trim()
+      .split(/\s+/)[0]
+      ?.toUpperCase()
+      .replace(/[^A-Z0-9]/g, "") || "TASK";
+
+    const nextId = taskData.id || `${projectPrefix}-${Math.floor(100 + Math.random() * 900)}`;
 
     const insertPayload = {
       organization_id: organizationId,
