@@ -1,49 +1,51 @@
-import { SyncOutlined } from "@ant-design/icons";
-import { Spin } from "antd";
+"use client";
+
 import React, { useEffect, useState } from "react";
 
 const loadingMessages = [
-  "Fetching data, please wait...",
-  "Processing your request, almost done!",
-  "Loading, thank you for your patience.",
-  "Preparing your data, almost ready!",
-  "Processing data, thank you for waiting.",
-  "Request in progress, please hold on.",
+  "Loading data, please wait...",
+  "Preparing workspace...",
+  "Processing, almost ready...",
+  "Fetching information...",
 ];
 
-const Loader = ({
+export default function Loader({
   height,
-  size,
-  color,
+  size = 36,
+  color = "#0F766E",
   onlySpinner = false,
-}) => {
-  const antIcon = (
-    <SyncOutlined
-      style={{ fontSize: size || 46, color: color || "#d80c0c" }}
-      spin
-    />
-  );
-
-  const [message, setMessage] = useState("");
+  message: customMessage,
+}) {
+  const [message, setMessage] = useState(customMessage || "");
 
   useEffect(() => {
-    const randomMessage =
-      loadingMessages[Math.floor(Math.random() * loadingMessages?.length)];
-    setMessage(randomMessage);
-  }, []);
+    if (!customMessage) {
+      const randomMessage =
+        loadingMessages[Math.floor(Math.random() * loadingMessages.length)];
+      setMessage(randomMessage);
+    }
+  }, [customMessage]);
 
   return (
     <div
-      className={`w-full ${height ? `h-[${height}]` : "h-full"} flex flex-col items-center justify-center gap-2 py-12`}
+      className={`w-full ${
+        height ? `h-[${height}]` : "min-h-[240px] h-full"
+      } flex flex-col items-center justify-center gap-3 p-6 select-none`}
     >
-      <Spin className="m-0" indicator={antIcon} />
+      <div
+        className="border-3 rounded-full animate-spin"
+        style={{
+          width: `${size}px`,
+          height: `${size}px`,
+          borderColor: `${color} transparent transparent transparent`,
+          borderTopColor: color,
+        }}
+      />
       {!onlySpinner && (
-        <p className="text-base lg:text-lg text-center relative overflow-hidden bg-clip-text ">
+        <p className="text-xs font-semibold text-slate-500 tracking-wide">
           {message}
         </p>
       )}
     </div>
   );
-};
-
-export default Loader;
+}

@@ -180,8 +180,7 @@ export default function Header({ onCreateIssueClick }) {
   const handleSelectTask = (task) => {
     setIsSearchOpen(false);
     setSearchQuery("");
-    const targetProjId = task.project_id || "all";
-    router.push(`/projects?projectId=${targetProjId}&search=${encodeURIComponent(task.id)}`);
+    router.push(`/issues/${task.id}`);
   };
 
   const handleSelectMember = (member) => {
