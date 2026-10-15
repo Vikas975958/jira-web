@@ -209,7 +209,6 @@ export default function CreateOrganizationPage() {
         await refreshOrganizations();
       }
 
-      toast.success(`Organization "${trimmedName}" created successfully!`);
       router.push("/dashboard");
     } catch (err) {
       console.error("Create organization error:", err);
@@ -363,7 +362,7 @@ export default function CreateOrganizationPage() {
                         value={formData.name}
                         onChange={handleChange}
                         placeholder="e.g. Acme Corporation"
-                        className="jira-input w-full h-8.5 pl-8 pr-3 text-xs"
+                        className="jira-input w-full h-8.5 !pl-9 pr-3 text-xs"
                       />
                     </div>
                   </div>
@@ -416,7 +415,7 @@ export default function CreateOrganizationPage() {
                         value={formData.logo_url}
                         onChange={handleChange}
                         placeholder="https://example.com/logo.png"
-                        className="jira-input w-full h-8.5 pl-8 pr-3 text-xs"
+                        className="jira-input w-full h-8.5 !pl-9 pr-3 text-xs"
                       />
                     </div>
                   </div>
@@ -531,7 +530,7 @@ export default function CreateOrganizationPage() {
                         value={formData.website}
                         onChange={handleChange}
                         placeholder="https://acme.com"
-                        className="jira-input w-full h-8.5 pl-8 pr-3 text-xs"
+                        className="jira-input w-full h-8.5 !pl-9 pr-3 text-xs"
                       />
                     </div>
                   </div>
@@ -556,7 +555,7 @@ export default function CreateOrganizationPage() {
                           value={formData.email}
                           onChange={handleChange}
                           placeholder="contact@acme.com"
-                          className="jira-input w-full h-8.5 pl-8 pr-3 text-xs"
+                          className="jira-input w-full h-8.5 !pl-9 pr-3 text-xs"
                         />
                       </div>
                     </div>
@@ -580,7 +579,7 @@ export default function CreateOrganizationPage() {
                           value={formData.phone}
                           onChange={handleChange}
                           placeholder="+1 (555) 000-0000"
-                          className="jira-input w-full h-8.5 pl-8 pr-3 text-xs"
+                          className="jira-input w-full h-8.5 !pl-9 pr-3 text-xs"
                         />
                       </div>
                     </div>
@@ -629,7 +628,7 @@ export default function CreateOrganizationPage() {
                         value={formData.address}
                         onChange={handleChange}
                         placeholder="100 Market St, Suite 400"
-                        className="jira-input w-full h-8.5 pl-8 pr-3 text-xs"
+                        className="jira-input w-full h-8.5 !pl-9 pr-3 text-xs"
                       />
                     </div>
                   </div>

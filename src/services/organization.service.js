@@ -607,7 +607,7 @@ export const organizationService = {
     }
 
     if (rpcSucceeded) {
-      return rawMembers.map((m) => {
+      const list = rawMembers.map((m) => {
         const fn =
           m.full_name ||
           (m.role === OWNER_ROLE
@@ -629,6 +629,16 @@ export const organizationService = {
           },
         };
       });
+
+      if (currentUserId) {
+        list.sort((a, b) => {
+          const aIsMe = (a.user_id === currentUserId || a.id === currentUserId || a.profiles?.id === currentUserId) ? 1 : 0;
+          const bIsMe = (b.user_id === currentUserId || b.id === currentUserId || b.profiles?.id === currentUserId) ? 1 : 0;
+          return bIsMe - aIsMe;
+        });
+      }
+
+      return list;
     }
 
     if (!rpcSucceeded) {
@@ -816,6 +826,15 @@ export const organizationService = {
 
     // Complete organization members and managers are shown
     // All members and managers are visible so managers and owners can select full teams for projects.
+    // Always sort current logged-in user to the top of the list
+    if (currentUserId) {
+      members.sort((a, b) => {
+        const aIsMe = (a.user_id === currentUserId || a.id === currentUserId || a.profiles?.id === currentUserId) ? 1 : 0;
+        const bIsMe = (b.user_id === currentUserId || b.id === currentUserId || b.profiles?.id === currentUserId) ? 1 : 0;
+        return bIsMe - aIsMe;
+      });
+    }
+
     return members;
     })();
 

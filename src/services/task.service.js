@@ -1,5 +1,6 @@
 import { supabase } from "@/lib/supabaseconfig";
 import { MEMBER_ROLE, MANAGER_ROLE, OWNER_ROLE } from "@/utils/constants";
+import { parseIssue } from "@/utils/issueHelper";
 
 const LOCAL_STORAGE_KEY = "workgrid_tickets";
 const LEGACY_LOCAL_STORAGE_KEY = "jira_tickets";
@@ -90,11 +91,39 @@ export const taskService = {
       // Supabase table query fallback
     }
 
-    // 2. If Supabase returned data, use it; otherwise fallback to localStorage
-    let allTasks = tasksFromDb;
-    if (!allTasks) {
-      allTasks = this.getLocalTasks(organizationId);
-    }
+    // 2. Seamlessly merge Supabase tasks and localStorage tasks
+    const localTasks = this.getLocalTasks(organizationId);
+    const taskMap = new Map();
+
+    // Add local tasks first (parsed with metadata)
+    (localTasks || []).forEach((t) => {
+      if (t && t.id) {
+        taskMap.set(t.id, parseIssue(t));
+      }
+    });
+
+    // Overlay DB tasks (parsed with metadata, taking precedence for DB fields)
+    (tasksFromDb || []).forEach((dbTask) => {
+      if (dbTask && dbTask.id) {
+        const localMatch = taskMap.get(dbTask.id);
+        const parsedDb = parseIssue(dbTask);
+        const merged = {
+          ...(localMatch || {}),
+          ...parsedDb,
+          status: localMatch?.status === "backlog" && parsedDb.status === "todo"
+            ? "backlog"
+            : parsedDb.status || localMatch?.status || "todo",
+          projectId: parsedDb?.projectId || localMatch?.projectId || null,
+          project_id: parsedDb?.project_id || localMatch?.project_id || null,
+          projectName: parsedDb?.projectName || localMatch?.projectName || dbTask.project_name || "Main Project",
+          project_name: parsedDb?.project_name || localMatch?.project_name || dbTask.project_name || "Main Project",
+        };
+        taskMap.set(dbTask.id, merged);
+      }
+    });
+
+    let allTasks = Array.from(taskMap.values());
+    allTasks.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
 
     // 3. Auto-heal missing assignee_id on existing tasks for owners/managers (only once per task)
     if ((userRole === OWNER_ROLE || userRole === MANAGER_ROLE) && tasksFromDb && tasksFromDb.length > 0) {
@@ -256,12 +285,14 @@ export const taskService = {
       assignee = "Unassigned",
       assigneeId = null,
       projectName = "Main Project",
+      projectId = null,
       dueDate = null,
       createdBy = null,
     } = taskData;
 
     let finalAssigneeId = assigneeId || taskData.assignee_id || null;
     const finalCreatedBy = createdBy || taskData.created_by || null;
+    const finalProjectId = taskData.project_id || taskData.projectId || projectId || null;
     const finalProjectName = taskData.project_name || taskData.projectName || projectName || "Main Project";
     const finalDueDate = taskData.due_date || taskData.dueDate || dueDate || null;
 
@@ -294,11 +325,15 @@ export const taskService = {
 
     const nextId = taskData.id || `${projectPrefix}-${Math.floor(100 + Math.random() * 900)}`;
 
+    // Database check constraint allows only ('todo', 'in-progress', 'review', 'done')
+    // Map 'backlog' to 'todo' for the DB column so insert never fails
+    const dbStatus = status === "backlog" ? "todo" : (status || "todo");
+
     const insertPayload = {
       organization_id: organizationId,
       title: title?.trim(),
       description: description?.trim() || "",
-      status,
+      status: dbStatus,
       priority,
       type,
       assignee: assignee?.trim() || "Unassigned",
@@ -322,21 +357,76 @@ export const taskService = {
 
       if (!error && data) {
         clearTasksCache();
-        this.saveLocalTask(data);
-        return data;
+        const mergedTask = parseIssue({
+          ...taskData,
+          ...data,
+          status: taskData.status || status,
+          projectId: finalProjectId,
+          project_id: finalProjectId,
+          projectName: finalProjectName,
+          project_name: finalProjectName,
+        });
+        this.saveLocalTask(mergedTask);
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(
+            new CustomEvent("workgrid-task-created", { detail: mergedTask })
+          );
+        }
+        return mergedTask;
       }
     } catch (_) {}
 
     // 2. Fallback to localStorage
-    const fallbackTask = {
+    const fallbackTask = parseIssue({
       id: nextId,
+      ...taskData,
       ...insertPayload,
+      status: taskData.status || status,
+      projectId: finalProjectId,
+      project_id: finalProjectId,
+      projectName: finalProjectName,
+      project_name: finalProjectName,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
-    };
+    });
     clearTasksCache();
     this.saveLocalTask(fallbackTask);
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent("workgrid-task-created", { detail: fallbackTask })
+      );
+    }
     return fallbackTask;
+  },
+
+  /**
+   * Fetch a single task by ID.
+   * @param {string} taskId
+   * @param {Object} [options]
+   * @returns {Promise<Object|null>}
+   */
+  async getTaskById(taskId, { organizationId } = {}) {
+    if (!taskId) return null;
+
+    // 1. Check local storage first
+    const localTasks = this.getLocalTasks(organizationId);
+    let matched = localTasks.find((t) => t.id === taskId);
+
+    // 2. Try fetching from Supabase tasks table
+    try {
+      let query = supabase.from("tasks").select("*").eq("id", taskId);
+      if (organizationId) {
+        query = query.eq("organization_id", organizationId);
+      }
+      const { data, error } = await query.single();
+      if (!error && data) {
+        const merged = parseIssue({ ...matched, ...data });
+        this.saveLocalTask(merged);
+        return merged;
+      }
+    } catch (_) {}
+
+    return matched ? parseIssue(matched) : null;
   },
 
   /**
@@ -347,32 +437,94 @@ export const taskService = {
    * @returns {Promise<Object>}
    */
   async updateTask(taskId, updates, context = {}) {
-    const payload = {
-      ...updates,
+    const knownColumns = [
+      "organization_id",
+      "title",
+      "description",
+      "status",
+      "priority",
+      "type",
+      "project_name",
+      "due_date",
+      "assignee",
+      "assignee_id",
+      "created_by",
+    ];
+
+    const dbPayload = {
       updated_at: new Date().toISOString(),
     };
+
+    Object.keys(updates).forEach((k) => {
+      if (knownColumns.includes(k)) {
+        if (k === "status" && updates[k] === "backlog") {
+          dbPayload[k] = "todo";
+        } else {
+          dbPayload[k] = updates[k];
+        }
+      }
+    });
+
+    // If status is updated, ensure metadata in description records the new status
+    // so if status is 'backlog', it is preserved even though DB column is 'todo'
+    if (updates.status) {
+      let currentDesc = updates.description;
+      if (typeof currentDesc === "undefined") {
+        const local = this.getLocalTasks().find((t) => t.id === taskId);
+        currentDesc = local?.description || "";
+      }
+      let meta = {};
+      const match = (currentDesc || "").match(/<!--wg_meta:([\s\S]*?)-->/);
+      if (match) {
+        try {
+          meta = JSON.parse(match[1]);
+        } catch (_) {}
+      }
+      meta.status = updates.status;
+      const cleanDesc = (currentDesc || "").replace(/<!--wg_meta:[\s\S]*?-->/, "").trim();
+      const newDesc = cleanDesc
+        ? `${cleanDesc}\n\n<!--wg_meta:${JSON.stringify(meta)}-->`
+        : `<!--wg_meta:${JSON.stringify(meta)}-->`;
+
+      dbPayload.description = newDesc;
+      updates.description = newDesc;
+    }
+
+    let updatedDbData = null;
 
     // 1. Try Supabase update
     try {
       const { data, error } = await supabase
         .from("tasks")
-        .update(payload)
+        .update(dbPayload)
         .eq("id", taskId)
         .select()
         .single();
 
       if (!error && data) {
-        clearTasksCache();
-        this.updateLocalTask(taskId, data);
-        return data;
+        updatedDbData = data;
       }
     } catch (_) {}
 
-    // 2. Fallback to localStorage
+    const fullUpdatedTask = parseIssue({
+      ...(updatedDbData || {}),
+      ...updates,
+      status: updates.status || (updatedDbData?.status || "todo"),
+      id: taskId,
+      updated_at: new Date().toISOString(),
+    });
+
+    // 2. Update cache and localStorage
     clearTasksCache();
-    this.updateLocalTask(taskId, payload);
-    return { id: taskId, ...payload };
+    this.updateLocalTask(taskId, fullUpdatedTask);
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent("workgrid-task-updated", { detail: fullUpdatedTask })
+      );
+    }
+    return fullUpdatedTask;
   },
+
 
   /**
    * Delete a task (Authorized for Owner & Manager).

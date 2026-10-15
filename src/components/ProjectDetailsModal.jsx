@@ -79,8 +79,15 @@ export default function ProjectDetailsModal({
         });
       });
     }
+    if (currentUserId && list.length > 0) {
+      list.sort((a, b) => {
+        const aIsMe = (a.userId === currentUserId || a.id === currentUserId) ? 1 : 0;
+        const bIsMe = (b.userId === currentUserId || b.id === currentUserId) ? 1 : 0;
+        return bIsMe - aIsMe;
+      });
+    }
     return list;
-  }, [project]);
+  }, [project, currentUserId]);
 
   if (!isOpen || !project) return null;
 
@@ -144,7 +151,6 @@ export default function ProjectDetailsModal({
         userRole: currentUserRole,
         callerId: currentUserId,
       });
-      toast.success("Member removed from project.");
       setMemberToRemove(null);
       if (onProjectUpdated) onProjectUpdated();
     } catch (err) {
@@ -312,6 +318,9 @@ export default function ProjectDetailsModal({
                           <span className="font-semibold text-slate-800 truncate">
                             {member.name}
                           </span>
+                          {currentUserId && (member.userId === currentUserId || member.id === currentUserId) && (
+                            <span className="ml-1 text-[10px] font-semibold text-[#0F766E]">(You)</span>
+                          )}
                         </div>
 
                         {/* Type Badge */}

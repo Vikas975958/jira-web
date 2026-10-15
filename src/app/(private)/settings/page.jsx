@@ -87,13 +87,45 @@ export default function SettingsPage() {
   const authState = useSelector((state) => state.authSlice);
   const user = authState?.userData;
 
-  const { currentOrg, organizations, refreshOrganizations } = useOrganization();
+  const { currentOrg, organizations, loadingOrgs, refreshOrganizations } = useOrganization();
   const activeOrgMembership = currentOrg || organizations?.[0] || null;
   const activeOrg = activeOrgMembership?.organizations || activeOrgMembership;
-  const userRole = activeOrgMembership?.role || user?.role || MEMBER_ROLE;
-  const isOwner = userRole === OWNER_ROLE;
 
-  const [activeTab, setActiveTab] = useState("organization");
+  const membershipRole = (activeOrgMembership?.role || "").toLowerCase().trim();
+  const profileRole = (user?.role || "").toLowerCase().trim();
+
+  // Strict role check: Managers and members must NEVER see workspace data
+  const isManagerOrMember =
+    membershipRole === MANAGER_ROLE.toLowerCase() ||
+    membershipRole === MEMBER_ROLE.toLowerCase() ||
+    (!membershipRole && (profileRole === MANAGER_ROLE.toLowerCase() || profileRole === MEMBER_ROLE.toLowerCase()));
+
+  const isOwner =
+    !isManagerOrMember &&
+    (membershipRole === OWNER_ROLE.toLowerCase() ||
+      activeOrg?.owner_id === user?.id ||
+      activeOrg?.created_by === user?.id ||
+      (!activeOrgMembership && profileRole === OWNER_ROLE.toLowerCase()));
+
+  const [activeTab, setActiveTab] = useState("profile");
+  const tabInitializedRef = React.useRef(false);
+
+  useEffect(() => {
+    if (!loadingOrgs && !tabInitializedRef.current) {
+      tabInitializedRef.current = true;
+      if (isOwner) {
+        setActiveTab("organization");
+      } else {
+        setActiveTab("profile");
+      }
+    }
+  }, [isOwner, loadingOrgs]);
+
+  useEffect(() => {
+    if (!isOwner && activeTab === "organization") {
+      setActiveTab("profile");
+    }
+  }, [isOwner, activeTab]);
 
   // Organization Form State
   const [orgData, setOrgData] = useState({
@@ -193,7 +225,6 @@ export default function SettingsPage() {
         currency: orgData.currency || "USD",
       });
       await refreshOrganizations();
-      toast.success("Workspace settings updated successfully.");
     } catch (err) {
       console.error("Failed to update workspace:", err);
       toast.error(err?.message || "Failed to update workspace settings.");
@@ -216,7 +247,6 @@ export default function SettingsPage() {
 
       await profileService.updateProfile(user.id, updates);
       dispatch(updateProfile(updates));
-      toast.success("Profile updated successfully.");
     } catch (err) {
       console.error("Failed to update profile:", err);
       toast.error(err?.message || "Failed to update profile.");
@@ -231,7 +261,6 @@ export default function SettingsPage() {
     setSavingPrefs(true);
     setTimeout(() => {
       setSavingPrefs(false);
-      toast.success("Preferences saved.");
     }, 400);
   };
 
@@ -243,24 +272,28 @@ export default function SettingsPage() {
           Settings
         </h1>
         <p className="text-xs text-slate-500 mt-0.5">
-          Manage your workspace configuration, account profile, and notifications.
+          {isOwner
+            ? "Manage your workspace configuration, account profile, and notifications."
+            : "Manage your personal profile and account preferences."}
         </p>
       </div>
 
       {/* Tabs */}
       <div className="flex border-b border-slate-200 gap-1">
-        <button
-          type="button"
-          onClick={() => setActiveTab("organization")}
-          className={`flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold border-b-2 transition-all cursor-pointer ${
-            activeTab === "organization"
-              ? "border-[#0F766E] text-[#0F766E]"
-              : "border-transparent text-slate-500 hover:text-slate-900"
-          }`}
-        >
-          <FiGlobe className="w-3.5 h-3.5" />
-          <span>Workspace</span>
-        </button>
+        {isOwner && (
+          <button
+            type="button"
+            onClick={() => setActiveTab("organization")}
+            className={`flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold border-b-2 transition-all cursor-pointer ${
+              activeTab === "organization"
+                ? "border-[#0F766E] text-[#0F766E]"
+                : "border-transparent text-slate-500 hover:text-slate-900"
+            }`}
+          >
+            <FiGlobe className="w-3.5 h-3.5" />
+            <span>Workspace</span>
+          </button>
+        )}
 
         <button
           type="button"
@@ -289,8 +322,8 @@ export default function SettingsPage() {
         </button>
       </div>
 
-      {/* TAB 1: ORGANIZATION / WORKSPACE SETTINGS */}
-      {activeTab === "organization" && (
+      {/* TAB 1: ORGANIZATION / WORKSPACE SETTINGS (OWNER ONLY) */}
+      {isOwner && activeTab === "organization" && (
         <div className="bg-white rounded-lg border border-slate-200/80 p-5 sm:p-6 shadow-2xs space-y-5">
           {/* Workspace Banner */}
           <div className="p-3.5 rounded-lg bg-slate-50 border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
@@ -325,18 +358,9 @@ export default function SettingsPage() {
             </div>
 
             <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-md bg-white border border-slate-200 text-slate-700 self-start sm:self-auto shrink-0">
-              Role: {userRole === OWNER_ROLE ? "Workspace Owner" : userRole}
+              Role: Workspace Owner
             </span>
           </div>
-
-          {!isOwner && (
-            <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-xs flex items-center gap-2">
-              <FiInfo className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-              <span>
-                Workspace settings are in read-only mode for your role ({userRole}). Only the Workspace Owner can modify these settings.
-              </span>
-            </div>
-          )}
 
           <form onSubmit={handleSaveOrg} className="space-y-5">
             {/* Section 1: General & Branding */}

@@ -78,8 +78,13 @@ function TeamPageContent() {
   // Sync from contextMembers if available
   useEffect(() => {
     if (contextMembers && contextMembers.length > 0 && members.length === 0) {
-      setMembers(contextMembers);
-      const l = organizationService.getOrganizationLeadershipSync(contextMembers, user?.id, userRole);
+      const sorted = [...contextMembers].sort((a, b) => {
+        const aIsMe = (a.user_id === user?.id || a.id === user?.id || a.profiles?.id === user?.id) ? 1 : 0;
+        const bIsMe = (b.user_id === user?.id || b.id === user?.id || b.profiles?.id === user?.id) ? 1 : 0;
+        return bIsMe - aIsMe;
+      });
+      setMembers(sorted);
+      const l = organizationService.getOrganizationLeadershipSync(sorted, user?.id, userRole);
       setLeadership(l);
       setLoading(false);
     }
@@ -138,7 +143,15 @@ function TeamPageContent() {
       );
 
       lastFetchedTeamKeyRef.current = fetchKey;
-      setMembers(membersData || []);
+      let sortedMembers = membersData ? [...membersData] : [];
+      if (user?.id && sortedMembers.length > 0) {
+        sortedMembers.sort((a, b) => {
+          const aIsMe = (a.user_id === user.id || a.id === user.id || a.profiles?.id === user.id) ? 1 : 0;
+          const bIsMe = (b.user_id === user.id || b.id === user.id || b.profiles?.id === user.id) ? 1 : 0;
+          return bIsMe - aIsMe;
+        });
+      }
+      setMembers(sortedMembers);
       setRequests(requestsData || []);
       setLeadership(leadershipData || { owner: null, manager: null });
     } catch (err) {
@@ -217,7 +230,6 @@ function TeamPageContent() {
           email: req.email,
           organizationId: orgId,
         });
-        toast.success("Invitation removed.");
       } else if (deleteModalState.actionType === "member") {
         const member = deleteModalState.item.raw;
         await organizationService.removeOrganizationMember({
@@ -227,7 +239,6 @@ function TeamPageContent() {
           callerRole: userRole,
           callerId: user?.id,
         });
-        toast.success("Member removed successfully.");
       }
       setDeleteModalState((prev) => ({ ...prev, isOpen: false }));
       await loadTeamData(true);
@@ -240,13 +251,25 @@ function TeamPageContent() {
     }
   };
 
-  const filteredMembers = members.filter((m) => {
-    const name = m.profiles?.full_name?.toLowerCase() || m.full_name?.toLowerCase() || "";
-    const email = m.profiles?.email?.toLowerCase() || m.email?.toLowerCase() || "";
-    const role = m.role?.toLowerCase() || "";
-    const q = searchTerm.toLowerCase();
-    return name.includes(q) || email.includes(q) || role.includes(q);
-  });
+  const filteredMembers = React.useMemo(() => {
+    const list = members.filter((m) => {
+      const name = m.profiles?.full_name?.toLowerCase() || m.full_name?.toLowerCase() || "";
+      const email = m.profiles?.email?.toLowerCase() || m.email?.toLowerCase() || "";
+      const role = m.role?.toLowerCase() || "";
+      const q = searchTerm.toLowerCase();
+      return name.includes(q) || email.includes(q) || role.includes(q);
+    });
+
+    if (user?.id) {
+      list.sort((a, b) => {
+        const aIsMe = (a.user_id === user.id || a.id === user.id || a.profiles?.id === user.id) ? 1 : 0;
+        const bIsMe = (b.user_id === user.id || b.id === user.id || b.profiles?.id === user.id) ? 1 : 0;
+        return bIsMe - aIsMe;
+      });
+    }
+
+    return list;
+  }, [members, searchTerm, user?.id]);
 
   const filteredRequests = requests.filter((r) => {
     // Only pending requests are shown in requests list
@@ -422,14 +445,24 @@ function TeamPageContent() {
         </div>
 
         <div className="relative max-w-xs w-full">
-          <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+          <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
           <input
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Search by name, email or role..."
-            className="jira-input w-full h-8 pl-8 pr-3 text-xs"
+            className="jira-input w-full h-8 !pl-9 pr-8 text-xs"
           />
+          {searchTerm && (
+            <button
+              type="button"
+              onClick={() => setSearchTerm("")}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-600 rounded cursor-pointer"
+              title="Clear search"
+            >
+              <FiX className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
       </div>
 
@@ -465,7 +498,7 @@ function TeamPageContent() {
                             <span className="font-semibold text-slate-900">
                               {member.profiles?.full_name || "Unknown"}
                             </span>
-                            {member.user_id === user?.id && (
+                            {(member.user_id === user?.id || member.id === user?.id || member.profiles?.id === user?.id) && (
                               <span className="ml-1.5 text-[10px] font-semibold text-[#0F766E]">(You)</span>
                             )}
                           </div>
@@ -494,7 +527,7 @@ function TeamPageContent() {
                       </td>
                       {!isMember && (
                         <td className="py-2.5 px-4 text-right">
-                          {member.user_id !== user?.id && member.role !== OWNER_ROLE && (
+                          {member.user_id !== user?.id && member.id !== user?.id && member.role !== OWNER_ROLE && (
                             userRole === OWNER_ROLE || (userRole === MANAGER_ROLE && member.role === MEMBER_ROLE)
                           ) ? (
                             processingId === member.id ? (

@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  useCallback,
+  useRef,
+} from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -53,10 +59,10 @@ import { formatTaskKey } from "@/utils/commonFunction";
 
 // Vibrant avatar colors matching [V][H][M][A] overlapping style
 const AVATAR_STACK_COLORS = [
-  "bg-pink-500 text-white",     // Pink (V)
-  "bg-orange-500 text-white",   // Orange (H)
-  "bg-blue-500 text-white",     // Blue (M)
-  "bg-teal-500 text-white",     // Teal (A)
+  "bg-pink-500 text-white", // Pink (V)
+  "bg-orange-500 text-white", // Orange (H)
+  "bg-blue-500 text-white", // Blue (M)
+  "bg-teal-500 text-white", // Teal (A)
   "bg-purple-600 text-white",
   "bg-indigo-500 text-white",
   "bg-rose-500 text-white",
@@ -83,7 +89,10 @@ function DashboardSkeleton() {
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {[...Array(4)].map((_, i) => (
-          <div key={i} className="h-24 bg-white rounded-lg border border-slate-200/80" />
+          <div
+            key={i}
+            className="h-24 bg-white rounded-lg border border-slate-200/80"
+          />
         ))}
       </div>
       <div className="h-96 bg-white rounded-lg border border-slate-200/80" />
@@ -95,7 +104,15 @@ function DashboardSkeleton() {
 // View when user has no organization yet
 // Displays welcome notice and direct Create Organization prompt
 // ─────────────────────────────────────────────────────────
-function NoOrganizationView({ userName, userEmail, userInvitations, onCreateOrg, onLogout, user, onRefresh }) {
+function NoOrganizationView({
+  userName,
+  userEmail,
+  userInvitations,
+  onCreateOrg,
+  onLogout,
+  user,
+  onRefresh,
+}) {
   return (
     <div className="min-h-screen w-full bg-slate-50/70 p-4 sm:p-8 flex flex-col justify-between items-center select-none">
       {/* Top minimal header bar */}
@@ -135,7 +152,8 @@ function NoOrganizationView({ userName, userEmail, userInvitations, onCreateOrg,
                   Pending Invitations ({userInvitations.length})
                 </h3>
                 <p className="text-xs text-amber-700 mt-0.5 leading-relaxed">
-                  You have been invited to join the following workspace or project team. Click accept to join immediately.
+                  You have been invited to join the following workspace or
+                  project team. Click accept to join immediately.
                 </p>
               </div>
             </div>
@@ -189,10 +207,11 @@ function NoOrganizationView({ userName, userEmail, userInvitations, onCreateOrg,
                               userEmail: userEmail,
                             });
                           }
-                          toast.success("Invitation accepted! Loading workspace...");
                           if (onRefresh) onRefresh();
                         } catch (err) {
-                          toast.error(err?.message || "Failed to accept invitation.");
+                          toast.error(
+                            err?.message || "Failed to accept invitation.",
+                          );
                         }
                       }}
                       className="btn-primary px-3 py-1.5 text-xs font-semibold"
@@ -217,7 +236,9 @@ function NoOrganizationView({ userName, userEmail, userInvitations, onCreateOrg,
               Welcome to WorkGrid, {userName || "there"}!
             </h1>
             <p className="text-xs sm:text-sm text-slate-500 max-w-sm mx-auto leading-relaxed">
-              You haven&apos;t created or joined an organization yet. Set up your organization to start collaborating with members and managers on agile sprints.
+              You haven&apos;t created or joined an organization yet. Set up
+              your organization to start collaborating with members and managers
+              on agile sprints.
             </p>
           </div>
 
@@ -254,7 +275,8 @@ function OrganizationDashboardContent({
   const router = useRouter();
   const org = membership?.organizations;
   const userRole = membership?.role || MEMBER_ROLE;
-  const isAuthorizedAdmin = userRole === OWNER_ROLE || userRole === MANAGER_ROLE;
+  const isAuthorizedAdmin =
+    userRole === OWNER_ROLE || userRole === MANAGER_ROLE;
 
   // Unified Invite Modal State
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
@@ -263,7 +285,8 @@ function OrganizationDashboardContent({
   // Project Modals & State
   const [projects, setProjects] = useState([]);
   const [loadingProjects, setLoadingProjects] = useState(false);
-  const [isCreateProjectModalOpen, setIsCreateProjectModalOpen] = useState(false);
+  const [isCreateProjectModalOpen, setIsCreateProjectModalOpen] =
+    useState(false);
   const [selectedProject, setSelectedProject] = useState(null);
 
   // Search, Filters & Pagination
@@ -291,25 +314,33 @@ function OrganizationDashboardContent({
   const lastFetchedRequestsOrgIdRef = useRef(null);
 
   // Load Projects
-  const loadProjects = useCallback(async (force = false) => {
-    if (!orgId) return;
-    if (!force && lastFetchedProjectsOrgIdRef.current === orgId && projects.length > 0) return;
-    try {
-      setLoadingProjects(true);
-      const data = await projectService.getProjects({
-        organizationId: orgId,
-        userId: currentUserId,
-        userRole,
-        force,
-      });
-      lastFetchedProjectsOrgIdRef.current = orgId;
-      setProjects(data || []);
-    } catch (err) {
-      console.error("loadProjects error:", err);
-    } finally {
-      setLoadingProjects(false);
-    }
-  }, [orgId, currentUserId, userRole, projects.length]);
+  const loadProjects = useCallback(
+    async (force = false) => {
+      if (!orgId) return;
+      if (
+        !force &&
+        lastFetchedProjectsOrgIdRef.current === orgId &&
+        projects.length > 0
+      )
+        return;
+      try {
+        setLoadingProjects(true);
+        const data = await projectService.getProjects({
+          organizationId: orgId,
+          userId: currentUserId,
+          userRole,
+          force,
+        });
+        lastFetchedProjectsOrgIdRef.current = orgId;
+        setProjects(data || []);
+      } catch (err) {
+        console.error("loadProjects error:", err);
+      } finally {
+        setLoadingProjects(false);
+      }
+    },
+    [orgId, currentUserId, userRole, projects.length],
+  );
 
   useEffect(() => {
     if (orgId) {
@@ -331,27 +362,35 @@ function OrganizationDashboardContent({
   const [isDeletingRequest, setIsDeletingRequest] = useState(false);
 
   // Fetch Requests
-  const loadRequests = useCallback(async (force = false) => {
-    if (!orgId) return;
-    if (!force && lastFetchedRequestsOrgIdRef.current === orgId && requests.length > 0) return;
-    try {
-      setLoadingRequests(true);
-      const data = await organizationService.getAllRequests(
-        orgId,
-        {
-          currentUserId,
-          currentUserRole: userRole,
-        },
-        force
-      );
-      lastFetchedRequestsOrgIdRef.current = orgId;
-      setRequests(data || []);
-    } catch (err) {
-      console.error("loadRequests error:", err);
-    } finally {
-      setLoadingRequests(false);
-    }
-  }, [orgId, currentUserId, userRole, requests.length]);
+  const loadRequests = useCallback(
+    async (force = false) => {
+      if (!orgId) return;
+      if (
+        !force &&
+        lastFetchedRequestsOrgIdRef.current === orgId &&
+        requests.length > 0
+      )
+        return;
+      try {
+        setLoadingRequests(true);
+        const data = await organizationService.getAllRequests(
+          orgId,
+          {
+            currentUserId,
+            currentUserRole: userRole,
+          },
+          force,
+        );
+        lastFetchedRequestsOrgIdRef.current = orgId;
+        setRequests(data || []);
+      } catch (err) {
+        console.error("loadRequests error:", err);
+      } finally {
+        setLoadingRequests(false);
+      }
+    },
+    [orgId, currentUserId, userRole, requests.length],
+  );
 
   useEffect(() => {
     if (orgId) {
@@ -393,7 +432,6 @@ function OrganizationDashboardContent({
         email: req.email,
         organizationId: orgId,
       });
-      toast.success("Invitation removed.");
       setDeleteRequestConfirmState({ isOpen: false, req: null });
       await loadRequests();
     } catch (err) {
@@ -407,8 +445,9 @@ function OrganizationDashboardContent({
   // Copy Org Slug URL
   const handleCopyOrgLink = () => {
     if (typeof window !== "undefined" && org?.slug) {
-      navigator.clipboard.writeText(`${window.location.origin}/org/${org.slug}`);
-      toast.success("Workspace URL copied to clipboard!");
+      navigator.clipboard.writeText(
+        `${window.location.origin}/org/${org.slug}`,
+      );
     }
   };
 
@@ -416,7 +455,8 @@ function OrganizationDashboardContent({
   const filteredRequests = useMemo(() => {
     return requests.filter((r) => {
       if (r.status !== "pending") return false;
-      if (userRole === MANAGER_ROLE && r.request_type === MANAGER_ROLE) return false;
+      if (userRole === MANAGER_ROLE && r.request_type === MANAGER_ROLE)
+        return false;
       const matchesType =
         requestTypeFilter === "all" || r.request_type === requestTypeFilter;
       const matchesQuery =
@@ -429,7 +469,9 @@ function OrganizationDashboardContent({
 
   const pendingRequestsCount = useMemo(() => {
     return requests.filter(
-      (r) => r.status === "pending" && (userRole !== MANAGER_ROLE || r.request_type !== MANAGER_ROLE)
+      (r) =>
+        r.status === "pending" &&
+        (userRole !== MANAGER_ROLE || r.request_type !== MANAGER_ROLE),
     ).length;
   }, [requests, userRole]);
 
@@ -439,10 +481,12 @@ function OrganizationDashboardContent({
       if (!userId) return [];
       return (projects || []).filter((p) => {
         const pm = p.project_members || [];
-        return pm.some((item) => item.user_id === userId) || p.created_by === userId;
+        return (
+          pm.some((item) => item.user_id === userId) || p.created_by === userId
+        );
       });
     },
-    [projects]
+    [projects],
   );
 
   // Projects filter and pagination
@@ -467,19 +511,39 @@ function OrganizationDashboardContent({
   // Managers List (Only managers, excluding workspace owner)
   const managersList = useMemo(() => {
     return (members || []).filter(
-      (m) => m.role === MANAGER_ROLE && m.role !== OWNER_ROLE && !m.is_owner
+      (m) => m.role === MANAGER_ROLE && m.role !== OWNER_ROLE && !m.is_owner,
     );
   }, [members]);
 
   const filteredManagers = useMemo(() => {
-    return managersList.filter((m) => {
+    const list = managersList.filter((m) => {
       if (!managerSearch.trim()) return true;
       const q = managerSearch.toLowerCase();
       const name = (m.profiles?.full_name || m.full_name || "").toLowerCase();
       const email = (m.profiles?.email || m.email || "").toLowerCase();
       return name.includes(q) || email.includes(q);
     });
-  }, [managersList, managerSearch]);
+
+    if (currentUserId) {
+      list.sort((a, b) => {
+        const aIsMe =
+          a.user_id === currentUserId ||
+          a.id === currentUserId ||
+          a.profiles?.id === currentUserId
+            ? 1
+            : 0;
+        const bIsMe =
+          b.user_id === currentUserId ||
+          b.id === currentUserId ||
+          b.profiles?.id === currentUserId
+            ? 1
+            : 0;
+        return bIsMe - aIsMe;
+      });
+    }
+
+    return list;
+  }, [managersList, managerSearch, currentUserId]);
 
   const paginatedManagers = useMemo(() => {
     const start = (managerPage - 1) * 5;
@@ -491,21 +555,44 @@ function OrganizationDashboardContent({
   const membersList = useMemo(() => {
     if (userRole === MANAGER_ROLE) {
       return (members || []).filter(
-        (m) => m.role === MEMBER_ROLE && m.role !== OWNER_ROLE && m.role !== MANAGER_ROLE
+        (m) =>
+          m.role === MEMBER_ROLE &&
+          m.role !== OWNER_ROLE &&
+          m.role !== MANAGER_ROLE,
       );
     }
     return (members || []).filter((m) => m.role === MEMBER_ROLE);
   }, [members, userRole]);
 
   const filteredMembers = useMemo(() => {
-    return membersList.filter((m) => {
+    const list = membersList.filter((m) => {
       if (!memberSearch.trim()) return true;
       const q = memberSearch.toLowerCase();
       const name = (m.profiles?.full_name || m.full_name || "").toLowerCase();
       const email = (m.profiles?.email || m.email || "").toLowerCase();
       return name.includes(q) || email.includes(q);
     });
-  }, [membersList, memberSearch]);
+
+    if (currentUserId) {
+      list.sort((a, b) => {
+        const aIsMe =
+          a.user_id === currentUserId ||
+          a.id === currentUserId ||
+          a.profiles?.id === currentUserId
+            ? 1
+            : 0;
+        const bIsMe =
+          b.user_id === currentUserId ||
+          b.id === currentUserId ||
+          b.profiles?.id === currentUserId
+            ? 1
+            : 0;
+        return bIsMe - aIsMe;
+      });
+    }
+
+    return list;
+  }, [membersList, memberSearch, currentUserId]);
 
   const paginatedMembers = useMemo(() => {
     const start = (memberPage - 1) * 5;
@@ -669,7 +756,9 @@ function OrganizationDashboardContent({
         <div
           onClick={() => setActiveTab("projects")}
           className={`p-3.5 bg-white rounded-lg border transition-all cursor-pointer shadow-2xs hover:border-slate-300 flex items-center gap-3 ${
-            activeTab === "projects" ? "border-[#0F766E] ring-1 ring-[#0F766E]/40" : "border-slate-200/80"
+            activeTab === "projects"
+              ? "border-[#0F766E] ring-1 ring-[#0F766E]/40"
+              : "border-slate-200/80"
           }`}
         >
           <div className="w-10 h-10 rounded-lg bg-teal-50 text-[#0F766E] flex items-center justify-center shrink-0">
@@ -689,7 +778,9 @@ function OrganizationDashboardContent({
         <div
           onClick={() => setActiveTab("managers")}
           className={`p-3.5 bg-white rounded-lg border transition-all cursor-pointer shadow-2xs hover:border-slate-300 flex items-center gap-3 ${
-            activeTab === "managers" ? "border-purple-600 ring-1 ring-purple-600/40" : "border-slate-200/80"
+            activeTab === "managers"
+              ? "border-purple-600 ring-1 ring-purple-600/40"
+              : "border-slate-200/80"
           }`}
         >
           <div className="w-10 h-10 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
@@ -709,7 +800,9 @@ function OrganizationDashboardContent({
         <div
           onClick={() => setActiveTab("members")}
           className={`p-3.5 bg-white rounded-lg border transition-all cursor-pointer shadow-2xs hover:border-slate-300 flex items-center gap-3 ${
-            activeTab === "members" ? "border-indigo-600 ring-1 ring-indigo-600/40" : "border-slate-200/80"
+            activeTab === "members"
+              ? "border-indigo-600 ring-1 ring-indigo-600/40"
+              : "border-slate-200/80"
           }`}
         >
           <div className="w-10 h-10 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
@@ -732,7 +825,9 @@ function OrganizationDashboardContent({
             setRequestStatusFilter("pending");
           }}
           className={`p-3.5 bg-white rounded-lg border transition-all cursor-pointer shadow-2xs hover:border-slate-300 flex items-center gap-3 ${
-            activeTab === "requests" ? "border-amber-500 ring-1 ring-amber-500/40" : "border-slate-200/80"
+            activeTab === "requests"
+              ? "border-amber-500 ring-1 ring-amber-500/40"
+              : "border-slate-200/80"
           }`}
         >
           <div className="w-10 h-10 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
@@ -822,7 +917,9 @@ function OrganizationDashboardContent({
             }`}
           >
             <FiClock className="w-4 h-4" />
-            <span>{userRole === MANAGER_ROLE ? "Member Requests" : "Requests"}</span>
+            <span>
+              {userRole === MANAGER_ROLE ? "Member Requests" : "Requests"}
+            </span>
             {pendingRequestsCount > 0 ? (
               <span className="text-[10px] px-2 py-0.5 rounded-lg bg-amber-100 text-amber-800 font-bold border border-amber-200">
                 {pendingRequestsCount} Pending
@@ -860,7 +957,7 @@ function OrganizationDashboardContent({
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
               <div className="flex flex-wrap items-center gap-2 flex-1 max-w-lg">
                 <div className="relative flex-1 min-w-[200px]">
-                  <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                   <input
                     type="text"
                     value={projectSearch}
@@ -869,8 +966,21 @@ function OrganizationDashboardContent({
                       setProjectPage(1);
                     }}
                     placeholder="Search projects by name or description..."
-                    className="w-full h-9 pl-9 pr-3 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0F766E] focus:border-transparent transition-all"
+                    className="w-full h-9 pl-9 pr-8 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0F766E] focus:border-transparent transition-all"
                   />
+                  {projectSearch && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setProjectSearch("");
+                        setProjectPage(1);
+                      }}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-600 rounded cursor-pointer"
+                      title="Clear search"
+                    >
+                      <FiX className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
 
                 {/* Status Filter */}
@@ -908,19 +1018,29 @@ function OrganizationDashboardContent({
                 <thead>
                   <tr className="border-b border-slate-100 text-slate-400 font-bold uppercase tracking-wider text-[10px]">
                     <th className="py-3 px-3 w-64">Project</th>
-                    <th className="py-3 px-3 w-44 whitespace-nowrap">Assigned Managers</th>
-                    <th className="py-3 px-3 w-44 whitespace-nowrap">Assigned Members</th>
+                    <th className="py-3 px-3 w-44 whitespace-nowrap">
+                      Assigned Managers
+                    </th>
+                    <th className="py-3 px-3 w-44 whitespace-nowrap">
+                      Assigned Members
+                    </th>
                     <th className="py-3 px-3 w-28 whitespace-nowrap">Status</th>
-                    <th className="py-3 px-3 w-32 whitespace-nowrap">Created Date</th>
-                    <th className="py-3 px-3 text-right w-36 whitespace-nowrap">Actions</th>
+                    <th className="py-3 px-3 w-32 whitespace-nowrap">
+                      Created Date
+                    </th>
+                    <th className="py-3 px-3 text-right w-36 whitespace-nowrap">
+                      Actions
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {paginatedProjects.length > 0 ? (
                     paginatedProjects.map((p) => {
                       const statusBadges = {
-                        planning: "bg-slate-100 text-slate-700 border-slate-200",
-                        active: "bg-emerald-100 text-emerald-800 border-emerald-200",
+                        planning:
+                          "bg-slate-100 text-slate-700 border-slate-200",
+                        active:
+                          "bg-emerald-100 text-emerald-800 border-emerald-200",
                         on_hold: "bg-amber-100 text-amber-800 border-amber-200",
                         completed: "bg-teal-100 text-teal-800 border-teal-200",
                       };
@@ -948,9 +1068,16 @@ function OrganizationDashboardContent({
                               <div className="flex items-center -space-x-2">
                                 {(p.assignedManagers || []).map((mgr, idx) => {
                                   const name =
-                                    mgr.fullName || mgr.name || mgr.profiles?.full_name || mgr.email || "Manager";
+                                    mgr.fullName ||
+                                    mgr.name ||
+                                    mgr.profiles?.full_name ||
+                                    mgr.email ||
+                                    "Manager";
                                   const initial = name.charAt(0).toUpperCase();
-                                  const colorClass = AVATAR_STACK_COLORS[idx % AVATAR_STACK_COLORS.length];
+                                  const colorClass =
+                                    AVATAR_STACK_COLORS[
+                                      idx % AVATAR_STACK_COLORS.length
+                                    ];
                                   return (
                                     <div
                                       key={mgr.id || mgr.userId || mgr.email}
@@ -967,7 +1094,9 @@ function OrganizationDashboardContent({
                                 })}
                               </div>
                             ) : (
-                              <span className="text-slate-400 italic text-[11px]">None</span>
+                              <span className="text-slate-400 italic text-[11px]">
+                                None
+                              </span>
                             )}
                           </td>
 
@@ -977,12 +1106,18 @@ function OrganizationDashboardContent({
                               <div className="flex items-center -space-x-2">
                                 {(p.assignedMembers || []).map((mem, idx) => {
                                   const name =
-                                    mem.fullName || mem.name || mem.profiles?.full_name || mem.email || "Member";
+                                    mem.fullName ||
+                                    mem.name ||
+                                    mem.profiles?.full_name ||
+                                    mem.email ||
+                                    "Member";
                                   const initial = name.charAt(0).toUpperCase();
                                   // Offset by managers count so members get different colors too
                                   const colorClass =
                                     AVATAR_STACK_COLORS[
-                                      ((p.assignedManagers?.length || 0) + idx) % AVATAR_STACK_COLORS.length
+                                      ((p.assignedManagers?.length || 0) +
+                                        idx) %
+                                        AVATAR_STACK_COLORS.length
                                     ];
                                   return (
                                     <div
@@ -1000,7 +1135,9 @@ function OrganizationDashboardContent({
                                 })}
                               </div>
                             ) : (
-                              <span className="text-slate-400 italic text-[11px]">None</span>
+                              <span className="text-slate-400 italic text-[11px]">
+                                None
+                              </span>
                             )}
                           </td>
 
@@ -1018,16 +1155,22 @@ function OrganizationDashboardContent({
                           {/* Created Date */}
                           <td className="py-3 px-3 text-slate-500 text-[11px]">
                             {p.created_at
-                              ? new Date(p.created_at).toLocaleDateString("en-US", {
-                                  year: "numeric",
-                                  month: "short",
-                                  day: "numeric",
-                                })
+                              ? new Date(p.created_at).toLocaleDateString(
+                                  "en-US",
+                                  {
+                                    year: "numeric",
+                                    month: "short",
+                                    day: "numeric",
+                                  },
+                                )
                               : "—"}
                           </td>
 
                           {/* Actions */}
-                          <td className="py-3 px-3 text-right" onClick={(e) => e.stopPropagation()}>
+                          <td
+                            className="py-3 px-3 text-right"
+                            onClick={(e) => e.stopPropagation()}
+                          >
                             <div className="flex items-center justify-end gap-2">
                               <button
                                 type="button"
@@ -1038,7 +1181,9 @@ function OrganizationDashboardContent({
                               </button>
                               <button
                                 type="button"
-                                onClick={() => router.push(`/projects?projectId=${p.id}`)}
+                                onClick={() =>
+                                  router.push(`/projects?projectId=${p.id}`)
+                                }
                                 className="px-2.5 py-1 text-[11px] font-bold text-[#0F766E] bg-teal-50 hover:bg-teal-100 rounded-lg transition-colors cursor-pointer"
                               >
                                 Board →
@@ -1050,7 +1195,10 @@ function OrganizationDashboardContent({
                     })
                   ) : (
                     <tr>
-                      <td colSpan={6} className="py-12 text-center text-slate-400 text-xs">
+                      <td
+                        colSpan={6}
+                        className="py-12 text-center text-slate-400 text-xs"
+                      >
                         {projectSearch || projectStatusFilter !== "all"
                           ? "No projects found matching your search criteria."
                           : "No projects in this organization yet. Click 'Create Project' above to create one."}
@@ -1065,8 +1213,10 @@ function OrganizationDashboardContent({
             {totalProjectPages > 1 && (
               <div className="flex items-center justify-between pt-3 border-t border-slate-100 text-xs text-slate-500">
                 <span>
-                  Showing {Math.min((projectPage - 1) * 5 + 1, filteredProjects.length)} to{" "}
-                  {Math.min(projectPage * 5, filteredProjects.length)} of {filteredProjects.length} projects
+                  Showing{" "}
+                  {Math.min((projectPage - 1) * 5 + 1, filteredProjects.length)}{" "}
+                  to {Math.min(projectPage * 5, filteredProjects.length)} of{" "}
+                  {filteredProjects.length} projects
                 </span>
                 <div className="flex items-center gap-1">
                   <button
@@ -1083,7 +1233,9 @@ function OrganizationDashboardContent({
                   <button
                     type="button"
                     disabled={projectPage >= totalProjectPages}
-                    onClick={() => setProjectPage((p) => Math.min(totalProjectPages, p + 1))}
+                    onClick={() =>
+                      setProjectPage((p) => Math.min(totalProjectPages, p + 1))
+                    }
                     className="px-2.5 py-1 rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-40 cursor-pointer"
                   >
                     Next
@@ -1102,7 +1254,7 @@ function OrganizationDashboardContent({
             {/* Filter and Action Bar */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
               <div className="relative flex-1 max-w-sm">
-                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                 <input
                   type="text"
                   value={managerSearch}
@@ -1111,8 +1263,21 @@ function OrganizationDashboardContent({
                     setManagerPage(1);
                   }}
                   placeholder="Search managers by name or email..."
-                  className="w-full h-9 pl-9 pr-3 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-600 focus:border-transparent transition-all"
+                  className="w-full h-9 pl-9 pr-8 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-600 focus:border-transparent transition-all"
                 />
+                {managerSearch && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setManagerSearch("");
+                      setManagerPage(1);
+                    }}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-600 rounded cursor-pointer"
+                    title="Clear search"
+                  >
+                    <FiX className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
 
               {userRole === OWNER_ROLE && (
@@ -1156,7 +1321,10 @@ function OrganizationDashboardContent({
                       const assignedProjs = getUserAssignedProjects(m.user_id);
 
                       return (
-                        <tr key={m.id || m.user_id} className="hover:bg-slate-50/70 transition-colors">
+                        <tr
+                          key={m.id || m.user_id}
+                          className="hover:bg-slate-50/70 transition-colors"
+                        >
                           <td className="py-3 px-3">
                             <div className="flex items-center gap-3">
                               <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-purple-500 to-indigo-600 text-white flex items-center justify-center font-bold text-xs shrink-0">
@@ -1167,7 +1335,9 @@ function OrganizationDashboardContent({
                                   <p className="font-bold text-slate-900">
                                     {profile?.full_name || "Manager"}
                                   </p>
-                                  {m.user_id === currentUserId && (
+                                  {(m.user_id === currentUserId ||
+                                    m.id === currentUserId ||
+                                    m.profiles?.id === currentUserId) && (
                                     <span className="text-[10px] text-purple-700 font-bold bg-purple-50 px-1.5 py-0.2 rounded-lg border border-purple-200">
                                       (You)
                                     </span>
@@ -1199,7 +1369,9 @@ function OrganizationDashboardContent({
                                 ))}
                               </div>
                             ) : (
-                              <span className="text-slate-400 italic text-[11px]">No projects assigned</span>
+                              <span className="text-slate-400 italic text-[11px]">
+                                No projects assigned
+                              </span>
                             )}
                           </td>
 
@@ -1214,7 +1386,10 @@ function OrganizationDashboardContent({
                     })
                   ) : (
                     <tr>
-                      <td colSpan={4} className="py-12 text-center text-slate-400 text-xs">
+                      <td
+                        colSpan={4}
+                        className="py-12 text-center text-slate-400 text-xs"
+                      >
                         No managers found matching your search.
                       </td>
                     </tr>
@@ -1227,8 +1402,10 @@ function OrganizationDashboardContent({
             {totalManagerPages > 1 && (
               <div className="flex items-center justify-between pt-3 border-t border-slate-100 text-xs text-slate-500">
                 <span>
-                  Showing {Math.min((managerPage - 1) * 5 + 1, filteredManagers.length)} to{" "}
-                  {Math.min(managerPage * 5, filteredManagers.length)} of {filteredManagers.length} managers
+                  Showing{" "}
+                  {Math.min((managerPage - 1) * 5 + 1, filteredManagers.length)}{" "}
+                  to {Math.min(managerPage * 5, filteredManagers.length)} of{" "}
+                  {filteredManagers.length} managers
                 </span>
                 <div className="flex items-center gap-1">
                   <button
@@ -1245,7 +1422,9 @@ function OrganizationDashboardContent({
                   <button
                     type="button"
                     disabled={managerPage >= totalManagerPages}
-                    onClick={() => setManagerPage((p) => Math.min(totalManagerPages, p + 1))}
+                    onClick={() =>
+                      setManagerPage((p) => Math.min(totalManagerPages, p + 1))
+                    }
                     className="px-2.5 py-1 rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-40 cursor-pointer"
                   >
                     Next
@@ -1264,7 +1443,7 @@ function OrganizationDashboardContent({
             {/* Filter and Action Bar */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
               <div className="relative flex-1 max-w-sm">
-                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                 <input
                   type="text"
                   value={memberSearch}
@@ -1273,8 +1452,21 @@ function OrganizationDashboardContent({
                     setMemberPage(1);
                   }}
                   placeholder="Search members by name or email..."
-                  className="w-full h-9 pl-9 pr-3 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:border-transparent transition-all"
+                  className="w-full h-9 pl-9 pr-8 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:border-transparent transition-all"
                 />
+                {memberSearch && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMemberSearch("");
+                      setMemberPage(1);
+                    }}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-600 rounded cursor-pointer"
+                    title="Clear search"
+                  >
+                    <FiX className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
 
               <button
@@ -1316,7 +1508,10 @@ function OrganizationDashboardContent({
                       const assignedProjs = getUserAssignedProjects(m.user_id);
 
                       return (
-                        <tr key={m.id || m.user_id} className="hover:bg-slate-50/70 transition-colors">
+                        <tr
+                          key={m.id || m.user_id}
+                          className="hover:bg-slate-50/70 transition-colors"
+                        >
                           <td className="py-3 px-3">
                             <div className="flex items-center gap-3">
                               <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-slate-200 to-slate-300 text-slate-700 flex items-center justify-center font-bold text-xs shrink-0">
@@ -1327,7 +1522,9 @@ function OrganizationDashboardContent({
                                   <p className="font-bold text-slate-900">
                                     {profile?.full_name || "Team Member"}
                                   </p>
-                                  {m.user_id === currentUserId && (
+                                  {(m.user_id === currentUserId ||
+                                    m.id === currentUserId ||
+                                    m.profiles?.id === currentUserId) && (
                                     <span className="text-[10px] text-[#0F766E] font-bold bg-teal-50 px-1.5 py-0.2 rounded-lg border border-teal-200">
                                       (You)
                                     </span>
@@ -1356,7 +1553,9 @@ function OrganizationDashboardContent({
                                 ))}
                               </div>
                             ) : (
-                              <span className="text-slate-400 italic text-[11px]">No projects assigned</span>
+                              <span className="text-slate-400 italic text-[11px]">
+                                No projects assigned
+                              </span>
                             )}
                           </td>
 
@@ -1371,7 +1570,10 @@ function OrganizationDashboardContent({
                     })
                   ) : (
                     <tr>
-                      <td colSpan={4} className="py-12 text-center text-slate-400 text-xs">
+                      <td
+                        colSpan={4}
+                        className="py-12 text-center text-slate-400 text-xs"
+                      >
                         No team members found matching your search.
                       </td>
                     </tr>
@@ -1384,8 +1586,10 @@ function OrganizationDashboardContent({
             {totalMemberPages > 1 && (
               <div className="flex items-center justify-between pt-3 border-t border-slate-100 text-xs text-slate-500">
                 <span>
-                  Showing {Math.min((memberPage - 1) * 5 + 1, filteredMembers.length)} to{" "}
-                  {Math.min(memberPage * 5, filteredMembers.length)} of {filteredMembers.length} members
+                  Showing{" "}
+                  {Math.min((memberPage - 1) * 5 + 1, filteredMembers.length)}{" "}
+                  to {Math.min(memberPage * 5, filteredMembers.length)} of{" "}
+                  {filteredMembers.length} members
                 </span>
                 <div className="flex items-center gap-1">
                   <button
@@ -1402,7 +1606,9 @@ function OrganizationDashboardContent({
                   <button
                     type="button"
                     disabled={memberPage >= totalMemberPages}
-                    onClick={() => setMemberPage((p) => Math.min(totalMemberPages, p + 1))}
+                    onClick={() =>
+                      setMemberPage((p) => Math.min(totalMemberPages, p + 1))
+                    }
                     className="px-2.5 py-1 rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-40 cursor-pointer"
                   >
                     Next
@@ -1423,14 +1629,24 @@ function OrganizationDashboardContent({
             <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 pb-3 border-b border-slate-100">
               {/* Search */}
               <div className="relative flex-1 max-w-sm">
-                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                 <input
                   type="text"
                   value={requestSearch}
                   onChange={(e) => setRequestSearch(e.target.value)}
                   placeholder="Search requests by name or email..."
-                  className="w-full h-9 pl-9 pr-3 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0F766E] focus:border-transparent transition-all"
+                  className="w-full h-9 pl-9 pr-8 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0F766E] focus:border-transparent transition-all"
                 />
+                {requestSearch && (
+                  <button
+                    type="button"
+                    onClick={() => setRequestSearch("")}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-600 rounded cursor-pointer"
+                    title="Clear search"
+                  >
+                    <FiX className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
 
               {/* Filters */}
@@ -1495,7 +1711,9 @@ function OrganizationDashboardContent({
                     <tr className="border-b border-slate-100 text-slate-400 font-bold uppercase tracking-wider text-[10px]">
                       <th className="py-3 px-3">Invited Candidate</th>
                       <th className="py-3 px-3">Email</th>
-                      {userRole !== MANAGER_ROLE && <th className="py-3 px-3">Type</th>}
+                      {userRole !== MANAGER_ROLE && (
+                        <th className="py-3 px-3">Type</th>
+                      )}
                       <th className="py-3 px-3">Status</th>
                       <th className="py-3 px-3">Invitation Note</th>
                       <th className="py-3 px-3">Submitted</th>
@@ -1572,7 +1790,7 @@ function OrganizationDashboardContent({
                               {
                                 month: "short",
                                 day: "numeric",
-                              }
+                              },
                             )}
                           </td>
 
@@ -1585,13 +1803,19 @@ function OrganizationDashboardContent({
                                   type="button"
                                   onClick={() => handleDeleteRequest(req)}
                                   className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
-                                  title={isPending ? "Cancel invitation" : "Delete request record"}
+                                  title={
+                                    isPending
+                                      ? "Cancel invitation"
+                                      : "Delete request record"
+                                  }
                                 >
                                   <FiTrash2 className="w-3.5 h-3.5" />
                                 </button>
                               </div>
                             ) : (
-                              <span className="text-slate-400 text-[11px]">—</span>
+                              <span className="text-slate-400 text-[11px]">
+                                —
+                              </span>
                             )}
                           </td>
                         </tr>
@@ -1702,17 +1926,13 @@ function OrganizationDashboardContent({
                   <p className="text-[10px] uppercase font-bold text-slate-400">
                     Email
                   </p>
-                  <p className="text-slate-700 mt-0.5">
-                    {org?.email || "—"}
-                  </p>
+                  <p className="text-slate-700 mt-0.5">{org?.email || "—"}</p>
                 </div>
                 <div>
                   <p className="text-[10px] uppercase font-bold text-slate-400">
                     Phone
                   </p>
-                  <p className="text-slate-700 mt-0.5">
-                    {org?.phone || "—"}
-                  </p>
+                  <p className="text-slate-700 mt-0.5">{org?.phone || "—"}</p>
                 </div>
               </div>
 
@@ -1763,7 +1983,9 @@ function OrganizationDashboardContent({
             <div className="p-4 rounded-lg bg-slate-100/70 border border-slate-200 text-slate-500 flex flex-wrap items-center justify-between gap-3 text-[11px]">
               {userRole === OWNER_ROLE && (
                 <div>
-                  <span className="font-bold text-slate-700">Created By UUID: </span>
+                  <span className="font-bold text-slate-700">
+                    Created By UUID:{" "}
+                  </span>
                   <span className="font-mono">{org?.created_by || "—"}</span>
                 </div>
               )}
@@ -1837,15 +2059,27 @@ function OrganizationDashboardContent({
       {/* Delete Invitation / Request Confirm Modal */}
       <DeleteConfirmModal
         isOpen={deleteRequestConfirmState.isOpen}
-        onClose={() => setDeleteRequestConfirmState({ isOpen: false, req: null })}
+        onClose={() =>
+          setDeleteRequestConfirmState({ isOpen: false, req: null })
+        }
         onConfirm={handleConfirmDeleteRequest}
         isLoading={isDeletingRequest}
-        title={deleteRequestConfirmState.req?.status === "pending" ? "Cancel Invitation" : "Delete Request"}
+        title={
+          deleteRequestConfirmState.req?.status === "pending"
+            ? "Cancel Invitation"
+            : "Delete Request"
+        }
         subtitle="This action cannot be undone."
         message={`Are you sure you want to cancel the invitation for ${deleteRequestConfirmState.req?.email}? They will no longer be able to join using this invite link.`}
-        confirmButtonText={deleteRequestConfirmState.req?.status === "pending" ? "Cancel Invitation" : "Delete"}
+        confirmButtonText={
+          deleteRequestConfirmState.req?.status === "pending"
+            ? "Cancel Invitation"
+            : "Delete"
+        }
         item={{
-          name: deleteRequestConfirmState.req?.profiles?.full_name || deleteRequestConfirmState.req?.email,
+          name:
+            deleteRequestConfirmState.req?.profiles?.full_name ||
+            deleteRequestConfirmState.req?.email,
           email: deleteRequestConfirmState.req?.email,
           role: deleteRequestConfirmState.req?.intended_role,
         }}
@@ -1912,8 +2146,26 @@ function MemberTasksView({ membership, user, onRefresh }) {
           currentUserRole: MEMBER_ROLE,
         }),
       ]);
+      const sortedMems = Array.isArray(memsData) ? [...memsData] : [];
+      if (user?.id && sortedMems.length > 0) {
+        sortedMems.sort((a, b) => {
+          const aIsMe =
+            a.user_id === user.id ||
+            a.id === user.id ||
+            a.profiles?.id === user.id
+              ? 1
+              : 0;
+          const bIsMe =
+            b.user_id === user.id ||
+            b.id === user.id ||
+            b.profiles?.id === user.id
+              ? 1
+              : 0;
+          return bIsMe - aIsMe;
+        });
+      }
       setLeadership(leadData || { owner: null, manager: null });
-      setTeamMembers(memsData || []);
+      setTeamMembers(sortedMems);
     } catch (err) {
       console.error("loadMemberTeam error:", err);
     } finally {
@@ -1946,9 +2198,8 @@ function MemberTasksView({ membership, user, onRefresh }) {
       await taskService.updateTask(
         taskId,
         { status: newStatus },
-        { userId: user?.id, userRole: MEMBER_ROLE }
+        { userId: user?.id, userRole: MEMBER_ROLE },
       );
-      toast.success(`Task moved to ${newStatus}`);
       await loadMemberTasks();
     } catch (err) {
       toast.error("Failed to update task status.");
@@ -1963,27 +2214,51 @@ function MemberTasksView({ membership, user, onRefresh }) {
         t.id?.toLowerCase().includes(search.toLowerCase()) ||
         t.description?.toLowerCase().includes(search.toLowerCase());
       const matchStatus = statusFilter === "all" || t.status === statusFilter;
-      const matchPriority = priorityFilter === "all" || t.priority === priorityFilter;
+      const matchPriority =
+        priorityFilter === "all" || t.priority === priorityFilter;
       return matchSearch && matchStatus && matchPriority;
     });
   }, [tasks, search, statusFilter, priorityFilter]);
 
   const filteredTeamMembers = useMemo(() => {
-    return teamMembers.filter((m) => {
+    const list = teamMembers.filter((m) => {
       const name = m.profiles?.full_name?.toLowerCase() || "";
       const email = m.profiles?.email?.toLowerCase() || "";
       const role = m.role?.toLowerCase() || "";
       const q = teamSearch.toLowerCase().trim();
       return !q || name.includes(q) || email.includes(q) || role.includes(q);
     });
-  }, [teamMembers, teamSearch]);
+
+    if (user?.id) {
+      list.sort((a, b) => {
+        const aIsMe =
+          a.user_id === user.id ||
+          a.id === user.id ||
+          a.profiles?.id === user.id
+            ? 1
+            : 0;
+        const bIsMe =
+          b.user_id === user.id ||
+          b.id === user.id ||
+          b.profiles?.id === user.id
+            ? 1
+            : 0;
+        return bIsMe - aIsMe;
+      });
+    }
+
+    return list;
+  }, [teamMembers, teamSearch, user?.id]);
 
   const stats = useMemo(() => {
     const total = tasks.length;
+    const backlog = tasks.filter((t) => t.status === "backlog").length;
     const todo = tasks.filter((t) => t.status === "todo").length;
-    const inProgress = tasks.filter((t) => t.status === "in-progress" || t.status === "review").length;
+    const inProgress = tasks.filter(
+      (t) => t.status === "in-progress" || t.status === "review",
+    ).length;
     const done = tasks.filter((t) => t.status === "done").length;
-    return { total, todo, inProgress, done };
+    return { total, backlog, todo, inProgress, done };
   }, [tasks]);
 
   const priorityStyles = {
@@ -1994,6 +2269,7 @@ function MemberTasksView({ membership, user, onRefresh }) {
   };
 
   const statusStyles = {
+    backlog: "bg-slate-100 text-slate-700",
     todo: "bg-slate-100 text-slate-700",
     "in-progress": "bg-teal-100 text-teal-800",
     review: "bg-purple-100 text-purple-800",
@@ -2022,7 +2298,9 @@ function MemberTasksView({ membership, user, onRefresh }) {
             </span>
           </div>
           <p className="text-xs text-slate-500">
-            Workspace: <span className="font-semibold text-slate-700">{org?.name}</span> • View your assigned tasks and team members.
+            Workspace:{" "}
+            <span className="font-semibold text-slate-700">{org?.name}</span> •
+            View your assigned tasks and team members.
           </p>
         </div>
 
@@ -2059,7 +2337,9 @@ function MemberTasksView({ membership, user, onRefresh }) {
           {leadership.owner && (
             <div className="bg-white border border-slate-200/80 rounded-lg p-3.5 shadow-2xs flex items-center gap-3">
               <div className="w-9 h-9 rounded-lg bg-amber-500 text-white font-bold text-sm flex items-center justify-center shrink-0">
-                {leadership.owner.profiles?.full_name?.charAt(0)?.toUpperCase() || "O"}
+                {leadership.owner.profiles?.full_name
+                  ?.charAt(0)
+                  ?.toUpperCase() || "O"}
               </div>
               <div className="space-y-0.5 min-w-0 flex-1">
                 <div className="flex items-center gap-2">
@@ -2081,12 +2361,15 @@ function MemberTasksView({ membership, user, onRefresh }) {
           {leadership.manager && (
             <div className="bg-white border border-slate-200/80 rounded-lg p-3.5 shadow-2xs flex items-center gap-3">
               <div className="w-9 h-9 rounded-lg bg-purple-600 text-white font-bold text-sm flex items-center justify-center shrink-0">
-                {leadership.manager.profiles?.full_name?.charAt(0)?.toUpperCase() || "M"}
+                {leadership.manager.profiles?.full_name
+                  ?.charAt(0)
+                  ?.toUpperCase() || "M"}
               </div>
               <div className="space-y-0.5 min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <span className="text-xs sm:text-sm font-bold text-slate-900 truncate">
-                    {leadership.manager.profiles?.full_name || "Reporting Manager"}
+                    {leadership.manager.profiles?.full_name ||
+                      "Reporting Manager"}
                   </span>
                   <span className="text-[10px] font-semibold text-purple-800 bg-purple-100/70 px-2 py-0.2 rounded-md border border-purple-200/70 shrink-0">
                     Reporting Manager
@@ -2167,8 +2450,12 @@ function MemberTasksView({ membership, user, onRefresh }) {
                   <FiLayers className="w-5 h-5" />
                 </div>
                 <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Total Assigned</p>
-                  <p className="text-xl sm:text-2xl font-bold text-slate-900">{stats.total}</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                    Total Assigned
+                  </p>
+                  <p className="text-xl sm:text-2xl font-bold text-slate-900">
+                    {stats.total}
+                  </p>
                 </div>
               </div>
 
@@ -2177,8 +2464,12 @@ function MemberTasksView({ membership, user, onRefresh }) {
                   <FiClock className="w-5 h-5" />
                 </div>
                 <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">To Do</p>
-                  <p className="text-xl sm:text-2xl font-bold text-slate-900">{stats.todo}</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                    To Do
+                  </p>
+                  <p className="text-xl sm:text-2xl font-bold text-slate-900">
+                    {stats.todo}
+                  </p>
                 </div>
               </div>
 
@@ -2187,8 +2478,12 @@ function MemberTasksView({ membership, user, onRefresh }) {
                   <FiActivity className="w-5 h-5" />
                 </div>
                 <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">In Progress</p>
-                  <p className="text-xl sm:text-2xl font-bold text-slate-900">{stats.inProgress}</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                    In Progress
+                  </p>
+                  <p className="text-xl sm:text-2xl font-bold text-slate-900">
+                    {stats.inProgress}
+                  </p>
                 </div>
               </div>
 
@@ -2197,8 +2492,12 @@ function MemberTasksView({ membership, user, onRefresh }) {
                   <FiCheck className="w-5 h-5" />
                 </div>
                 <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Completed</p>
-                  <p className="text-xl sm:text-2xl font-bold text-slate-900">{stats.done}</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                    Completed
+                  </p>
+                  <p className="text-xl sm:text-2xl font-bold text-slate-900">
+                    {stats.done}
+                  </p>
                 </div>
               </div>
             </div>
@@ -2206,14 +2505,24 @@ function MemberTasksView({ membership, user, onRefresh }) {
             {/* Filters & Search */}
             <div className="bg-slate-50/60 rounded-lg border border-slate-200/60 p-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
               <div className="relative flex-1 max-w-sm">
-                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                 <input
                   type="text"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Search by title, description or ID..."
-                  className="w-full pl-9 pr-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-[#0F766E]"
+                  className="w-full pl-9 pr-8 py-1.5 text-xs bg-white border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-[#0F766E]"
                 />
+                {search && (
+                  <button
+                    type="button"
+                    onClick={() => setSearch("")}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-600 rounded cursor-pointer"
+                    title="Clear search"
+                  >
+                    <FiX className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
 
               <div className="flex items-center gap-2">
@@ -2223,6 +2532,7 @@ function MemberTasksView({ membership, user, onRefresh }) {
                   className="px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg outline-none text-slate-700 font-medium"
                 >
                   <option value="all">All Statuses</option>
+                  <option value="backlog">Backlog</option>
                   <option value="todo">To Do</option>
                   <option value="in-progress">In Progress</option>
                   <option value="review">In Review</option>
@@ -2252,9 +2562,12 @@ function MemberTasksView({ membership, user, onRefresh }) {
               ) : filteredTasks.length === 0 ? (
                 <div className="bg-white rounded-lg border border-slate-200 p-12 text-center space-y-2">
                   <FiLayers className="w-8 h-8 text-slate-300 mx-auto" />
-                  <h3 className="text-sm font-bold text-slate-800">No Assigned Tasks Found</h3>
+                  <h3 className="text-sm font-bold text-slate-800">
+                    No Assigned Tasks Found
+                  </h3>
                   <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                    You currently have no tasks assigned to you. Once your workspace manager assigns you tasks, they will appear here.
+                    You currently have no tasks assigned to you. Once your
+                    workspace manager assigns you tasks, they will appear here.
                   </p>
                 </div>
               ) : (
@@ -2266,17 +2579,25 @@ function MemberTasksView({ membership, user, onRefresh }) {
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
                       <div className="flex items-center gap-2.5">
                         <span className="font-mono text-xs font-bold text-[#0F766E] bg-teal-50 px-2.5 py-0.5 rounded-lg">
-                          {formatTaskKey(task, memberProjects, task.project_name)}
+                          {formatTaskKey(
+                            task,
+                            memberProjects,
+                            task.project_name,
+                          )}
                         </span>
                         <span className="text-[11px] font-bold text-slate-500">
-                          Project: <span className="text-slate-800">{task.project_name || "Main Project"}</span>
+                          Project:{" "}
+                          <span className="text-slate-800">
+                            {task.project_name || "Main Project"}
+                          </span>
                         </span>
                       </div>
 
                       <div className="flex items-center gap-2">
                         <span
                           className={`px-2.5 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wider border ${
-                            priorityStyles[task.priority] || priorityStyles.medium
+                            priorityStyles[task.priority] ||
+                            priorityStyles.medium
                           }`}
                         >
                           Priority: {task.priority || "medium"}
@@ -2291,7 +2612,9 @@ function MemberTasksView({ membership, user, onRefresh }) {
                     </div>
 
                     <div>
-                      <h3 className="text-sm sm:text-base font-bold text-slate-900">{task.title}</h3>
+                      <h3 className="text-sm sm:text-base font-bold text-slate-900">
+                        {task.title}
+                      </h3>
                       {task.description && (
                         <p className="text-xs text-slate-600 mt-1 leading-relaxed whitespace-pre-line">
                           {task.description}
@@ -2301,7 +2624,9 @@ function MemberTasksView({ membership, user, onRefresh }) {
 
                     <div className="flex items-center justify-between pt-2 border-t border-slate-100">
                       <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-slate-500">Status:</span>
+                        <span className="text-xs font-bold text-slate-500">
+                          Status:
+                        </span>
                         <span
                           className={`px-2 py-0.5 rounded-lg text-xs font-semibold ${
                             statusStyles[task.status] || statusStyles.todo
@@ -2312,12 +2637,17 @@ function MemberTasksView({ membership, user, onRefresh }) {
                       </div>
 
                       <div className="flex items-center gap-1.5">
-                        <span className="text-[10px] text-slate-400 font-semibold">Move:</span>
+                        <span className="text-[10px] text-slate-400 font-semibold">
+                          Move:
+                        </span>
                         <select
                           value={task.status}
-                          onChange={(e) => handleUpdateStatus(task.id, e.target.value)}
+                          onChange={(e) =>
+                            handleUpdateStatus(task.id, e.target.value)
+                          }
                           className="px-2.5 py-1 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-700 outline-none font-medium cursor-pointer"
                         >
+                          <option value="backlog">Backlog</option>
                           <option value="todo">To Do</option>
                           <option value="in-progress">In Progress</option>
                           <option value="review">In Review</option>
@@ -2343,7 +2673,8 @@ function MemberTasksView({ membership, user, onRefresh }) {
                   Assigned Workspace Projects ({memberProjects.length})
                 </h3>
                 <p className="text-xs text-slate-500">
-                  Projects in this workspace where you are assigned as a contributor.
+                  Projects in this workspace where you are assigned as a
+                  contributor.
                 </p>
               </div>
             </div>
@@ -2351,20 +2682,28 @@ function MemberTasksView({ membership, user, onRefresh }) {
             {memberProjects.length === 0 ? (
               <div className="bg-slate-50/60 rounded-lg border border-slate-200/80 p-12 text-center space-y-2">
                 <FiFolder className="w-8 h-8 text-slate-300 mx-auto" />
-                <h3 className="text-sm font-bold text-slate-800">No Projects Assigned Yet</h3>
+                <h3 className="text-sm font-bold text-slate-800">
+                  No Projects Assigned Yet
+                </h3>
                 <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                  You haven&apos;t been assigned to any projects in this organization yet. When your workspace manager or owner adds you to a project, it will appear here.
+                  You haven&apos;t been assigned to any projects in this
+                  organization yet. When your workspace manager or owner adds
+                  you to a project, it will appear here.
                 </p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {memberProjects.map((proj) => {
-                  const managers = proj.project_members?.filter(
-                    (pm) => pm.role === "manager" || pm.project_role === "manager"
-                  ) || [];
-                  const members = proj.project_members?.filter(
-                    (pm) => pm.role === "member" || pm.project_role === "member"
-                  ) || [];
+                  const managers =
+                    proj.project_members?.filter(
+                      (pm) =>
+                        pm.role === "manager" || pm.project_role === "manager",
+                    ) || [];
+                  const members =
+                    proj.project_members?.filter(
+                      (pm) =>
+                        pm.role === "member" || pm.project_role === "member",
+                    ) || [];
 
                   return (
                     <div
@@ -2373,14 +2712,16 @@ function MemberTasksView({ membership, user, onRefresh }) {
                     >
                       <div className="space-y-2.5">
                         <div className="flex items-start justify-between gap-2">
-                          <h4 className="font-bold text-slate-900 text-sm">{proj.name}</h4>
+                          <h4 className="font-bold text-slate-900 text-sm">
+                            {proj.name}
+                          </h4>
                           <span
                             className={`px-2.5 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wider ${
                               proj.status === "completed"
                                 ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
                                 : proj.status === "in_progress"
-                                ? "bg-teal-50 text-[#0F766E] border border-teal-200"
-                                : "bg-slate-100 text-slate-700 border border-slate-200"
+                                  ? "bg-teal-50 text-[#0F766E] border border-teal-200"
+                                  : "bg-slate-100 text-slate-700 border border-slate-200"
                             }`}
                           >
                             {proj.status?.replace("_", " ") || "active"}
@@ -2418,7 +2759,8 @@ function MemberTasksView({ membership, user, onRefresh }) {
                                 Team:
                               </span>
                               <span className="text-[11px] font-medium text-slate-600">
-                                {members.length} team {members.length === 1 ? "member" : "members"}
+                                {members.length} team{" "}
+                                {members.length === 1 ? "member" : "members"}
                               </span>
                             </div>
                           )}
@@ -2426,10 +2768,18 @@ function MemberTasksView({ membership, user, onRefresh }) {
                           {(proj.start_date || proj.due_date) && (
                             <div className="flex items-center gap-3 text-[11px] text-slate-500 pt-1">
                               {proj.start_date && (
-                                <span>Start: {new Date(proj.start_date).toLocaleDateString()}</span>
+                                <span>
+                                  Start:{" "}
+                                  {new Date(
+                                    proj.start_date,
+                                  ).toLocaleDateString()}
+                                </span>
                               )}
                               {proj.due_date && (
-                                <span>Due: {new Date(proj.due_date).toLocaleDateString()}</span>
+                                <span>
+                                  Due:{" "}
+                                  {new Date(proj.due_date).toLocaleDateString()}
+                                </span>
                               )}
                             </div>
                           )}
@@ -2446,7 +2796,9 @@ function MemberTasksView({ membership, user, onRefresh }) {
                         </button>
                         <button
                           type="button"
-                          onClick={() => router.push(`/projects?projectId=${proj.id}`)}
+                          onClick={() =>
+                            router.push(`/projects?projectId=${proj.id}`)
+                          }
                           className="py-1.5 px-3 rounded-lg bg-[#0F766E] hover:bg-[#0D655E] active:bg-[#115E59] text-white text-xs font-bold transition-all shadow-sm shadow-teal-900/20 flex items-center gap-1.5 cursor-pointer"
                         >
                           <FiLayers className="w-3.5 h-3.5" />
@@ -2472,19 +2824,30 @@ function MemberTasksView({ membership, user, onRefresh }) {
                   Workspace Leadership & Team Members
                 </h3>
                 <p className="text-xs text-slate-500">
-                  Listing of your reporting manager, workspace creator, and teammates.
+                  Listing of your reporting manager, workspace creator, and
+                  teammates.
                 </p>
               </div>
 
               <div className="relative w-full sm:w-64">
-                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
                 <input
                   type="text"
                   value={teamSearch}
                   onChange={(e) => setTeamSearch(e.target.value)}
                   placeholder="Search team members..."
-                  className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg outline-none focus:bg-white focus:ring-2 focus:ring-[#0F766E]"
+                  className="w-full pl-8 pr-8 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg outline-none focus:bg-white focus:ring-2 focus:ring-[#0F766E]"
                 />
+                {teamSearch && (
+                  <button
+                    type="button"
+                    onClick={() => setTeamSearch("")}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-600 rounded cursor-pointer"
+                    title="Clear search"
+                  >
+                    <FiX className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
             </div>
 
@@ -2502,7 +2865,10 @@ function MemberTasksView({ membership, user, onRefresh }) {
                 <tbody className="divide-y divide-slate-100">
                   {loadingTeam ? (
                     <tr>
-                      <td colSpan={5} className="py-10 text-center text-slate-400 text-xs">
+                      <td
+                        colSpan={5}
+                        className="py-10 text-center text-slate-400 text-xs"
+                      >
                         Loading team directory...
                       </td>
                     </tr>
@@ -2518,7 +2884,10 @@ function MemberTasksView({ membership, user, onRefresh }) {
                           .slice(0, 2) || "U";
 
                       return (
-                        <tr key={m.id} className="hover:bg-slate-50/70 transition-colors">
+                        <tr
+                          key={m.id}
+                          className="hover:bg-slate-50/70 transition-colors"
+                        >
                           <td className="py-3 px-3">
                             <div className="flex items-center gap-3">
                               <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-slate-200 to-slate-300 flex items-center justify-center font-bold text-slate-700 text-xs shrink-0">
@@ -2528,7 +2897,9 @@ function MemberTasksView({ membership, user, onRefresh }) {
                                 <p className="font-bold text-slate-900">
                                   {profile?.full_name || "Team Member"}
                                 </p>
-                                {m.user_id === user?.id && (
+                                {(m.user_id === user?.id ||
+                                  m.id === user?.id ||
+                                  m.profiles?.id === user?.id) && (
                                   <span className="text-[10px] text-[#0F766E] font-semibold">
                                     (You)
                                   </span>
@@ -2543,7 +2914,8 @@ function MemberTasksView({ membership, user, onRefresh }) {
                             <div className="flex flex-wrap items-center gap-1.5">
                               <span
                                 className={`px-2.5 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wider border ${
-                                  roleBadgeClasses[m.role] || roleBadgeClasses.member
+                                  roleBadgeClasses[m.role] ||
+                                  roleBadgeClasses.member
                                 }`}
                               >
                                 {m.role}
@@ -2568,11 +2940,14 @@ function MemberTasksView({ membership, user, onRefresh }) {
                           </td>
                           <td className="py-3 px-3 text-slate-500">
                             {m.joined_at
-                              ? new Date(m.joined_at).toLocaleDateString("en-US", {
-                                  year: "numeric",
-                                  month: "short",
-                                  day: "numeric",
-                                })
+                              ? new Date(m.joined_at).toLocaleDateString(
+                                  "en-US",
+                                  {
+                                    year: "numeric",
+                                    month: "short",
+                                    day: "numeric",
+                                  },
+                                )
                               : "—"}
                           </td>
                         </tr>
@@ -2580,7 +2955,10 @@ function MemberTasksView({ membership, user, onRefresh }) {
                     })
                   ) : (
                     <tr>
-                      <td colSpan={5} className="py-10 text-center text-slate-400 text-xs">
+                      <td
+                        colSpan={5}
+                        className="py-10 text-center text-slate-400 text-xs"
+                      >
                         No team members found matching your search.
                       </td>
                     </tr>
@@ -2633,27 +3011,30 @@ export default function DashboardPage() {
   const [userInvitations, setUserInvitations] = useState([]);
   const hasFetchedInvitesRef = useRef(false);
 
-  const fetchInvites = useCallback(async (force = false) => {
-    if (!user?.email) {
-      setUserInvitations([]);
-      return;
-    }
-    // Only fetch invitations when user has no active organizations
-    if (!force && orgMemberships && orgMemberships.length > 0) {
-      return;
-    }
-    if (!force && hasFetchedInvitesRef.current) return;
-    try {
-      hasFetchedInvitesRef.current = true;
-      const invites = await organizationService.getUserPendingInvitations(
-        user.email,
-        force
-      );
-      setUserInvitations(invites || []);
-    } catch (err) {
-      console.error("fetchInvites error:", err);
-    }
-  }, [user?.email, orgMemberships?.length]);
+  const fetchInvites = useCallback(
+    async (force = false) => {
+      if (!user?.email) {
+        setUserInvitations([]);
+        return;
+      }
+      // Only fetch invitations when user has no active organizations
+      if (!force && orgMemberships && orgMemberships.length > 0) {
+        return;
+      }
+      if (!force && hasFetchedInvitesRef.current) return;
+      try {
+        hasFetchedInvitesRef.current = true;
+        const invites = await organizationService.getUserPendingInvitations(
+          user.email,
+          force,
+        );
+        setUserInvitations(invites || []);
+      } catch (err) {
+        console.error("fetchInvites error:", err);
+      }
+    },
+    [user?.email, orgMemberships?.length],
+  );
 
   useEffect(() => {
     if (!loadingOrgs && (!orgMemberships || orgMemberships.length === 0)) {
