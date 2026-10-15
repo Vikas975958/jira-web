@@ -189,7 +189,6 @@ function NoOrganizationView({ userName, userEmail, userInvitations, onCreateOrg,
                               userEmail: userEmail,
                             });
                           }
-                          toast.success("Invitation accepted! Loading workspace...");
                           if (onRefresh) onRefresh();
                         } catch (err) {
                           toast.error(err?.message || "Failed to accept invitation.");
@@ -393,7 +392,6 @@ function OrganizationDashboardContent({
         email: req.email,
         organizationId: orgId,
       });
-      toast.success("Invitation removed.");
       setDeleteRequestConfirmState({ isOpen: false, req: null });
       await loadRequests();
     } catch (err) {
@@ -408,7 +406,6 @@ function OrganizationDashboardContent({
   const handleCopyOrgLink = () => {
     if (typeof window !== "undefined" && org?.slug) {
       navigator.clipboard.writeText(`${window.location.origin}/org/${org.slug}`);
-      toast.success("Workspace URL copied to clipboard!");
     }
   };
 
@@ -472,14 +469,24 @@ function OrganizationDashboardContent({
   }, [members]);
 
   const filteredManagers = useMemo(() => {
-    return managersList.filter((m) => {
+    const list = managersList.filter((m) => {
       if (!managerSearch.trim()) return true;
       const q = managerSearch.toLowerCase();
       const name = (m.profiles?.full_name || m.full_name || "").toLowerCase();
       const email = (m.profiles?.email || m.email || "").toLowerCase();
       return name.includes(q) || email.includes(q);
     });
-  }, [managersList, managerSearch]);
+
+    if (currentUserId) {
+      list.sort((a, b) => {
+        const aIsMe = (a.user_id === currentUserId || a.id === currentUserId || a.profiles?.id === currentUserId) ? 1 : 0;
+        const bIsMe = (b.user_id === currentUserId || b.id === currentUserId || b.profiles?.id === currentUserId) ? 1 : 0;
+        return bIsMe - aIsMe;
+      });
+    }
+
+    return list;
+  }, [managersList, managerSearch, currentUserId]);
 
   const paginatedManagers = useMemo(() => {
     const start = (managerPage - 1) * 5;
@@ -498,14 +505,24 @@ function OrganizationDashboardContent({
   }, [members, userRole]);
 
   const filteredMembers = useMemo(() => {
-    return membersList.filter((m) => {
+    const list = membersList.filter((m) => {
       if (!memberSearch.trim()) return true;
       const q = memberSearch.toLowerCase();
       const name = (m.profiles?.full_name || m.full_name || "").toLowerCase();
       const email = (m.profiles?.email || m.email || "").toLowerCase();
       return name.includes(q) || email.includes(q);
     });
-  }, [membersList, memberSearch]);
+
+    if (currentUserId) {
+      list.sort((a, b) => {
+        const aIsMe = (a.user_id === currentUserId || a.id === currentUserId || a.profiles?.id === currentUserId) ? 1 : 0;
+        const bIsMe = (b.user_id === currentUserId || b.id === currentUserId || b.profiles?.id === currentUserId) ? 1 : 0;
+        return bIsMe - aIsMe;
+      });
+    }
+
+    return list;
+  }, [membersList, memberSearch, currentUserId]);
 
   const paginatedMembers = useMemo(() => {
     const start = (memberPage - 1) * 5;
@@ -860,7 +877,7 @@ function OrganizationDashboardContent({
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
               <div className="flex flex-wrap items-center gap-2 flex-1 max-w-lg">
                 <div className="relative flex-1 min-w-[200px]">
-                  <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                   <input
                     type="text"
                     value={projectSearch}
@@ -869,8 +886,21 @@ function OrganizationDashboardContent({
                       setProjectPage(1);
                     }}
                     placeholder="Search projects by name or description..."
-                    className="w-full h-9 pl-9 pr-3 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0F766E] focus:border-transparent transition-all"
+                    className="w-full h-9 pl-9 pr-8 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0F766E] focus:border-transparent transition-all"
                   />
+                  {projectSearch && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setProjectSearch("");
+                        setProjectPage(1);
+                      }}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-600 rounded cursor-pointer"
+                      title="Clear search"
+                    >
+                      <FiX className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
 
                 {/* Status Filter */}
@@ -1102,7 +1132,7 @@ function OrganizationDashboardContent({
             {/* Filter and Action Bar */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
               <div className="relative flex-1 max-w-sm">
-                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                 <input
                   type="text"
                   value={managerSearch}
@@ -1111,8 +1141,21 @@ function OrganizationDashboardContent({
                     setManagerPage(1);
                   }}
                   placeholder="Search managers by name or email..."
-                  className="w-full h-9 pl-9 pr-3 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-600 focus:border-transparent transition-all"
+                  className="w-full h-9 pl-9 pr-8 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-600 focus:border-transparent transition-all"
                 />
+                {managerSearch && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setManagerSearch("");
+                      setManagerPage(1);
+                    }}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-600 rounded cursor-pointer"
+                    title="Clear search"
+                  >
+                    <FiX className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
 
               {userRole === OWNER_ROLE && (
@@ -1167,7 +1210,7 @@ function OrganizationDashboardContent({
                                   <p className="font-bold text-slate-900">
                                     {profile?.full_name || "Manager"}
                                   </p>
-                                  {m.user_id === currentUserId && (
+                                  {(m.user_id === currentUserId || m.id === currentUserId || m.profiles?.id === currentUserId) && (
                                     <span className="text-[10px] text-purple-700 font-bold bg-purple-50 px-1.5 py-0.2 rounded-lg border border-purple-200">
                                       (You)
                                     </span>
@@ -1264,7 +1307,7 @@ function OrganizationDashboardContent({
             {/* Filter and Action Bar */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
               <div className="relative flex-1 max-w-sm">
-                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                 <input
                   type="text"
                   value={memberSearch}
@@ -1273,8 +1316,21 @@ function OrganizationDashboardContent({
                     setMemberPage(1);
                   }}
                   placeholder="Search members by name or email..."
-                  className="w-full h-9 pl-9 pr-3 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:border-transparent transition-all"
+                  className="w-full h-9 pl-9 pr-8 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:border-transparent transition-all"
                 />
+                {memberSearch && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMemberSearch("");
+                      setMemberPage(1);
+                    }}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-600 rounded cursor-pointer"
+                    title="Clear search"
+                  >
+                    <FiX className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
 
               <button
@@ -1327,7 +1383,7 @@ function OrganizationDashboardContent({
                                   <p className="font-bold text-slate-900">
                                     {profile?.full_name || "Team Member"}
                                   </p>
-                                  {m.user_id === currentUserId && (
+                                  {(m.user_id === currentUserId || m.id === currentUserId || m.profiles?.id === currentUserId) && (
                                     <span className="text-[10px] text-[#0F766E] font-bold bg-teal-50 px-1.5 py-0.2 rounded-lg border border-teal-200">
                                       (You)
                                     </span>
@@ -1423,14 +1479,24 @@ function OrganizationDashboardContent({
             <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 pb-3 border-b border-slate-100">
               {/* Search */}
               <div className="relative flex-1 max-w-sm">
-                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                 <input
                   type="text"
                   value={requestSearch}
                   onChange={(e) => setRequestSearch(e.target.value)}
                   placeholder="Search requests by name or email..."
-                  className="w-full h-9 pl-9 pr-3 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0F766E] focus:border-transparent transition-all"
+                  className="w-full h-9 pl-9 pr-8 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0F766E] focus:border-transparent transition-all"
                 />
+                {requestSearch && (
+                  <button
+                    type="button"
+                    onClick={() => setRequestSearch("")}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-600 rounded cursor-pointer"
+                    title="Clear search"
+                  >
+                    <FiX className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
 
               {/* Filters */}
@@ -1912,8 +1978,16 @@ function MemberTasksView({ membership, user, onRefresh }) {
           currentUserRole: MEMBER_ROLE,
         }),
       ]);
+      const sortedMems = Array.isArray(memsData) ? [...memsData] : [];
+      if (user?.id && sortedMems.length > 0) {
+        sortedMems.sort((a, b) => {
+          const aIsMe = (a.user_id === user.id || a.id === user.id || a.profiles?.id === user.id) ? 1 : 0;
+          const bIsMe = (b.user_id === user.id || b.id === user.id || b.profiles?.id === user.id) ? 1 : 0;
+          return bIsMe - aIsMe;
+        });
+      }
       setLeadership(leadData || { owner: null, manager: null });
-      setTeamMembers(memsData || []);
+      setTeamMembers(sortedMems);
     } catch (err) {
       console.error("loadMemberTeam error:", err);
     } finally {
@@ -1948,7 +2022,6 @@ function MemberTasksView({ membership, user, onRefresh }) {
         { status: newStatus },
         { userId: user?.id, userRole: MEMBER_ROLE }
       );
-      toast.success(`Task moved to ${newStatus}`);
       await loadMemberTasks();
     } catch (err) {
       toast.error("Failed to update task status.");
@@ -1969,21 +2042,32 @@ function MemberTasksView({ membership, user, onRefresh }) {
   }, [tasks, search, statusFilter, priorityFilter]);
 
   const filteredTeamMembers = useMemo(() => {
-    return teamMembers.filter((m) => {
+    const list = teamMembers.filter((m) => {
       const name = m.profiles?.full_name?.toLowerCase() || "";
       const email = m.profiles?.email?.toLowerCase() || "";
       const role = m.role?.toLowerCase() || "";
       const q = teamSearch.toLowerCase().trim();
       return !q || name.includes(q) || email.includes(q) || role.includes(q);
     });
-  }, [teamMembers, teamSearch]);
+
+    if (user?.id) {
+      list.sort((a, b) => {
+        const aIsMe = (a.user_id === user.id || a.id === user.id || a.profiles?.id === user.id) ? 1 : 0;
+        const bIsMe = (b.user_id === user.id || b.id === user.id || b.profiles?.id === user.id) ? 1 : 0;
+        return bIsMe - aIsMe;
+      });
+    }
+
+    return list;
+  }, [teamMembers, teamSearch, user?.id]);
 
   const stats = useMemo(() => {
     const total = tasks.length;
+    const backlog = tasks.filter((t) => t.status === "backlog").length;
     const todo = tasks.filter((t) => t.status === "todo").length;
     const inProgress = tasks.filter((t) => t.status === "in-progress" || t.status === "review").length;
     const done = tasks.filter((t) => t.status === "done").length;
-    return { total, todo, inProgress, done };
+    return { total, backlog, todo, inProgress, done };
   }, [tasks]);
 
   const priorityStyles = {
@@ -1994,6 +2078,7 @@ function MemberTasksView({ membership, user, onRefresh }) {
   };
 
   const statusStyles = {
+    backlog: "bg-slate-100 text-slate-700",
     todo: "bg-slate-100 text-slate-700",
     "in-progress": "bg-teal-100 text-teal-800",
     review: "bg-purple-100 text-purple-800",
@@ -2206,14 +2291,24 @@ function MemberTasksView({ membership, user, onRefresh }) {
             {/* Filters & Search */}
             <div className="bg-slate-50/60 rounded-lg border border-slate-200/60 p-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
               <div className="relative flex-1 max-w-sm">
-                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                 <input
                   type="text"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Search by title, description or ID..."
-                  className="w-full pl-9 pr-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-[#0F766E]"
+                  className="w-full pl-9 pr-8 py-1.5 text-xs bg-white border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-[#0F766E]"
                 />
+                {search && (
+                  <button
+                    type="button"
+                    onClick={() => setSearch("")}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-600 rounded cursor-pointer"
+                    title="Clear search"
+                  >
+                    <FiX className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
 
               <div className="flex items-center gap-2">
@@ -2223,6 +2318,7 @@ function MemberTasksView({ membership, user, onRefresh }) {
                   className="px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg outline-none text-slate-700 font-medium"
                 >
                   <option value="all">All Statuses</option>
+                  <option value="backlog">Backlog</option>
                   <option value="todo">To Do</option>
                   <option value="in-progress">In Progress</option>
                   <option value="review">In Review</option>
@@ -2318,6 +2414,7 @@ function MemberTasksView({ membership, user, onRefresh }) {
                           onChange={(e) => handleUpdateStatus(task.id, e.target.value)}
                           className="px-2.5 py-1 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-700 outline-none font-medium cursor-pointer"
                         >
+                          <option value="backlog">Backlog</option>
                           <option value="todo">To Do</option>
                           <option value="in-progress">In Progress</option>
                           <option value="review">In Review</option>
@@ -2477,14 +2574,24 @@ function MemberTasksView({ membership, user, onRefresh }) {
               </div>
 
               <div className="relative w-full sm:w-64">
-                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
                 <input
                   type="text"
                   value={teamSearch}
                   onChange={(e) => setTeamSearch(e.target.value)}
                   placeholder="Search team members..."
-                  className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg outline-none focus:bg-white focus:ring-2 focus:ring-[#0F766E]"
+                  className="w-full pl-8 pr-8 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg outline-none focus:bg-white focus:ring-2 focus:ring-[#0F766E]"
                 />
+                {teamSearch && (
+                  <button
+                    type="button"
+                    onClick={() => setTeamSearch("")}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-600 rounded cursor-pointer"
+                    title="Clear search"
+                  >
+                    <FiX className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
             </div>
 
@@ -2528,7 +2635,7 @@ function MemberTasksView({ membership, user, onRefresh }) {
                                 <p className="font-bold text-slate-900">
                                   {profile?.full_name || "Team Member"}
                                 </p>
-                                {m.user_id === user?.id && (
+                                {(m.user_id === user?.id || m.id === user?.id || m.profiles?.id === user?.id) && (
                                   <span className="text-[10px] text-[#0F766E] font-semibold">
                                     (You)
                                   </span>

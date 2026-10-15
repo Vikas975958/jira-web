@@ -6,6 +6,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import {
   FiPlus,
   FiSearch,
+  FiX,
   FiTrash2,
   FiLayers,
   FiFolder,
@@ -28,6 +29,7 @@ import { MEMBER_ROLE, MANAGER_ROLE, OWNER_ROLE } from "@/utils/constants";
 import { formatTaskKey } from "@/utils/commonFunction";
 
 const COLUMNS = [
+  { id: "backlog", label: "Backlog", bg: "bg-slate-100/70", border: "border-slate-200" },
   { id: "todo", label: "To Do", bg: "bg-slate-100", border: "border-slate-200" },
   { id: "in-progress", label: "In Progress", bg: "bg-teal-50/60", border: "border-teal-200" },
   { id: "review", label: "In Review", bg: "bg-purple-50/60", border: "border-purple-200" },
@@ -341,7 +343,6 @@ function ProjectsBoardContent() {
     try {
       setIsDeletingTicket(true);
       await taskService.deleteTask(deletingTicket.id, userRole);
-      toast.success("Issue deleted successfully.");
       setDeletingTicket(null);
       await loadTickets(true);
     } catch (err) {
@@ -411,11 +412,11 @@ function ProjectsBoardContent() {
   };
 
   return (
-    <div className="p-4 sm:p-6 lg:p-7 space-y-5 max-w-7xl mx-auto select-none">
+    <div className="p-4 sm:p-6 lg:p-7 space-y-5 max-w-[1680px] mx-auto select-none">
       {/* ─────────────────────────────────────────────────── */}
       {/* Page Header                                        */}
       {/* ─────────────────────────────────────────────────── */}
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 pb-4 border-b border-slate-200/80">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 flex-wrap">
             <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
@@ -459,14 +460,24 @@ function ProjectsBoardContent() {
         <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
           {/* Search box */}
           <div className="relative flex-1 md:w-56">
-            <FiSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+            <FiSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search issues..."
-              className="w-full h-8.5 pl-8 pr-3 text-xs bg-white border border-slate-200 hover:border-slate-300 focus:border-[#0F766E] focus:ring-2 focus:ring-[#0F766E]/15 rounded-lg outline-none transition-all placeholder:text-slate-400"
+              className="w-full h-8.5 pl-8 pr-8 text-xs bg-white border border-slate-200 hover:border-slate-300 focus:border-[#0F766E] focus:ring-2 focus:ring-[#0F766E]/15 rounded-lg outline-none transition-all placeholder:text-slate-400"
             />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch("")}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-600 rounded cursor-pointer"
+                title="Clear search"
+              >
+                <FiX className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
 
           {/* Create Project Button (Owner & Manager) */}
@@ -724,7 +735,7 @@ function ProjectsBoardContent() {
         /* ─────────────────────────────────────────────────── */
         /* Kanban Board Columns                                */
         /* ─────────────────────────────────────────────────── */
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3.5">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3.5">
           {COLUMNS.map((col) => {
             const colTickets = filteredTickets.filter((t) => t.status === col.id);
 
@@ -733,7 +744,7 @@ function ProjectsBoardContent() {
                 key={col.id}
                 onDragOver={handleDragOver}
                 onDrop={(e) => handleDrop(e, col.id)}
-                className="rounded-lg p-2.5 border border-slate-200/80 bg-slate-100/75 flex flex-col min-h-[520px] transition-colors"
+                className="rounded-lg p-2.5 border border-slate-200/80 bg-slate-100/75 flex flex-col min-h-[520px] transition-colors min-w-0"
               >
                 {/* Column Header */}
                 <div className="flex items-center justify-between pb-2.5 px-1 text-xs font-semibold text-slate-700 uppercase tracking-wider">
@@ -805,6 +816,7 @@ function ProjectsBoardContent() {
                           onChange={(e) => moveTicket(ticket.id, e.target.value)}
                           className="bg-slate-50 border border-slate-200 rounded-md px-1.5 py-0.5 text-[10px] text-slate-600 outline-none hover:border-slate-300 focus:border-[#0F766E]"
                         >
+                          <option value="backlog">Backlog</option>
                           <option value="todo">To Do</option>
                           <option value="in-progress">In Progress</option>
                           <option value="review">Review</option>

@@ -229,15 +229,23 @@ export default function Header({ onCreateIssueClick }) {
 
   const matchingMembers = useMemo(() => {
     if (!trimmed) return [];
-    return members
-      .filter(
-        (m) =>
-          (m.full_name || m.name)?.toLowerCase().includes(trimmed) ||
-          m.email?.toLowerCase().includes(trimmed) ||
-          (m.role || m.intended_role)?.toLowerCase().includes(trimmed)
-      )
-      .slice(0, 3);
-  }, [members, trimmed]);
+    const list = members.filter(
+      (m) =>
+        (m.full_name || m.name)?.toLowerCase().includes(trimmed) ||
+        m.email?.toLowerCase().includes(trimmed) ||
+        (m.role || m.intended_role)?.toLowerCase().includes(trimmed)
+    );
+
+    if (user?.id) {
+      list.sort((a, b) => {
+        const aIsMe = (a.user_id === user.id || a.id === user.id || a.profiles?.id === user.id) ? 1 : 0;
+        const bIsMe = (b.user_id === user.id || b.id === user.id || b.profiles?.id === user.id) ? 1 : 0;
+        return bIsMe - aIsMe;
+      });
+    }
+
+    return list.slice(0, 3);
+  }, [members, trimmed, user?.id]);
 
   const quickPages = [
     { title: "Dashboard", href: "/dashboard", icon: FiGrid, desc: "Workspace activity & metrics" },
@@ -424,9 +432,14 @@ export default function Header({ onCreateIssueClick }) {
                               {(m.full_name || m.name || m.email || "U").charAt(0).toUpperCase()}
                             </div>
                             <div className="min-w-0">
-                              <p className="font-semibold text-slate-800 truncate group-hover:text-[#0F766E]">
-                                {m.full_name || m.name || m.email}
-                              </p>
+                              <div className="flex items-center gap-1">
+                                <p className="font-semibold text-slate-800 truncate group-hover:text-[#0F766E]">
+                                  {m.full_name || m.name || m.email}
+                                </p>
+                                {user?.id && (m.user_id === user.id || m.id === user.id || m.profiles?.id === user.id) && (
+                                  <span className="text-[9px] font-semibold text-[#0F766E]">(You)</span>
+                                )}
+                              </div>
                               <p className="text-[10px] text-slate-400 truncate font-mono">
                                 {m.email}
                               </p>

@@ -193,7 +193,6 @@ export default function SettingsPage() {
         currency: orgData.currency || "USD",
       });
       await refreshOrganizations();
-      toast.success("Workspace settings updated successfully.");
     } catch (err) {
       console.error("Failed to update workspace:", err);
       toast.error(err?.message || "Failed to update workspace settings.");
@@ -216,7 +215,6 @@ export default function SettingsPage() {
 
       await profileService.updateProfile(user.id, updates);
       dispatch(updateProfile(updates));
-      toast.success("Profile updated successfully.");
     } catch (err) {
       console.error("Failed to update profile:", err);
       toast.error(err?.message || "Failed to update profile.");
@@ -231,7 +229,6 @@ export default function SettingsPage() {
     setSavingPrefs(true);
     setTimeout(() => {
       setSavingPrefs(false);
-      toast.success("Preferences saved.");
     }, 400);
   };
 
