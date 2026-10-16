@@ -13,6 +13,7 @@ import {
   LuChevronLeft,
   LuChevronRight,
   LuX,
+  LuKanban,
 } from "react-icons/lu";
 import { useOrganization } from "@/context/OrganizationContext";
 import { useSidebar } from "@/context/SidebarContext";
@@ -46,9 +47,9 @@ export default function Sidebar() {
       path: "/dashboard",
     },
     {
-      name: "Projects",
-      icon: LuFolder,
-      path: "/projects",
+      name: "Tasks",
+      icon: LuKanban,
+      path: "/tasks",
     },
     {
       name: "Team",
@@ -93,15 +94,14 @@ export default function Sidebar() {
 
     try {
       setLoadingProjects(true);
-      const data = await projectService.getRecentProjects({
+      const data = await projectService.getProjects({
         organizationId: orgId,
         userId: user?.id,
         userRole,
-        limit: 5,
         force,
       });
       lastFetchedOrgIdRef.current = orgId;
-      setProjects(data || []);
+      setProjects((data || []).slice(0, 8));
     } catch (err) {
       console.error("Sidebar loadProjects error:", err);
       setProjects([]);
@@ -117,19 +117,16 @@ export default function Sidebar() {
   useEffect(() => {
     const handleProjectCreated = () => loadProjects(true);
     const handleProjectDeleted = () => loadProjects(true);
-    const handleRecentProjectsUpdated = () => loadProjects(true);
 
     if (typeof window !== "undefined") {
       window.addEventListener("project-created", handleProjectCreated);
       window.addEventListener("project-deleted", handleProjectDeleted);
-      window.addEventListener("workgrid-recent-projects-updated", handleRecentProjectsUpdated);
     }
 
     return () => {
       if (typeof window !== "undefined") {
         window.removeEventListener("project-created", handleProjectCreated);
         window.removeEventListener("project-deleted", handleProjectDeleted);
-        window.removeEventListener("workgrid-recent-projects-updated", handleRecentProjectsUpdated);
       }
     };
   }, [loadProjects]);
@@ -217,7 +214,9 @@ export default function Sidebar() {
           <nav className="space-y-0.5">
             {mainNav.map((item) => {
               const Icon = item.icon;
-              const isActive = pathname === item.path;
+              const isActive =
+                pathname === item.path ||
+                (item.path === "/tasks" && pathname?.startsWith("/tasks"));
 
               if (isCollapsed) {
                 return (
@@ -286,12 +285,12 @@ export default function Sidebar() {
             })}
           </nav>
 
-          {/* RECENT PROJECTS Section */}
+          {/* PROJECTS Section */}
           <div className="space-y-1">
             {!isCollapsed ? (
               <div className="flex items-center justify-between px-3 py-1 text-[11px] font-semibold text-slate-400 tracking-wider uppercase">
                 <div className="flex items-center gap-1.5">
-                  <span>Recent Projects</span>
+                  <span>Projects</span>
                   {projects.length > 0 && (
                     <span className="text-[10px] px-1.5 py-0.2 rounded-lg bg-slate-100 text-slate-500 font-semibold">
                       {projects.length}
@@ -312,7 +311,7 @@ export default function Sidebar() {
             ) : (
               <div className="pt-2 border-t border-slate-100 flex justify-center">
                 <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-widest">
-                  Recent
+                  Projects
                 </span>
               </div>
             )}
@@ -321,7 +320,7 @@ export default function Sidebar() {
               {loadingProjects ? (
                 <div className={`py-2 text-[11px] text-slate-400 flex items-center ${isCollapsed ? "justify-center" : "px-3 gap-2"}`}>
                   <span className="w-2.5 h-2.5 rounded-full border-2 border-slate-300 border-t-[#0F766E] animate-spin" />
-                  {!isCollapsed && <span>Loading recent...</span>}
+                  {!isCollapsed && <span>Loading projects...</span>}
                 </div>
               ) : projects && projects.length > 0 ? (
                 projects.map((project) => {
@@ -332,9 +331,7 @@ export default function Sidebar() {
                       project.project_members?.length ||
                       0);
 
-                  const isCurrent =
-                    pathname === `/projects/${project.id}` ||
-                    (pathname === "/projects" && queryProjectId === project.id);
+                  const isCurrent = pathname === `/projects/${project.id}`;
                   const initial = (project.name || "P").trim().charAt(0).toUpperCase();
 
                   if (isCollapsed) {
@@ -343,7 +340,6 @@ export default function Sidebar() {
                         key={project.id}
                         href={`/projects/${project.id}`}
                         onClick={() => {
-                          projectService.recordRecentProject(project.id, activeOrg?.id, user?.id);
                           closeMobile();
                         }}
                         title={`${project.name} (${project.status || "active"})`}
@@ -380,7 +376,6 @@ export default function Sidebar() {
                       key={project.id}
                       href={`/projects/${project.id}`}
                       onClick={() => {
-                        projectService.recordRecentProject(project.id, activeOrg?.id, user?.id);
                         closeMobile();
                       }}
                       className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs transition-colors cursor-pointer ${

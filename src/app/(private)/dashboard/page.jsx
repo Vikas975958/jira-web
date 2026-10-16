@@ -1182,7 +1182,7 @@ function OrganizationDashboardContent({
                               <button
                                 type="button"
                                 onClick={() =>
-                                  router.push(`/projects?projectId=${p.id}`)
+                                  router.push(`/tasks?projectId=${p.id}`)
                                 }
                                 className="px-2.5 py-1 text-[11px] font-bold text-[#0F766E] bg-teal-50 hover:bg-teal-100 rounded-lg transition-colors cursor-pointer"
                               >
@@ -2037,7 +2037,11 @@ function OrganizationDashboardContent({
           loadProjects();
         }}
         onOpenBoard={() => {
-          router.push("/projects");
+          if (selectedProject?.id) {
+            router.push(`/tasks?projectId=${selectedProject.id}`);
+          } else {
+            router.push("/tasks");
+          }
         }}
       />
 
@@ -2307,7 +2311,7 @@ function MemberTasksView({ membership, user, onRefresh }) {
         <div className="flex items-center gap-2.5">
           <button
             type="button"
-            onClick={() => router.push("/projects")}
+            onClick={() => router.push("/tasks")}
             className="btn-primary px-3.5 py-2 text-xs font-semibold"
           >
             <FiLayers className="w-4 h-4" />
@@ -2797,7 +2801,7 @@ function MemberTasksView({ membership, user, onRefresh }) {
                         <button
                           type="button"
                           onClick={() =>
-                            router.push(`/projects?projectId=${proj.id}`)
+                            router.push(`/tasks?projectId=${proj.id}`)
                           }
                           className="py-1.5 px-3 rounded-lg bg-[#0F766E] hover:bg-[#0D655E] active:bg-[#115E59] text-white text-xs font-bold transition-all shadow-sm shadow-teal-900/20 flex items-center gap-1.5 cursor-pointer"
                         >
