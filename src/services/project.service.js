@@ -39,6 +39,406 @@ export const projectService = {
   clearProjectsCache,
 
   /**
+   * Normalize raw project data with assigned managers and members
+   */
+  _normalizeProject(project) {
+    if (!project) return null;
+    const pmList = project.project_members || [];
+    const assignedManagers = [];
+    const assignedMembers = [];
+
+    pmList.forEach((pm) => {
+      const profile = pm.profiles || {
+        id: pm.user_id,
+        full_name: pm.full_name || "Team Member",
+        email: pm.email || "",
+      };
+
+      const item = {
+        id: pm.id || pm.user_id,
+        userId: pm.user_id,
+        role: pm.role || MEMBER_ROLE,
+        fullName: profile.full_name || profile.email || "Team Member",
+        email: profile.email || "",
+        profilePhoto: profile.profile_photo || null,
+      };
+
+      if (pm.role === MANAGER_ROLE) {
+        assignedManagers.push(item);
+      } else {
+        assignedMembers.push(item);
+      }
+    });
+
+    return {
+      ...project,
+      assignedManagers,
+      assignedMembers,
+      totalTeamCount: assignedManagers.length + assignedMembers.length,
+    };
+  },
+
+  /**
+   * Get the list of recent project IDs for the current user & organization.
+   */
+  getRecentProjectIds(organizationId, userId) {
+    if (typeof window === "undefined" || !organizationId) return [];
+    try {
+      const storageKey = `workgrid_recent_projects_${organizationId}_${userId || "guest"}`;
+      const raw = localStorage.getItem(storageKey);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (_) {
+      return [];
+    }
+  },
+
+  /**
+   * Record a project as recently viewed / used.
+   */
+  recordRecentProject(projectId, organizationId, userId) {
+    if (typeof window === "undefined" || !projectId || !organizationId) return;
+    try {
+      const storageKey = `workgrid_recent_projects_${organizationId}_${userId || "guest"}`;
+      const currentIds = this.getRecentProjectIds(organizationId, userId);
+      const updated = [projectId, ...currentIds.filter((id) => id !== projectId)].slice(0, 20);
+      localStorage.setItem(storageKey, JSON.stringify(updated));
+
+      window.dispatchEvent(
+        new CustomEvent("workgrid-recent-projects-updated", {
+          detail: { projectId, organizationId },
+        })
+      );
+    } catch (_) {}
+  },
+
+  /**
+   * Fetch up to `limit` (default 5) recently viewed / used projects for an organization.
+   * Prioritizes recently accessed projects, filling remaining slots from newest projects.
+   *
+   * @param {Object} params
+   * @param {string} params.organizationId
+   * @param {string} params.userId
+   * @param {string} [params.userRole]
+   * @param {number} [params.limit=5]
+   * @param {boolean} [params.force=false]
+   * @returns {Promise<Array>}
+   */
+  async getRecentProjects({ organizationId, userId, userRole = MEMBER_ROLE, limit = 5, force = false }) {
+    if (!organizationId) return [];
+
+    const recentIds = this.getRecentProjectIds(organizationId, userId);
+    const cacheKey = `recent:${organizationId}:${userId || ""}:${userRole}:${recentIds.slice(0, limit).join(",")}`;
+
+    if (!force) {
+      const cached = projectsCache.get(cacheKey);
+      if (cached && Date.now() - cached.timestamp < 15000) {
+        return cached.data;
+      }
+      if (inFlightProjects.has(cacheKey)) {
+        return inFlightProjects.get(cacheKey);
+      }
+    }
+
+    const fetchPromise = (async () => {
+      let rawProjects = [];
+
+      try {
+        let recentMatched = [];
+        if (recentIds.length > 0) {
+          const targetIds = recentIds.slice(0, limit * 2);
+          const { data: matchedData, error: matchedErr } = await supabase
+            .from("projects")
+            .select(`
+              id,
+              organization_id,
+              name,
+              description,
+              status,
+              start_date,
+              due_date,
+              created_by,
+              created_at,
+              updated_at,
+              project_members (
+                id,
+                project_id,
+                user_id,
+                role,
+                joined_at
+              )
+            `)
+            .eq("organization_id", organizationId)
+            .in("id", targetIds);
+
+          if (!matchedErr && matchedData) {
+            recentMatched = targetIds
+              .map((id) => matchedData.find((p) => p.id === id))
+              .filter(Boolean);
+          }
+        }
+
+        let additionalProjects = [];
+        if (recentMatched.length < limit) {
+          const excludeIds = recentMatched.map((p) => p.id);
+          const { data: extraData, error: extraErr } = await supabase
+            .from("projects")
+            .select(`
+              id,
+              organization_id,
+              name,
+              description,
+              status,
+              start_date,
+              due_date,
+              created_by,
+              created_at,
+              updated_at,
+              project_members (
+                id,
+                project_id,
+                user_id,
+                role,
+                joined_at
+              )
+            `)
+            .eq("organization_id", organizationId)
+            .order("created_at", { ascending: false })
+            .limit(limit);
+
+          if (!extraErr && extraData) {
+            additionalProjects = extraData.filter((p) => !excludeIds.includes(p.id));
+          }
+        }
+
+        const combined = [...recentMatched, ...additionalProjects];
+
+        if (combined.length > 0) {
+          const allUserIds = [
+            ...new Set(
+              combined
+                .flatMap((p) => (p.project_members || []).map((m) => m.user_id))
+                .filter(Boolean)
+            ),
+          ];
+
+          let profileMap = new Map();
+          if (allUserIds.length > 0) {
+            try {
+              const { data: profs } = await supabase
+                .from("profiles")
+                .select("id, full_name, email, phone, profile_photo")
+                .in("id", allUserIds);
+              (profs || []).forEach((pr) => profileMap.set(pr.id, pr));
+            } catch (_) {}
+          }
+
+          rawProjects = combined.map((p) => ({
+            ...p,
+            project_members: (p.project_members || []).map((pm) => ({
+              ...pm,
+              profiles: profileMap.get(pm.user_id) || null,
+            })),
+          }));
+        }
+      } catch (err) {
+        console.warn("Supabase recent projects notice:", err?.message || err);
+      }
+
+      if (!rawProjects || rawProjects.length === 0) {
+        const local = this.getLocalProjects(organizationId);
+        const matched = recentIds
+          .map((id) => local.find((p) => p.id === id))
+          .filter(Boolean);
+        const remaining = local.filter((p) => !recentIds.includes(p.id));
+        rawProjects = [...matched, ...remaining];
+      }
+
+      if (userRole === MEMBER_ROLE || userRole === MANAGER_ROLE) {
+        rawProjects = (rawProjects || []).filter((p) => {
+          if (p.created_by === userId) return true;
+          const membersList = p.project_members || [];
+          return membersList.some((m) => (m.user_id || m.userId) === userId);
+        });
+      }
+
+      const topProjects = (rawProjects || []).slice(0, limit);
+      return topProjects.map((p) => this._normalizeProject(p));
+    })();
+
+    inFlightProjects.set(cacheKey, fetchPromise);
+    try {
+      const result = await fetchPromise;
+      projectsCache.set(cacheKey, { data: result, timestamp: Date.now() });
+      return result;
+    } finally {
+      inFlightProjects.delete(cacheKey);
+    }
+  },
+
+  /**
+   * Server-side paginated project listing with search and status filtering.
+   *
+   * @param {Object} params
+   * @param {string} params.organizationId
+   * @param {string} params.userId
+   * @param {string} [params.userRole]
+   * @param {number} [params.page=1]
+   * @param {number} [params.pageSize=9]
+   * @param {string} [params.search=""]
+   * @param {string} [params.status="all"]
+   * @returns {Promise<{ projects: Array, totalCount: number, page: number, pageSize: number, totalPages: number }>}
+   */
+  async getProjectsPaginated({
+    organizationId,
+    userId,
+    userRole = MEMBER_ROLE,
+    page = 1,
+    pageSize = 9,
+    search = "",
+    status = "all",
+  }) {
+    if (!organizationId) {
+      return { projects: [], totalCount: 0, page: 1, pageSize, totalPages: 1 };
+    }
+
+    const currentPage = Math.max(1, parseInt(page, 10) || 1);
+    const limit = Math.max(1, parseInt(pageSize, 10) || 9);
+    const from = (currentPage - 1) * limit;
+    const to = from + limit - 1;
+
+    let projectsFromDb = null;
+    let totalCount = 0;
+
+    try {
+      let query = supabase
+        .from("projects")
+        .select(`
+          id,
+          organization_id,
+          name,
+          description,
+          status,
+          start_date,
+          due_date,
+          created_by,
+          created_at,
+          updated_at,
+          project_members (
+            id,
+            project_id,
+            user_id,
+            role,
+            joined_at
+          )
+        `, { count: "exact" })
+        .eq("organization_id", organizationId);
+
+      if (userRole === MEMBER_ROLE || userRole === MANAGER_ROLE) {
+        const { data: memberRows } = await supabase
+          .from("project_members")
+          .select("project_id")
+          .eq("user_id", userId);
+        const memberProjectIds = (memberRows || []).map((m) => m.project_id).filter(Boolean);
+
+        if (memberProjectIds.length > 0) {
+          query = query.or(`created_by.eq.${userId},id.in.(${memberProjectIds.join(",")})`);
+        } else {
+          query = query.eq("created_by", userId);
+        }
+      }
+
+      if (search && search.trim()) {
+        const q = search.trim();
+        query = query.or(`name.ilike.%${q}%,description.ilike.%${q}%`);
+      }
+
+      if (status && status !== "all") {
+        query = query.eq("status", status);
+      }
+
+      query = query
+        .order("created_at", { ascending: false })
+        .range(from, to);
+
+      const { data, count, error } = await query;
+
+      if (!error && data) {
+        totalCount = count !== null && count !== undefined ? count : data.length;
+
+        const allUserIds = [
+          ...new Set(
+            data
+              .flatMap((p) => (p.project_members || []).map((m) => m.user_id))
+              .filter(Boolean)
+          ),
+        ];
+
+        let profileMap = new Map();
+        if (allUserIds.length > 0) {
+          try {
+            const { data: profs } = await supabase
+              .from("profiles")
+              .select("id, full_name, email, phone, profile_photo")
+              .in("id", allUserIds);
+            (profs || []).forEach((pr) => profileMap.set(pr.id, pr));
+          } catch (_) {}
+        }
+
+        projectsFromDb = data.map((p) => ({
+          ...p,
+          project_members: (p.project_members || []).map((pm) => ({
+            ...pm,
+            profiles: profileMap.get(pm.user_id) || null,
+          })),
+        }));
+      }
+    } catch (err) {
+      console.warn("Supabase paginated projects query error:", err?.message || err);
+    }
+
+    if (projectsFromDb === null) {
+      let local = this.getLocalProjects(organizationId);
+
+      if (userRole === MEMBER_ROLE || userRole === MANAGER_ROLE) {
+        local = local.filter((p) => {
+          if (p.created_by === userId) return true;
+          const membersList = p.project_members || [];
+          return membersList.some((m) => (m.user_id || m.userId) === userId);
+        });
+      }
+
+      if (search && search.trim()) {
+        const q = search.trim().toLowerCase();
+        local = local.filter(
+          (p) =>
+            p.name?.toLowerCase().includes(q) ||
+            p.description?.toLowerCase().includes(q)
+        );
+      }
+
+      if (status && status !== "all") {
+        local = local.filter((p) => p.status === status);
+      }
+
+      totalCount = local.length;
+      projectsFromDb = local.slice(from, to + 1);
+    }
+
+    const formattedProjects = (projectsFromDb || []).map((p) => this._normalizeProject(p));
+    const totalPages = Math.ceil(totalCount / limit) || 1;
+
+    return {
+      projects: formattedProjects,
+      totalCount,
+      page: currentPage,
+      pageSize: limit,
+      totalPages,
+    };
+  },
+
+  /**
    * Fetch all projects for an organization, scoped by caller role.
    * - Owner / Manager: See all projects belonging to the organization.
    * - Member: See only projects to which they are assigned or created.

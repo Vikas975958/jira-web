@@ -93,10 +93,11 @@ export default function Sidebar() {
 
     try {
       setLoadingProjects(true);
-      const data = await projectService.getProjects({
+      const data = await projectService.getRecentProjects({
         organizationId: orgId,
         userId: user?.id,
         userRole,
+        limit: 5,
         force,
       });
       lastFetchedOrgIdRef.current = orgId;
@@ -116,16 +117,19 @@ export default function Sidebar() {
   useEffect(() => {
     const handleProjectCreated = () => loadProjects(true);
     const handleProjectDeleted = () => loadProjects(true);
+    const handleRecentProjectsUpdated = () => loadProjects(true);
 
     if (typeof window !== "undefined") {
       window.addEventListener("project-created", handleProjectCreated);
       window.addEventListener("project-deleted", handleProjectDeleted);
+      window.addEventListener("workgrid-recent-projects-updated", handleRecentProjectsUpdated);
     }
 
     return () => {
       if (typeof window !== "undefined") {
         window.removeEventListener("project-created", handleProjectCreated);
         window.removeEventListener("project-deleted", handleProjectDeleted);
+        window.removeEventListener("workgrid-recent-projects-updated", handleRecentProjectsUpdated);
       }
     };
   }, [loadProjects]);
@@ -282,12 +286,12 @@ export default function Sidebar() {
             })}
           </nav>
 
-          {/* ALL PROJECTS Section */}
+          {/* RECENT PROJECTS Section */}
           <div className="space-y-1">
             {!isCollapsed ? (
               <div className="flex items-center justify-between px-3 py-1 text-[11px] font-semibold text-slate-400 tracking-wider uppercase">
                 <div className="flex items-center gap-1.5">
-                  <span>Projects</span>
+                  <span>Recent Projects</span>
                   {projects.length > 0 && (
                     <span className="text-[10px] px-1.5 py-0.2 rounded-lg bg-slate-100 text-slate-500 font-semibold">
                       {projects.length}
@@ -308,7 +312,7 @@ export default function Sidebar() {
             ) : (
               <div className="pt-2 border-t border-slate-100 flex justify-center">
                 <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-widest">
-                  Proj
+                  Recent
                 </span>
               </div>
             )}
@@ -317,7 +321,7 @@ export default function Sidebar() {
               {loadingProjects ? (
                 <div className={`py-2 text-[11px] text-slate-400 flex items-center ${isCollapsed ? "justify-center" : "px-3 gap-2"}`}>
                   <span className="w-2.5 h-2.5 rounded-full border-2 border-slate-300 border-t-[#0F766E] animate-spin" />
-                  {!isCollapsed && <span>Loading projects...</span>}
+                  {!isCollapsed && <span>Loading recent...</span>}
                 </div>
               ) : projects && projects.length > 0 ? (
                 projects.map((project) => {
@@ -338,7 +342,10 @@ export default function Sidebar() {
                       <Link
                         key={project.id}
                         href={`/projects/${project.id}`}
-                        onClick={() => closeMobile()}
+                        onClick={() => {
+                          projectService.recordRecentProject(project.id, activeOrg?.id, user?.id);
+                          closeMobile();
+                        }}
                         title={`${project.name} (${project.status || "active"})`}
                         className="w-full flex items-center justify-center p-1 rounded-lg transition-colors cursor-pointer relative group"
                       >
@@ -372,7 +379,10 @@ export default function Sidebar() {
                     <Link
                       key={project.id}
                       href={`/projects/${project.id}`}
-                      onClick={() => closeMobile()}
+                      onClick={() => {
+                        projectService.recordRecentProject(project.id, activeOrg?.id, user?.id);
+                        closeMobile();
+                      }}
                       className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs transition-colors cursor-pointer ${
                         isCurrent
                           ? "bg-slate-100 text-slate-900 font-semibold"
@@ -416,9 +426,61 @@ export default function Sidebar() {
               ) : (
                 !isCollapsed && (
                   <div className="px-3 py-2 text-[11px] text-slate-400">
-                    No projects created yet.
+                    No recent projects.
                   </div>
                 )
+              )}
+
+              {/* View All Projects Option */}
+              {isCollapsed ? (
+                <Link
+                  href="/projects"
+                  onClick={() => closeMobile()}
+                  title="View All Projects"
+                  className="w-full flex items-center justify-center p-1 rounded-lg transition-colors cursor-pointer relative group pt-1.5 border-t border-slate-100 mt-1"
+                >
+                  <span
+                    className={`w-7 h-7 rounded-lg text-xs font-bold flex items-center justify-center uppercase transition-all shadow-2xs ${
+                      pathname === "/projects" && !queryProjectId
+                        ? "bg-[#0F766E] text-white shadow-xs ring-2 ring-teal-600/25 ring-offset-1"
+                        : "bg-slate-100 text-slate-600 border border-slate-200/80 group-hover:bg-teal-50 group-hover:text-[#0F766E] group-hover:border-teal-200"
+                    }`}
+                  >
+                    <LuLayoutGrid className="w-3.5 h-3.5" />
+                  </span>
+
+                  {/* Floating Tooltip */}
+                  <div className="absolute left-full ml-2.5 top-1/2 -translate-y-1/2 opacity-0 pointer-events-none group-hover:opacity-100 transition-all duration-150 flex items-center z-50 drop-shadow-xl">
+                    <div className="w-2 h-2 bg-slate-900 rotate-45 -mr-1 shrink-0 z-10" />
+                    <div className="bg-slate-900 text-white text-xs px-2.5 py-1.5 rounded-md flex items-center gap-2 whitespace-nowrap border border-slate-700/60 shadow-xl">
+                      <span className="font-semibold text-slate-100">View All Projects</span>
+                    </div>
+                  </div>
+                </Link>
+              ) : (
+                <Link
+                  href="/projects"
+                  onClick={() => closeMobile()}
+                  className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs transition-colors cursor-pointer group pt-1.5 border-t border-slate-100 mt-1 ${
+                    pathname === "/projects" && !queryProjectId
+                      ? "bg-slate-100 text-[#0F766E] font-semibold"
+                      : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium"
+                  }`}
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div
+                      className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 transition-colors ${
+                        pathname === "/projects" && !queryProjectId
+                          ? "bg-[#0F766E] text-white"
+                          : "bg-teal-50/70 text-[#0F766E] group-hover:bg-[#0F766E] group-hover:text-white"
+                      }`}
+                    >
+                      <LuLayoutGrid className="w-3 h-3" />
+                    </div>
+                    <span className="truncate text-xs">View All Projects</span>
+                  </div>
+                  <LuChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-600 shrink-0" />
+                </Link>
               )}
             </div>
           </div>

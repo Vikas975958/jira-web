@@ -140,6 +140,7 @@ export default function ProjectDetailsPage() {
         lastFetchedProjectKeyRef.current = fetchKey;
         setProject(data);
         setStatus(data.status || "active");
+        projectService.recordRecentProject(projectId, data.organization_id || activeOrg?.id, user?.id);
       }
     } catch (err) {
       console.error("loadProject error:", err);
