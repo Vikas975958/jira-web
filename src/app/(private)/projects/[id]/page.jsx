@@ -32,6 +32,7 @@ import projectService from "@/services/project.service";
 import organizationService from "@/services/organization.service";
 import DeleteProjectConfirmModal from "@/components/DeleteProjectConfirmModal";
 import DeleteConfirmModal from "@/components/DeleteConfirmModal";
+import ProjectDetailsSkeleton from "@/components/ProjectDetailsSkeleton";
 import { MEMBER_ROLE, MANAGER_ROLE, OWNER_ROLE } from "@/utils/constants";
 
 export default function ProjectDetailsPage() {
@@ -506,14 +507,7 @@ export default function ProjectDetailsPage() {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-full bg-slate-50/70 p-6 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3 text-slate-500">
-          <div className="w-8 h-8 border-3 border-[#0F766E] border-t-transparent rounded-full animate-spin" />
-          <p className="text-sm font-semibold">Loading project details...</p>
-        </div>
-      </div>
-    );
+    return <ProjectDetailsSkeleton />;
   }
 
   if (errorMsg || !project) {
