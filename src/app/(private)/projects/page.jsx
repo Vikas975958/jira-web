@@ -141,14 +141,12 @@ function ProjectsDirectoryContent() {
 
   const handleProjectClick = (proj) => {
     if (!proj?.id) return;
-    projectService.recordRecentProject(proj.id, activeOrg?.id, user?.id);
     router.push(`/projects/${proj.id}`);
   };
 
   const handleOpenBoard = (e, projId) => {
     e.stopPropagation();
     if (!projId) return;
-    projectService.recordRecentProject(projId, activeOrg?.id, user?.id);
     router.push(`/tasks?projectId=${projId}`);
   };
 
@@ -560,9 +558,6 @@ function ProjectsDirectoryContent() {
           onProjectCreated={(newProject) => {
             setIsCreateModalOpen(false);
             loadPaginatedProjects();
-            if (newProject?.id) {
-              projectService.recordRecentProject(newProject.id, activeOrg?.id, user?.id);
-            }
             if (typeof window !== "undefined") {
               window.dispatchEvent(
                 new CustomEvent("project-created", { detail: newProject })
