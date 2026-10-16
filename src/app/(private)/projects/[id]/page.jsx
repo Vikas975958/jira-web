@@ -601,7 +601,7 @@ export default function ProjectDetailsPage() {
               {/* Open Kanban Board */}
               <button
                 type="button"
-                onClick={() => router.push(`/projects?projectId=${project.id}`)}
+                onClick={() => router.push(`/tasks?projectId=${project.id}`)}
                 className="btn-primary px-3.5 py-1.5 text-xs font-semibold whitespace-nowrap"
               >
                 <FiLayers className="w-3.5 h-3.5" />

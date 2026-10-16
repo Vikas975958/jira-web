@@ -13,6 +13,7 @@ import {
   LuChevronLeft,
   LuChevronRight,
   LuX,
+  LuKanban,
 } from "react-icons/lu";
 import { useOrganization } from "@/context/OrganizationContext";
 import { useSidebar } from "@/context/SidebarContext";
@@ -46,9 +47,9 @@ export default function Sidebar() {
       path: "/dashboard",
     },
     {
-      name: "Projects",
-      icon: LuFolder,
-      path: "/projects",
+      name: "Tasks",
+      icon: LuKanban,
+      path: "/tasks",
     },
     {
       name: "Team",
@@ -217,7 +218,9 @@ export default function Sidebar() {
           <nav className="space-y-0.5">
             {mainNav.map((item) => {
               const Icon = item.icon;
-              const isActive = pathname === item.path;
+              const isActive =
+                pathname === item.path ||
+                (item.path === "/tasks" && pathname?.startsWith("/tasks"));
 
               if (isCollapsed) {
                 return (
@@ -334,7 +337,8 @@ export default function Sidebar() {
 
                   const isCurrent =
                     pathname === `/projects/${project.id}` ||
-                    (pathname === "/projects" && queryProjectId === project.id);
+                    ((pathname === "/projects" || pathname === "/tasks") &&
+                      queryProjectId === project.id);
                   const initial = (project.name || "P").trim().charAt(0).toUpperCase();
 
                   if (isCollapsed) {

@@ -12,7 +12,7 @@ export default function TaskRedirectPage() {
     if (params?.id) {
       router.replace(`/issues/${params.id}`);
     } else {
-      router.replace("/projects");
+      router.replace("/tasks");
     }
   }, [params, router]);
 
