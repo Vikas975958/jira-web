@@ -40,8 +40,8 @@ export default function CreateIssueModal({
 
   // Project team members available for assignment
   const effectiveAssignees = React.useMemo(() => {
+    let list = [];
     if (chosenProj) {
-      const list = [];
       if (chosenProj.assignedManagers?.length > 0) {
         chosenProj.assignedManagers.forEach((m) => {
           list.push({
@@ -64,10 +64,20 @@ export default function CreateIssueModal({
           });
         });
       }
-      if (list.length > 0) return list;
+    } else {
+      list = [...(teamMembers || [])];
     }
-    return teamMembers || [];
-  }, [chosenProj, teamMembers]);
+
+    if (user?.id && list.length > 0) {
+      list.sort((a, b) => {
+        const aIsMe = (a.user_id === user.id || a.id === user.id || a.profiles?.id === user.id) ? 1 : 0;
+        const bIsMe = (b.user_id === user.id || b.id === user.id || b.profiles?.id === user.id) ? 1 : 0;
+        return bIsMe - aIsMe;
+      });
+    }
+
+    return list;
+  }, [chosenProj, teamMembers, user?.id]);
 
   // Set default assignee and assigneeId when modal opens or user loads
   React.useEffect(() => {
@@ -272,6 +282,7 @@ export default function CreateIssueModal({
                 onChange={(e) => setStatus(e.target.value)}
                 className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-[#0F766E]"
               >
+                <option value="backlog">📦 Backlog</option>
                 <option value="todo">📋 To Do</option>
                 <option value="in-progress">⚡ In Progress</option>
                 <option value="review">🔍 Code Review</option>
@@ -322,9 +333,10 @@ export default function CreateIssueModal({
                   {effectiveAssignees.map((member) => {
                     const mId = member.user_id || member.profiles?.id || member.id;
                     const mName = member.full_name || member.name || member.email || "Member";
+                    const isMe = user?.id && (mId === user.id || member.user_id === user.id);
                     return (
                       <option key={mId || member.email} value={mId}>
-                        {mName} ({member.role})
+                        {mName} {isMe ? "(You) " : ""}({member.role})
                       </option>
                     );
                   })}

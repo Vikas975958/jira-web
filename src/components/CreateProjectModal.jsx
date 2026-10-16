@@ -83,11 +83,32 @@ export default function CreateProjectModal({
 
   const activeMembers = internalMembers.length > 0 ? internalMembers : (existingMembers || []);
 
-  // Separate org members into managers and members
-  const orgManagers = activeMembers.filter(
-    (m) => m.role === MANAGER_ROLE || m.role === OWNER_ROLE
-  );
-  const orgMembers = activeMembers.filter((m) => m.role === MEMBER_ROLE);
+  // Separate org members into managers and members (always keeping current user at top)
+  const orgManagers = React.useMemo(() => {
+    const list = activeMembers.filter(
+      (m) => m.role === MANAGER_ROLE || m.role === OWNER_ROLE
+    );
+    if (currentUserId) {
+      list.sort((a, b) => {
+        const aIsMe = (a.user_id === currentUserId || a.id === currentUserId || a.profiles?.id === currentUserId) ? 1 : 0;
+        const bIsMe = (b.user_id === currentUserId || b.id === currentUserId || b.profiles?.id === currentUserId) ? 1 : 0;
+        return bIsMe - aIsMe;
+      });
+    }
+    return list;
+  }, [activeMembers, currentUserId]);
+
+  const orgMembers = React.useMemo(() => {
+    const list = activeMembers.filter((m) => m.role === MEMBER_ROLE);
+    if (currentUserId) {
+      list.sort((a, b) => {
+        const aIsMe = (a.user_id === currentUserId || a.id === currentUserId || a.profiles?.id === currentUserId) ? 1 : 0;
+        const bIsMe = (b.user_id === currentUserId || b.id === currentUserId || b.profiles?.id === currentUserId) ? 1 : 0;
+        return bIsMe - aIsMe;
+      });
+    }
+    return list;
+  }, [activeMembers, currentUserId]);
 
   useEffect(() => {
     if (isOpen) {
@@ -304,7 +325,6 @@ export default function CreateProjectModal({
                           type="button"
                           onClick={() => {
                             navigator.clipboard.writeText(inv.signupUrl);
-                            toast.success(`Copied invite link for ${inv.email}`);
                           }}
                           className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#0F766E] hover:text-[#0D655E] shrink-0 cursor-pointer"
                         >

@@ -116,7 +116,7 @@
   transform: scale(0.98);
 }
 
-.jira-input {
+:where(.jira-input) {
   width: 100%;
   height: 2.25rem;
   padding-left: 0.75rem;
@@ -130,11 +130,11 @@
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.jira-input:hover {
+:where(.jira-input):hover {
   border-color: #cbd5e1;
 }
 
-.jira-input:focus {
+:where(.jira-input):focus {
   border-color: var(--primary);
   box-shadow: 0 0 0 3px var(--primary-ring);
 }

@@ -140,7 +140,15 @@ export function OrganizationProvider({ children }) {
           force
         );
         lastFetchedOrgIdRef.current = orgId;
-        setMembers(data || []);
+        const sortedData = Array.isArray(data) ? [...data] : [];
+        if (user?.id && sortedData.length > 0) {
+          sortedData.sort((a, b) => {
+            const aIsMe = (a.user_id === user.id || a.id === user.id || a.profiles?.id === user.id) ? 1 : 0;
+            const bIsMe = (b.user_id === user.id || b.id === user.id || b.profiles?.id === user.id) ? 1 : 0;
+            return bIsMe - aIsMe;
+          });
+        }
+        setMembers(sortedData);
       } catch (err) {
         console.error("Failed to load members in OrganizationContext:", err);
         setMembers([]);

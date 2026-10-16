@@ -25,6 +25,7 @@ import {
   FiInfo,
   FiCheck,
   FiSearch,
+  FiX,
 } from "react-icons/fi";
 import { useOrganization } from "@/context/OrganizationContext";
 import projectService from "@/services/project.service";
@@ -259,24 +260,45 @@ export default function ProjectDetailsPage() {
 
   // Filtered members by search
   const filteredTeamMembers = useMemo(() => {
-    if (!memberSearch.trim()) return allTeamMembers;
-    const q = memberSearch.toLowerCase();
-    return allTeamMembers.filter(
-      (m) =>
-        m.name?.toLowerCase().includes(q) ||
-        m.email?.toLowerCase().includes(q) ||
-        m.type?.toLowerCase().includes(q)
-    );
-  }, [allTeamMembers, memberSearch]);
+    const q = memberSearch.toLowerCase().trim();
+    const list = !q
+      ? [...allTeamMembers]
+      : allTeamMembers.filter(
+          (m) =>
+            m.name?.toLowerCase().includes(q) ||
+            m.email?.toLowerCase().includes(q) ||
+            m.type?.toLowerCase().includes(q)
+        );
+
+    if (user?.id) {
+      list.sort((a, b) => {
+        const aIsMe = (a.userId === user.id || a.id === user.id) ? 1 : 0;
+        const bIsMe = (b.userId === user.id || b.id === user.id) ? 1 : 0;
+        return bIsMe - aIsMe;
+      });
+    }
+
+    return list;
+  }, [allTeamMembers, memberSearch, user?.id]);
 
   // Organization members who are NOT yet assigned to this project
   const availableOrgMembers = useMemo(() => {
     const currentMemberUserIds = new Set(allTeamMembers.map((m) => m.userId));
-    return (orgMembers || []).filter((m) => {
+    const list = (orgMembers || []).filter((m) => {
       const uId = m.user_id || m.id;
       return uId && !currentMemberUserIds.has(uId);
     });
-  }, [orgMembers, allTeamMembers]);
+
+    if (user?.id) {
+      list.sort((a, b) => {
+        const aIsMe = (a.user_id === user.id || a.id === user.id || a.profiles?.id === user.id) ? 1 : 0;
+        const bIsMe = (b.user_id === user.id || b.id === user.id || b.profiles?.id === user.id) ? 1 : 0;
+        return bIsMe - aIsMe;
+      });
+    }
+
+    return list;
+  }, [orgMembers, allTeamMembers, user?.id]);
 
   // Handle Project Status Update
   const handleStatusChange = async (newStatus) => {
@@ -415,7 +437,6 @@ export default function ProjectDetailsPage() {
           projectId,
           organizationId: project?.organization_id || activeOrg?.id,
         });
-        toast.success("Invitation cancelled.");
         await loadInvitations(true);
       } else if (deleteConfirmState.actionType === "member") {
         const targetMember = deleteConfirmState.item.raw;
@@ -424,7 +445,6 @@ export default function ProjectDetailsPage() {
           userId: targetMember.userId,
           userRole: isOwner ? OWNER_ROLE : MANAGER_ROLE,
         });
-        toast.success("Member removed from project.");
         await loadProject(true);
         if (typeof window !== "undefined") {
           window.dispatchEvent(
@@ -686,7 +706,6 @@ export default function ProjectDetailsPage() {
                   </h2>
                 </div>
 
-                {/* Member Search input */}
                 <div className="relative w-48 sm:w-64 max-w-xs shrink-0">
                   <FiSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
                   <input
@@ -694,8 +713,18 @@ export default function ProjectDetailsPage() {
                     placeholder="Filter by name or email..."
                     value={memberSearch}
                     onChange={(e) => setMemberSearch(e.target.value)}
-                    className="jira-input text-xs h-8.5 !pl-8.5 pr-3 w-full"
+                    className="jira-input text-xs h-8.5 !pl-8.5 pr-8 w-full"
                   />
+                  {memberSearch && (
+                    <button
+                      type="button"
+                      onClick={() => setMemberSearch("")}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-600 rounded cursor-pointer"
+                      title="Clear search"
+                    >
+                      <FiX className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -748,9 +777,16 @@ export default function ProjectDetailsPage() {
                             {initials}
                           </div>
                           <div className="min-w-0">
-                            <p className="font-semibold text-slate-900 truncate">
-                              {member.name}
-                            </p>
+                            <div className="flex items-center gap-1.5">
+                              <p className="font-semibold text-slate-900 truncate">
+                                {member.name}
+                              </p>
+                              {(member.userId === user?.id || member.id === user?.id) && (
+                                <span className="text-[10px] text-[#0F766E] font-semibold">
+                                  (You)
+                                </span>
+                              )}
+                            </div>
                             <span className="text-[10px] text-slate-400 font-mono">
                               ID: {member.userId?.slice(0, 8)}...
                             </span>
@@ -933,9 +969,10 @@ export default function ProjectDetailsPage() {
                             const prof = m.profiles || {};
                             const mName = prof.full_name || prof.email || "Member";
                             const mEmail = prof.email ? `(${prof.email})` : "";
+                            const isMe = user?.id && (m.user_id === user.id || m.id === user.id);
                             return (
                               <option key={m.id || m.user_id} value={m.user_id || m.id}>
-                                {mName} {mEmail}
+                                {mName} {isMe ? "(You) " : ""}{mEmail}
                               </option>
                             );
                           })}

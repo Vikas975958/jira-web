@@ -60,7 +60,6 @@ export default function AddProfileModal({
     if (inviteSuccessData?.inviteLink) {
       navigator.clipboard.writeText(inviteSuccessData.inviteLink);
       setCopied(true);
-      toast.success("Invitation link copied to clipboard!");
       setTimeout(() => setCopied(false), 3000);
     }
   };
@@ -103,7 +102,6 @@ export default function AddProfileModal({
       });
 
       setInviteSuccessData(res);
-      toast.success(`Invitation ready for ${trimmedEmail}!`);
       if (onSuccess) onSuccess();
     } catch (err) {
       console.error("Invitation error:", err);

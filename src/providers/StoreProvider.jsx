@@ -4,9 +4,14 @@ import React from "react";
 import { Provider } from "react-redux";
 import { PersistGate } from "redux-persist/integration/react";
 import { store, persistor } from "@/store";
-import { ToastContainer } from "react-toastify";
+import { ToastContainer, toast } from "react-toastify";
 import { ConfigProvider } from "antd";
 import primary from "@/utils/theme";
+
+// Silence success toasts globally so only errors are shown to the user
+if (typeof window !== "undefined") {
+  toast.success = () => null;
+}
 
 export default function StoreProvider({ children }) {
   return (

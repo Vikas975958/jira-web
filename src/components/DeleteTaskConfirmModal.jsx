@@ -13,6 +13,7 @@ const priorityStyles = {
 };
 
 const statusLabels = {
+  backlog: "Backlog",
   todo: "To Do",
   "in-progress": "In Progress",
   review: "In Review",

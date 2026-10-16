@@ -162,16 +162,13 @@ export function useAuth() {
         );
 
         if (assignedRole === OWNER_ROLE) {
-          toast.success("Account created! Let's set up your organization.");
           router.push("/dashboard/create-organization");
         } else {
-          toast.success(`Welcome to the team as ${assignedRole === MANAGER_ROLE ? "Manager" : "Member"}!`);
           router.push("/dashboard");
         }
 
         return { success: true, session, user, profile: userData };
       } else {
-        toast.success("Account created! Please check your email for confirmation.");
         return { success: true, session: null, user, requiresVerification: true };
       }
     } catch (err) {
@@ -259,7 +256,6 @@ export function useAuth() {
         })
       );
 
-      toast.success("Signed in successfully! Welcome to WorkGrid.");
       router.push("/dashboard");
       return { success: true, session, user, profile: userData };
     } catch (err) {

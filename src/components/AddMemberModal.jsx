@@ -102,7 +102,6 @@ export default function AddMemberModal({
     if (successResult?.signupUrl) {
       navigator.clipboard.writeText(successResult.signupUrl);
       setCopied(true);
-      toast.success("Invitation link copied!");
       setTimeout(() => setCopied(false), 3000);
     }
   };
@@ -144,7 +143,6 @@ export default function AddMemberModal({
           requestedBy: currentUserId,
           invitedBy: currentUserId,
         });
-        toast.success(`Manager invitation created for ${trimmedEmail}!`);
       } else {
         result = await organizationService.createMemberRequest({
           organizationId,
@@ -154,7 +152,6 @@ export default function AddMemberModal({
           requestedBy: currentUserId,
           invitedBy: currentUserId,
         });
-        toast.success(`Member invitation created for ${trimmedEmail}!`);
       }
       setSuccessResult(result);
     } catch (err) {
@@ -387,7 +384,7 @@ export default function AddMemberModal({
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="teammate@company.com"
-                    className="jira-input w-full h-8.5 pl-8 pr-3 text-xs"
+                    className="jira-input w-full h-8.5 !pl-9 pr-3 text-xs"
                   />
                 </div>
               </div>
@@ -404,7 +401,7 @@ export default function AddMemberModal({
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
                     placeholder="e.g. Jordan Taylor"
-                    className="jira-input w-full h-8.5 pl-8 pr-3 text-xs"
+                    className="jira-input w-full h-8.5 !pl-9 pr-3 text-xs"
                   />
                 </div>
               </div>

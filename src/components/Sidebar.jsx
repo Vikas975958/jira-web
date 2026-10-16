@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useSelector } from "react-redux";
 import {
   LuFolder,
@@ -23,6 +23,8 @@ import { MEMBER_ROLE, MANAGER_ROLE, OWNER_ROLE } from "@/utils/constants";
 export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const queryProjectId = searchParams?.get("projectId");
   const authState = useSelector((state) => state.authSlice);
   const user = authState?.userData;
 
@@ -33,7 +35,6 @@ export default function Sidebar() {
   const userRole = currentOrg?.role || organizations?.[0]?.role || user?.role || MEMBER_ROLE;
   const isMember = userRole === MEMBER_ROLE;
 
-  // Projects state
   const [projects, setProjects] = useState([]);
   const [loadingProjects, setLoadingProjects] = useState(false);
   const [isCreateProjectModalOpen, setIsCreateProjectModalOpen] = useState(false);
@@ -132,7 +133,9 @@ export default function Sidebar() {
   return (
     <>
       <aside
-        className={`border-r border-slate-200/80 bg-white flex flex-col justify-between select-none shrink-0 h-full overflow-hidden transition-all duration-200 ease-in-out z-40
+        className={`relative border-r border-slate-200/80 bg-white flex flex-col justify-between select-none shrink-0 h-full ${
+          isCollapsed ? "overflow-visible" : "overflow-hidden"
+        } transition-all duration-200 ease-in-out z-40
           ${isCollapsed ? "w-16" : "w-60 lg:w-64"}
           ${
             isMobileOpen
@@ -141,7 +144,7 @@ export default function Sidebar() {
           }
         `}
       >
-        <div className="p-3 space-y-4 overflow-y-auto flex-1">
+        <div className={`p-3 space-y-4 flex-1 ${isCollapsed ? "overflow-visible" : "overflow-y-auto"}`}>
           {/* Active Workspace Header */}
           {activeOrg && (
             <div
@@ -151,11 +154,24 @@ export default function Sidebar() {
             >
               <div className="flex items-center gap-2.5 min-w-0">
                 <div
-                  className="w-7 h-7 rounded-lg bg-[#0F766E] text-white font-bold text-xs flex items-center justify-center shrink-0 cursor-pointer"
+                  className="w-7 h-7 rounded-lg bg-[#0F766E] text-white font-bold text-xs flex items-center justify-center shrink-0 cursor-pointer relative group"
                   title={`${activeOrg.name} (${userRole === OWNER_ROLE ? "Workspace Owner" : userRole})`}
                   onClick={() => isCollapsed && toggleSidebar()}
                 >
                   {activeOrg.name?.charAt(0)?.toUpperCase() || "W"}
+
+                  {/* Tooltip for Workspace */}
+                  {isCollapsed && (
+                    <div className="absolute left-full ml-2.5 top-1/2 -translate-y-1/2 opacity-0 pointer-events-none group-hover:opacity-100 transition-all duration-150 flex items-center z-50 drop-shadow-xl">
+                      <div className="w-2 h-2 bg-slate-900 rotate-45 -mr-1 shrink-0 z-10" />
+                      <div className="bg-slate-900 text-white text-xs px-2.5 py-1.5 rounded-md flex items-center gap-2 whitespace-nowrap border border-slate-700/60 shadow-xl">
+                        <span className="font-semibold text-slate-100">{activeOrg.name}</span>
+                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-800 text-teal-300 font-medium uppercase tracking-wider border border-slate-700/50">
+                          {userRole === OWNER_ROLE ? "Workspace Owner" : userRole}
+                        </span>
+                      </div>
+                    </div>
+                  )}
                 </div>
                 {!isCollapsed && (
                   <div className="min-w-0">
@@ -206,7 +222,7 @@ export default function Sidebar() {
                     href={item.path}
                     onClick={() => closeMobile()}
                     title={item.name}
-                    className={`w-full flex items-center justify-center p-2 rounded-lg text-xs transition-colors relative cursor-pointer ${
+                    className={`w-full flex items-center justify-center p-2 rounded-lg text-xs transition-colors relative group cursor-pointer ${
                       isActive
                         ? "bg-teal-50 text-[#0F766E] font-semibold"
                         : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
@@ -220,6 +236,19 @@ export default function Sidebar() {
                     {item.count !== undefined && item.count > 0 && (
                       <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#0F766E]" />
                     )}
+
+                    {/* Tooltip for Main Nav Item */}
+                    <div className="absolute left-full ml-2.5 top-1/2 -translate-y-1/2 opacity-0 pointer-events-none group-hover:opacity-100 transition-all duration-150 flex items-center z-50 drop-shadow-xl">
+                      <div className="w-2 h-2 bg-slate-900 rotate-45 -mr-1 shrink-0 z-10" />
+                      <div className="bg-slate-900 text-white text-xs px-2.5 py-1.5 rounded-md flex items-center gap-2 whitespace-nowrap border border-slate-700/60 shadow-xl">
+                        <span className="font-semibold text-slate-100">{item.name}</span>
+                        {item.count !== undefined && item.count > 0 && (
+                          <span className="text-[10px] px-1.5 py-0.2 rounded bg-[#0F766E] text-white font-bold">
+                            {item.count}
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   </Link>
                 );
               }
@@ -299,7 +328,10 @@ export default function Sidebar() {
                       project.project_members?.length ||
                       0);
 
-                  const isCurrent = pathname === `/projects/${project.id}`;
+                  const isCurrent =
+                    pathname === `/projects/${project.id}` ||
+                    (pathname === "/projects" && queryProjectId === project.id);
+                  const initial = (project.name || "P").trim().charAt(0).toUpperCase();
 
                   if (isCollapsed) {
                     return (
@@ -308,17 +340,30 @@ export default function Sidebar() {
                         href={`/projects/${project.id}`}
                         onClick={() => closeMobile()}
                         title={`${project.name} (${project.status || "active"})`}
-                        className={`w-full flex items-center justify-center p-2 rounded-lg text-xs transition-colors cursor-pointer ${
-                          isCurrent
-                            ? "bg-teal-50 text-[#0F766E]"
-                            : "text-slate-600 hover:bg-slate-50"
-                        }`}
+                        className="w-full flex items-center justify-center p-1 rounded-lg transition-colors cursor-pointer relative group"
                       >
-                        <LuFolder
-                          className={`w-4 h-4 ${
-                            isCurrent ? "text-[#0F766E]" : "text-slate-400"
+                        <span
+                          className={`w-7 h-7 rounded-lg text-xs font-bold flex items-center justify-center uppercase transition-all shadow-2xs ${
+                            isCurrent
+                              ? "bg-[#0F766E] text-white shadow-xs ring-2 ring-teal-600/25 ring-offset-1"
+                              : "bg-slate-100 text-slate-600 border border-slate-200/80 group-hover:bg-teal-50 group-hover:text-[#0F766E] group-hover:border-teal-200"
                           }`}
-                        />
+                        >
+                          {initial}
+                        </span>
+
+                        {/* Floating Tooltip showing complete project name */}
+                        <div className="absolute left-full ml-2.5 top-1/2 -translate-y-1/2 opacity-0 pointer-events-none group-hover:opacity-100 transition-all duration-150 flex items-center z-50 drop-shadow-xl">
+                          <div className="w-2 h-2 bg-slate-900 rotate-45 -mr-1 shrink-0 z-10" />
+                          <div className="bg-slate-900 text-white text-xs px-2.5 py-1.5 rounded-md flex items-center gap-2 whitespace-nowrap border border-slate-700/60 shadow-xl">
+                            <span className="font-semibold text-slate-100">{project.name}</span>
+                            {project.status && (
+                              <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-800 text-teal-300 font-medium uppercase tracking-wider border border-slate-700/50">
+                                {(project.status || "active").replace("_", " ")}
+                              </span>
+                            )}
+                          </div>
+                        </div>
                       </Link>
                     );
                   }
@@ -425,3 +470,5 @@ export default function Sidebar() {
     </>
   );
 }
+
+
