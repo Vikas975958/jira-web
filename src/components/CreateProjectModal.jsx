@@ -16,6 +16,9 @@ import {
   FiTrash2,
   FiMail,
   FiCopy,
+  FiSearch,
+  FiChevronDown,
+  FiChevronUp,
 } from "react-icons/fi";
 import projectService from "@/services/project.service";
 import { MEMBER_ROLE, MANAGER_ROLE, OWNER_ROLE } from "@/utils/constants";
@@ -43,6 +46,12 @@ export default function CreateProjectModal({
   // Team Selection
   const [selectedManagerIds, setSelectedManagerIds] = useState([]);
   const [selectedMemberIds, setSelectedMemberIds] = useState([]);
+
+  // Search & View All for Assign Team (Step 2)
+  const [managerSearch, setManagerSearch] = useState("");
+  const [memberSearch, setMemberSearch] = useState("");
+  const [showAllManagers, setShowAllManagers] = useState(false);
+  const [showAllMembers, setShowAllMembers] = useState(false);
 
   // New Invitees Section (Case A & Case B)
   const [newInvites, setNewInvites] = useState([]);
@@ -110,6 +119,46 @@ export default function CreateProjectModal({
     return list;
   }, [activeMembers, currentUserId]);
 
+  // Filtered & Displayed Managers (Max 4 initially, or all when View All / Searching)
+  const filteredManagers = React.useMemo(() => {
+    const q = managerSearch.trim().toLowerCase();
+    if (!q) return orgManagers;
+    return orgManagers.filter((mgr) => {
+      const profile = mgr.profiles || mgr;
+      const name = (mgr.full_name || profile?.full_name || "").toLowerCase();
+      const email = (mgr.email || profile?.email || "").toLowerCase();
+      return name.includes(q) || email.includes(q);
+    });
+  }, [orgManagers, managerSearch]);
+
+  const isSearchingManagers = Boolean(managerSearch.trim());
+  const displayedManagers = React.useMemo(() => {
+    if (isSearchingManagers) {
+      return filteredManagers;
+    }
+    return showAllManagers ? filteredManagers : filteredManagers.slice(0, 4);
+  }, [isSearchingManagers, showAllManagers, filteredManagers]);
+
+  // Filtered & Displayed Members (Max 4 initially, or all when View All / Searching)
+  const filteredMembers = React.useMemo(() => {
+    const q = memberSearch.trim().toLowerCase();
+    if (!q) return orgMembers;
+    return orgMembers.filter((mem) => {
+      const profile = mem.profiles || mem;
+      const name = (mem.full_name || profile?.full_name || "").toLowerCase();
+      const email = (mem.email || profile?.email || "").toLowerCase();
+      return name.includes(q) || email.includes(q);
+    });
+  }, [orgMembers, memberSearch]);
+
+  const isSearchingMembers = Boolean(memberSearch.trim());
+  const displayedMembers = React.useMemo(() => {
+    if (isSearchingMembers) {
+      return filteredMembers;
+    }
+    return showAllMembers ? filteredMembers : filteredMembers.slice(0, 4);
+  }, [isSearchingMembers, showAllMembers, filteredMembers]);
+
   useEffect(() => {
     if (isOpen) {
       setName("");
@@ -119,6 +168,10 @@ export default function CreateProjectModal({
       setDueDate("");
       setSelectedManagerIds(currentUserId && isManager ? [currentUserId] : []);
       setSelectedMemberIds([]);
+      setManagerSearch("");
+      setMemberSearch("");
+      setShowAllManagers(false);
+      setShowAllMembers(false);
       setNewInvites([]);
       setInviteName("");
       setInviteEmail("");
@@ -158,23 +211,75 @@ export default function CreateProjectModal({
     );
   };
 
-  const handleSelectAllManagers = () => {
-    const allIds = orgManagers.map((m) => m.user_id || m.id).filter(Boolean);
-    if (selectedManagerIds.length === allIds.length && allIds.length > 0) {
-      setSelectedManagerIds([]);
+  // Safe Select/Deselect for currently displayed managers
+  const isAllDisplayedManagersSelected =
+    displayedManagers.length > 0 &&
+    displayedManagers.every((m) =>
+      selectedManagerIds.includes(m.user_id || m.id)
+    );
+
+  const handleToggleSelectManagers = () => {
+    const displayedIds = displayedManagers
+      .map((m) => m.user_id || m.id)
+      .filter(Boolean);
+    if (isAllDisplayedManagersSelected) {
+      setSelectedManagerIds((prev) =>
+        prev.filter((id) => !displayedIds.includes(id))
+      );
     } else {
-      setSelectedManagerIds(allIds);
+      setSelectedManagerIds((prev) => [
+        ...prev,
+        ...displayedIds.filter((id) => !prev.includes(id)),
+      ]);
     }
   };
 
-  const handleSelectAllMembers = () => {
-    const allIds = orgMembers.map((m) => m.user_id || m.id).filter(Boolean);
-    if (selectedMemberIds.length === allIds.length && allIds.length > 0) {
-      setSelectedMemberIds([]);
+  // Safe Select/Deselect for currently displayed members
+  const isAllDisplayedMembersSelected =
+    displayedMembers.length > 0 &&
+    displayedMembers.every((m) =>
+      selectedMemberIds.includes(m.user_id || m.id)
+    );
+
+  const handleToggleSelectMembers = () => {
+    const displayedIds = displayedMembers
+      .map((m) => m.user_id || m.id)
+      .filter(Boolean);
+    if (isAllDisplayedMembersSelected) {
+      setSelectedMemberIds((prev) =>
+        prev.filter((id) => !displayedIds.includes(id))
+      );
     } else {
-      setSelectedMemberIds(allIds);
+      setSelectedMemberIds((prev) => [
+        ...prev,
+        ...displayedIds.filter((id) => !prev.includes(id)),
+      ]);
     }
   };
+
+  const selectManagersBtnText = isSearchingManagers
+    ? isAllDisplayedManagersSelected
+      ? "Deselect Results"
+      : "Select Results"
+    : displayedManagers.length === orgManagers.length
+    ? isAllDisplayedManagersSelected
+      ? "Deselect All"
+      : "Select All"
+    : isAllDisplayedManagersSelected
+    ? "Deselect Visible"
+    : `Select Visible (${displayedManagers.length})`;
+
+  const selectMembersBtnText = isSearchingMembers
+    ? isAllDisplayedMembersSelected
+      ? "Deselect Results"
+      : "Select Results"
+    : displayedMembers.length === orgMembers.length
+    ? isAllDisplayedMembersSelected
+      ? "Deselect All"
+      : "Select All"
+    : isAllDisplayedMembersSelected
+    ? "Deselect Visible"
+    : `Select Visible (${displayedMembers.length})`;
 
   const handleAddInvite = (e) => {
     e.preventDefault();
@@ -504,18 +609,29 @@ export default function CreateProjectModal({
                   {/* Managers Section */}
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <h4 className="text-xs font-bold uppercase tracking-wider text-purple-700 flex items-center gap-1.5">
-                        <FiShield className="w-3.5 h-3.5" />
-                        <span>Organization Managers ({orgManagers.length})</span>
-                      </h4>
                       <div className="flex items-center gap-2">
-                        {orgManagers.length > 0 && (
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-purple-700 flex items-center gap-1.5">
+                          <FiShield className="w-3.5 h-3.5" />
+                          <span>Organization Managers ({orgManagers.length})</span>
+                        </h4>
+                        {!isSearchingManagers && orgManagers.length > 4 && (
                           <button
                             type="button"
-                            onClick={handleSelectAllManagers}
+                            onClick={() => setShowAllManagers((prev) => !prev)}
+                            className="text-[11px] font-semibold text-purple-600 hover:text-purple-800 transition-colors cursor-pointer underline"
+                          >
+                            {showAllManagers ? "Show Less" : `View All (${orgManagers.length})`}
+                          </button>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {displayedManagers.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={handleToggleSelectManagers}
                             className="text-[11px] font-bold text-purple-600 hover:text-purple-800 transition-colors cursor-pointer"
                           >
-                            {selectedManagerIds.length === orgManagers.length ? "Deselect All" : "Select All"}
+                            {selectManagersBtnText}
                           </button>
                         )}
                         <span className="text-[11px] text-purple-700 bg-purple-50 px-2 py-0.5 rounded-lg font-bold border border-purple-200">
@@ -524,97 +640,175 @@ export default function CreateProjectModal({
                       </div>
                     </div>
 
+                    {/* Manager Search Input */}
+                    {orgManagers.length > 0 && (
+                      <div className="relative">
+                        <FiSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
+                        <input
+                          type="text"
+                          value={managerSearch}
+                          onChange={(e) => setManagerSearch(e.target.value)}
+                          placeholder="Search managers by name or email..."
+                          className="w-full h-8 pl-8 pr-7 text-xs bg-white border border-slate-200 hover:border-slate-300 focus:border-purple-500 focus:ring-1 focus:ring-purple-500/20 rounded-lg outline-none transition-all placeholder:text-slate-400"
+                        />
+                        {managerSearch && (
+                          <button
+                            type="button"
+                            onClick={() => setManagerSearch("")}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-600 rounded cursor-pointer"
+                            title="Clear search"
+                          >
+                            <FiX className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
+                    )}
 
                     {orgManagers.length === 0 ? (
                       <p className="text-xs text-slate-400 italic bg-slate-50 p-3 rounded-lg border border-slate-200">
                         No additional managers found in this organization.
                       </p>
+                    ) : filteredManagers.length === 0 ? (
+                      <div className="text-center py-4 px-3 bg-slate-50/70 rounded-lg border border-slate-200 text-xs text-slate-500 space-y-1.5">
+                        <p>No managers match <span className="font-semibold text-slate-700">"{managerSearch}"</span></p>
+                        <button
+                          type="button"
+                          onClick={() => setManagerSearch("")}
+                          className="text-[11px] text-purple-600 hover:text-purple-800 font-bold underline cursor-pointer"
+                        >
+                          Clear search
+                        </button>
+                      </div>
                     ) : (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-48 overflow-y-auto p-1">
-                        {orgManagers.map((mgr) => {
-                          const mgrId = mgr.user_id || mgr.id;
-                          const isSelected = selectedManagerIds.includes(mgrId);
-                          const profile = mgr.profiles || mgr;
-                          const displayName =
-                            mgr.full_name ||
-                            profile?.full_name ||
-                            mgr.email ||
-                            profile?.email ||
-                            "Manager";
-                          const displayEmail = mgr.email || profile?.email || "";
-                          const initials =
-                            displayName
-                              .split(" ")
-                              .map((w) => w[0])
-                              .join("")
-                              .toUpperCase()
-                              .slice(0, 2) || "M";
-                          const isSelf =
-                            currentUserId &&
-                            (mgr.user_id === currentUserId || mgr.id === currentUserId);
+                      <>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-56 overflow-y-auto p-1">
+                          {displayedManagers.map((mgr) => {
+                            const mgrId = mgr.user_id || mgr.id;
+                            const isSelected = selectedManagerIds.includes(mgrId);
+                            const profile = mgr.profiles || mgr;
+                            const displayName =
+                              mgr.full_name ||
+                              profile?.full_name ||
+                              mgr.email ||
+                              profile?.email ||
+                              "Manager";
+                            const displayEmail = mgr.email || profile?.email || "";
+                            const initials =
+                              displayName
+                                .split(" ")
+                                .map((w) => w[0])
+                                .join("")
+                                .toUpperCase()
+                                .slice(0, 2) || "M";
+                            const isSelf =
+                              currentUserId &&
+                              (mgr.user_id === currentUserId || mgr.id === currentUserId);
 
-                          return (
-                            <div
-                              key={mgrId}
-                              onClick={() => toggleManager(mgrId)}
-                              className={`p-2.5 rounded-lg border text-xs flex items-center justify-between cursor-pointer transition-all ${
-                                isSelected
-                                  ? "bg-purple-50/90 border-purple-400 ring-1 ring-purple-400/20 shadow-2xs"
-                                  : "bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50/50"
-                              }`}
-                            >
-                              <div className="flex items-center gap-2.5 min-w-0 flex-1 mr-2">
-                                <div className="w-8 h-8 rounded-lg bg-purple-100 text-purple-700 font-bold flex items-center justify-center shrink-0 text-xs">
-                                  {initials}
-                                </div>
-                                <div className="min-w-0 flex-1">
-                                  <div className="flex items-center gap-1.5 flex-wrap">
-                                    <p className="font-bold text-slate-900 truncate">
-                                      {displayName}
-                                    </p>
-                                    {isSelf && (
-                                      <span className="text-[9px] font-bold text-purple-700 bg-purple-100 px-1 py-0.2 rounded-lg border border-purple-200">
-                                        You
-                                      </span>
-                                    )}
-                                  </div>
-                                  <p className="text-[11px] text-slate-500 font-medium truncate flex items-center gap-1 mt-0.5">
-                                    <FiMail className="w-3 h-3 text-slate-400 shrink-0" />
-                                    <span>{displayEmail || "No email"}</span>
-                                  </p>
-                                </div>
-                              </div>
+                            return (
                               <div
-                                className={`w-4 h-4 rounded-lg flex items-center justify-center shrink-0 border transition-all ${
+                                key={mgrId}
+                                onClick={() => toggleManager(mgrId)}
+                                className={`p-2.5 rounded-lg border text-xs flex items-center justify-between cursor-pointer transition-all ${
                                   isSelected
-                                    ? "bg-purple-600 border-purple-600 text-white"
-                                    : "border-slate-300 bg-white"
+                                    ? "bg-purple-50/90 border-purple-400 ring-1 ring-purple-400/20 shadow-2xs"
+                                    : "bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50/50"
                                 }`}
                               >
-                                {isSelected && <FiCheck className="w-3 h-3 stroke-[3]" />}
+                                <div className="flex items-center gap-2.5 min-w-0 flex-1 mr-2">
+                                  <div className="w-8 h-8 rounded-lg bg-purple-100 text-purple-700 font-bold flex items-center justify-center shrink-0 text-xs">
+                                    {initials}
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                      <p className="font-bold text-slate-900 truncate">
+                                        {displayName}
+                                      </p>
+                                      {isSelf && (
+                                        <span className="text-[9px] font-bold text-purple-700 bg-purple-100 px-1 py-0.2 rounded-lg border border-purple-200">
+                                          You
+                                        </span>
+                                      )}
+                                    </div>
+                                    <p className="text-[11px] text-slate-500 font-medium truncate flex items-center gap-1 mt-0.5">
+                                      <FiMail className="w-3 h-3 text-slate-400 shrink-0" />
+                                      <span>{displayEmail || "No email"}</span>
+                                    </p>
+                                  </div>
+                                </div>
+                                <div
+                                  role="checkbox"
+                                  aria-checked={isSelected}
+                                  className={`w-4 h-4 rounded-lg flex items-center justify-center shrink-0 border transition-all ${
+                                    isSelected
+                                      ? "bg-purple-600 border-purple-600 text-white"
+                                      : "border-slate-300 bg-white"
+                                  }`}
+                                >
+                                  {isSelected && <FiCheck className="w-3 h-3 stroke-[3]" />}
+                                </div>
                               </div>
-                            </div>
-                          );
-                        })}
-                      </div>
+                            );
+                          })}
+                        </div>
+
+                        {/* View All / Show Less controls below cards */}
+                        {!isSearchingManagers && orgManagers.length > 4 && (
+                          <div className="flex items-center justify-between text-xs pt-0.5 px-1">
+                            <span className="text-[11px] text-slate-400">
+                              {showAllManagers
+                                ? `Showing all ${orgManagers.length} managers`
+                                : `Showing 4 of ${orgManagers.length} managers`}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setShowAllManagers((prev) => !prev)}
+                              className="text-[11px] font-semibold text-purple-600 hover:text-purple-800 flex items-center gap-1 transition-colors cursor-pointer"
+                            >
+                              <span>{showAllManagers ? "Show Less" : `View All (${orgManagers.length})`}</span>
+                              {showAllManagers ? (
+                                <FiChevronUp className="w-3 h-3" />
+                              ) : (
+                                <FiChevronDown className="w-3 h-3" />
+                              )}
+                            </button>
+                          </div>
+                        )}
+
+                        {isSearchingManagers && filteredManagers.length > 0 && (
+                          <div className="text-[11px] text-slate-400 px-1 pt-0.5">
+                            Showing {filteredManagers.length} matching manager{filteredManagers.length === 1 ? "" : "s"}
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
 
                   {/* Members Section */}
                   <div className="space-y-3 pt-3 border-t border-slate-100">
                     <div className="flex items-center justify-between">
-                      <h4 className="text-xs font-bold uppercase tracking-wider text-[#0F766E] flex items-center gap-1.5">
-                        <FiUsers className="w-3.5 h-3.5" />
-                        <span>Organization Members ({orgMembers.length})</span>
-                      </h4>
                       <div className="flex items-center gap-2">
-                        {orgMembers.length > 0 && (
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-[#0F766E] flex items-center gap-1.5">
+                          <FiUsers className="w-3.5 h-3.5" />
+                          <span>Organization Members ({orgMembers.length})</span>
+                        </h4>
+                        {!isSearchingMembers && orgMembers.length > 4 && (
                           <button
                             type="button"
-                            onClick={handleSelectAllMembers}
+                            onClick={() => setShowAllMembers((prev) => !prev)}
+                            className="text-[11px] font-semibold text-[#0F766E] hover:text-[#0D655E] transition-colors cursor-pointer underline"
+                          >
+                            {showAllMembers ? "Show Less" : `View All (${orgMembers.length})`}
+                          </button>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {displayedMembers.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={handleToggleSelectMembers}
                             className="text-[11px] font-bold text-[#0F766E] hover:text-[#0D655E] transition-colors cursor-pointer"
                           >
-                            {selectedMemberIds.length === orgMembers.length ? "Deselect All" : "Select All"}
+                            {selectMembersBtnText}
                           </button>
                         )}
                         <span className="text-[11px] text-[#0F766E] bg-teal-50 px-2 py-0.5 rounded-lg font-bold border border-teal-200">
@@ -623,79 +817,146 @@ export default function CreateProjectModal({
                       </div>
                     </div>
 
+                    {/* Member Search Input */}
+                    {orgMembers.length > 0 && (
+                      <div className="relative">
+                        <FiSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
+                        <input
+                          type="text"
+                          value={memberSearch}
+                          onChange={(e) => setMemberSearch(e.target.value)}
+                          placeholder="Search members by name or email..."
+                          className="w-full h-8 pl-8 pr-7 text-xs bg-white border border-slate-200 hover:border-slate-300 focus:border-[#0F766E] focus:ring-1 focus:ring-[#0F766E]/20 rounded-lg outline-none transition-all placeholder:text-slate-400"
+                        />
+                        {memberSearch && (
+                          <button
+                            type="button"
+                            onClick={() => setMemberSearch("")}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-600 rounded cursor-pointer"
+                            title="Clear search"
+                          >
+                            <FiX className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
+                    )}
 
                     {orgMembers.length === 0 ? (
                       <p className="text-xs text-slate-400 italic bg-slate-50 p-3 rounded-lg border border-slate-200">
                         No team members registered yet. Use the Invite tab to add people!
                       </p>
+                    ) : filteredMembers.length === 0 ? (
+                      <div className="text-center py-4 px-3 bg-slate-50/70 rounded-lg border border-slate-200 text-xs text-slate-500 space-y-1.5">
+                        <p>No members match <span className="font-semibold text-slate-700">"{memberSearch}"</span></p>
+                        <button
+                          type="button"
+                          onClick={() => setMemberSearch("")}
+                          className="text-[11px] text-[#0F766E] hover:text-[#0D655E] font-bold underline cursor-pointer"
+                        >
+                          Clear search
+                        </button>
+                      </div>
                     ) : (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-48 overflow-y-auto p-1">
-                        {orgMembers.map((mem) => {
-                          const memId = mem.user_id || mem.id;
-                          const isSelected = selectedMemberIds.includes(memId);
-                          const profile = mem.profiles || mem;
-                          const displayName =
-                            mem.full_name ||
-                            profile?.full_name ||
-                            mem.email ||
-                            profile?.email ||
-                            "Team Member";
-                          const displayEmail = mem.email || profile?.email || "";
-                          const initials =
-                            displayName
-                              .split(" ")
-                              .map((w) => w[0])
-                              .join("")
-                              .toUpperCase()
-                              .slice(0, 2) || "U";
-                          const isSelf =
-                            currentUserId &&
-                            (mem.user_id === currentUserId || mem.id === currentUserId);
+                      <>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-56 overflow-y-auto p-1">
+                          {displayedMembers.map((mem) => {
+                            const memId = mem.user_id || mem.id;
+                            const isSelected = selectedMemberIds.includes(memId);
+                            const profile = mem.profiles || mem;
+                            const displayName =
+                              mem.full_name ||
+                              profile?.full_name ||
+                              mem.email ||
+                              profile?.email ||
+                              "Team Member";
+                            const displayEmail = mem.email || profile?.email || "";
+                            const initials =
+                              displayName
+                                .split(" ")
+                                .map((w) => w[0])
+                                .join("")
+                                .toUpperCase()
+                                .slice(0, 2) || "U";
+                            const isSelf =
+                              currentUserId &&
+                              (mem.user_id === currentUserId || mem.id === currentUserId);
 
-                          return (
-                            <div
-                              key={memId}
-                              onClick={() => toggleMember(memId)}
-                              className={`p-2.5 rounded-lg border text-xs flex items-center justify-between cursor-pointer transition-all ${
-                                isSelected
-                                  ? "bg-teal-50/90 border-[#0F766E]/40 ring-1 ring-[#0F766E]/20 shadow-2xs"
-                                  : "bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50/50"
-                              }`}
-                            >
-                              <div className="flex items-center gap-2.5 min-w-0 flex-1 mr-2">
-                                <div className="w-8 h-8 rounded-lg bg-teal-100 text-[#0F766E] font-bold flex items-center justify-center shrink-0 text-xs">
-                                  {initials}
-                                </div>
-                                <div className="min-w-0 flex-1">
-                                  <div className="flex items-center gap-1.5 flex-wrap">
-                                    <p className="font-bold text-slate-900 truncate">
-                                      {displayName}
-                                    </p>
-                                    {isSelf && (
-                                      <span className="text-[9px] font-bold text-[#0F766E] bg-teal-100 px-1 py-0.2 rounded-lg border border-teal-200">
-                                        You
-                                      </span>
-                                    )}
-                                  </div>
-                                  <p className="text-[11px] text-slate-500 font-medium truncate flex items-center gap-1 mt-0.5">
-                                    <FiMail className="w-3 h-3 text-slate-400 shrink-0" />
-                                    <span>{displayEmail || "No email"}</span>
-                                  </p>
-                                </div>
-                              </div>
+                            return (
                               <div
-                                className={`w-4 h-4 rounded-lg flex items-center justify-center shrink-0 border transition-all ${
+                                key={memId}
+                                onClick={() => toggleMember(memId)}
+                                className={`p-2.5 rounded-lg border text-xs flex items-center justify-between cursor-pointer transition-all ${
                                   isSelected
-                                    ? "bg-[#0F766E] border-[#0F766E] text-white"
-                                    : "border-slate-300 bg-white"
+                                    ? "bg-teal-50/90 border-[#0F766E]/40 ring-1 ring-[#0F766E]/20 shadow-2xs"
+                                    : "bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50/50"
                                 }`}
                               >
-                                {isSelected && <FiCheck className="w-3 h-3 stroke-[3]" />}
+                                <div className="flex items-center gap-2.5 min-w-0 flex-1 mr-2">
+                                  <div className="w-8 h-8 rounded-lg bg-teal-100 text-[#0F766E] font-bold flex items-center justify-center shrink-0 text-xs">
+                                    {initials}
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                      <p className="font-bold text-slate-900 truncate">
+                                        {displayName}
+                                      </p>
+                                      {isSelf && (
+                                        <span className="text-[9px] font-bold text-[#0F766E] bg-teal-100 px-1 py-0.2 rounded-lg border border-teal-200">
+                                          You
+                                        </span>
+                                      )}
+                                    </div>
+                                    <p className="text-[11px] text-slate-500 font-medium truncate flex items-center gap-1 mt-0.5">
+                                      <FiMail className="w-3 h-3 text-slate-400 shrink-0" />
+                                      <span>{displayEmail || "No email"}</span>
+                                    </p>
+                                  </div>
+                                </div>
+                                <div
+                                  role="checkbox"
+                                  aria-checked={isSelected}
+                                  className={`w-4 h-4 rounded-lg flex items-center justify-center shrink-0 border transition-all ${
+                                    isSelected
+                                      ? "bg-[#0F766E] border-[#0F766E] text-white"
+                                      : "border-slate-300 bg-white"
+                                  }`}
+                                >
+                                  {isSelected && <FiCheck className="w-3 h-3 stroke-[3]" />}
+                                </div>
                               </div>
-                            </div>
-                          );
-                        })}
-                      </div>
+                            );
+                          })}
+                        </div>
+
+                        {/* View All / Show Less controls below cards */}
+                        {!isSearchingMembers && orgMembers.length > 4 && (
+                          <div className="flex items-center justify-between text-xs pt-0.5 px-1">
+                            <span className="text-[11px] text-slate-400">
+                              {showAllMembers
+                                ? `Showing all ${orgMembers.length} members`
+                                : `Showing 4 of ${orgMembers.length} members`}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setShowAllMembers((prev) => !prev)}
+                              className="text-[11px] font-semibold text-[#0F766E] hover:text-[#0D655E] flex items-center gap-1 transition-colors cursor-pointer"
+                            >
+                              <span>{showAllMembers ? "Show Less" : `View All (${orgMembers.length})`}</span>
+                              {showAllMembers ? (
+                                <FiChevronUp className="w-3 h-3" />
+                              ) : (
+                                <FiChevronDown className="w-3 h-3" />
+                              )}
+                            </button>
+                          </div>
+                        )}
+
+                        {isSearchingMembers && filteredMembers.length > 0 && (
+                          <div className="text-[11px] text-slate-400 px-1 pt-0.5">
+                            Showing {filteredMembers.length} matching member{filteredMembers.length === 1 ? "" : "s"}
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>
