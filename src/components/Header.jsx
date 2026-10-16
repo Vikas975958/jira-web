@@ -167,14 +167,14 @@ export default function Header({ onCreateIssueClick }) {
     if (e) e.preventDefault();
     if (!searchQuery.trim()) return;
     setIsSearchOpen(false);
-    router.push(`/projects?search=${encodeURIComponent(searchQuery.trim())}`);
+    router.push(`/tasks?search=${encodeURIComponent(searchQuery.trim())}`);
   };
 
   // Select Search Item
   const handleSelectProject = (projId) => {
     setIsSearchOpen(false);
     setSearchQuery("");
-    router.push(`/projects?projectId=${projId}`);
+    router.push(`/tasks?projectId=${projId}`);
   };
 
   const handleSelectTask = (task) => {
@@ -248,7 +248,8 @@ export default function Header({ onCreateIssueClick }) {
 
   const quickPages = [
     { title: "Dashboard", href: "/dashboard", icon: FiGrid, desc: "Workspace activity & metrics" },
-    { title: "Projects Board", href: "/projects", icon: FiLayout, desc: "Kanban board & issue tracking" },
+    { title: "Tasks Board", href: "/tasks", icon: FiLayout, desc: "Kanban board & issue tracking" },
+    { title: "Projects", href: "/projects", icon: FiFolder, desc: "Workspace project directory" },
     { title: "Team Management", href: "/team", icon: FiUsers, desc: "Members & role assignments" },
     { title: "Settings", href: "/settings", icon: FiSettings, desc: "Workspace configurations" },
   ];

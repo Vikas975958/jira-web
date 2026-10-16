@@ -334,8 +334,8 @@ function CreateIssueContent() {
       toast.success("Issue created successfully!");
 
       const targetUrl = resolvedProjectId
-        ? `/projects?projectId=${resolvedProjectId}`
-        : "/projects";
+        ? `/tasks?projectId=${resolvedProjectId}`
+        : "/tasks";
       router.push(targetUrl);
 
     } catch (err) {
@@ -356,11 +356,11 @@ function CreateIssueContent() {
           <div className="space-y-0.5">
             <div className="flex items-center gap-1.5 text-xs">
               <Link
-                href={projectId ? `/projects?projectId=${projectId}` : "/projects"}
+                href={projectId ? `/tasks?projectId=${projectId}` : "/tasks"}
                 className="inline-flex items-center gap-1 text-slate-500 hover:text-slate-900 font-semibold transition-colors"
               >
                 <FiArrowLeft className="w-3.5 h-3.5" />
-                <span>Projects</span>
+                <span>Tasks Board</span>
               </Link>
               <span className="text-slate-300">/</span>
               <span className="text-slate-600 font-medium truncate max-w-[160px]">

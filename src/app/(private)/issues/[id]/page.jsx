@@ -402,7 +402,7 @@ export default function IssueDetailPage() {
       await taskService.deleteTask(issue.id, userRole);
       toast.success("Issue deleted successfully.");
       setIsDeleteModalOpen(false);
-      router.push(project ? `/projects?projectId=${project.id}` : "/projects");
+      router.push(project ? `/tasks?projectId=${project.id}` : "/tasks");
     } catch (err) {
       toast.error(err.message || "Failed to delete issue.");
     } finally {
@@ -435,10 +435,10 @@ export default function IssueDetailPage() {
           </p>
         </div>
         <Link
-          href="/projects"
+          href="/tasks"
           className="px-4 py-2 bg-[#0F766E] text-white text-xs font-bold rounded-lg hover:bg-[#0D655E] transition-colors"
         >
-          Back to Projects Board
+          Back to Tasks Board
         </Link>
       </div>
     );
@@ -464,11 +464,11 @@ export default function IssueDetailPage() {
           <div className="space-y-0.5">
             <div className="flex items-center gap-2 text-xs flex-wrap">
               <Link
-                href={project ? `/projects?projectId=${project.id}` : "/projects"}
+                href={project ? `/tasks?projectId=${project.id}` : "/tasks"}
                 className="inline-flex items-center gap-1.5 text-slate-500 hover:text-slate-900 font-semibold transition-colors"
               >
                 <FiArrowLeft className="w-3.5 h-3.5" />
-                <span>{project?.name || "Projects Board"}</span>
+                <span>{project?.name || "Tasks Board"}</span>
               </Link>
               <span className="text-slate-300">/</span>
               <span className="font-mono font-bold text-[#0F766E]">{issueKey}</span>
