@@ -28,6 +28,7 @@ import {
   FiX,
   FiEdit2,
 } from "react-icons/fi";
+import { LuPin } from "react-icons/lu";
 import { useOrganization } from "@/context/OrganizationContext";
 import projectService from "@/services/project.service";
 import organizationService from "@/services/organization.service";
@@ -36,6 +37,7 @@ import DeleteConfirmModal from "@/components/DeleteConfirmModal";
 import EditProjectModal from "@/components/EditProjectModal";
 import ProjectDetailsSkeleton from "@/components/ProjectDetailsSkeleton";
 import { MEMBER_ROLE, MANAGER_ROLE, OWNER_ROLE } from "@/utils/constants";
+import { isProjectPinned, togglePinProject } from "@/utils/pinnedProjects";
 
 export default function ProjectDetailsPage() {
   const params = useParams();
@@ -57,6 +59,7 @@ export default function ProjectDetailsPage() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDeletingProject, setIsDeletingProject] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isPinned, setIsPinned] = useState(false);
 
   // Tab for team actions: 'existing' | 'invite'
   const [addMode, setAddMode] = useState("existing");
@@ -326,6 +329,42 @@ export default function ProjectDetailsPage() {
     }
   };
 
+  // Sync isPinned state
+  useEffect(() => {
+    if (activeOrg?.id && projectId) {
+      setIsPinned(isProjectPinned(activeOrg.id, user?.id, projectId));
+    }
+  }, [activeOrg?.id, user?.id, projectId]);
+
+  useEffect(() => {
+    const handlePinnedChange = () => {
+      if (activeOrg?.id && projectId) {
+        setIsPinned(isProjectPinned(activeOrg.id, user?.id, projectId));
+      }
+    };
+    if (typeof window !== "undefined") {
+      window.addEventListener("project-pinned-updated", handlePinnedChange);
+      window.addEventListener("storage", handlePinnedChange);
+    }
+    return () => {
+      if (typeof window !== "undefined") {
+        window.removeEventListener("project-pinned-updated", handlePinnedChange);
+        window.removeEventListener("storage", handlePinnedChange);
+      }
+    };
+  }, [activeOrg?.id, user?.id, projectId]);
+
+  const handleTogglePin = () => {
+    if (!activeOrg?.id || !projectId) return;
+    const nowPinned = togglePinProject(activeOrg.id, user?.id, projectId);
+    setIsPinned(nowPinned);
+    toast.success(
+      nowPinned
+        ? "Project pinned to sidebar"
+        : "Project unpinned from sidebar"
+    );
+  };
+
   // Handle Adding Existing Org Member
   const handleAssignExisting = async (e) => {
     e.preventDefault();
@@ -577,6 +616,27 @@ export default function ProjectDetailsPage() {
 
             {/* Quick Actions */}
             <div className="flex items-center gap-2 shrink-0">
+              {/* Pin / Unpin Project from Sidebar */}
+              <button
+                type="button"
+                onClick={handleTogglePin}
+                className={`px-3 py-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                  isPinned
+                    ? "bg-teal-50 border-teal-300 text-[#0F766E] shadow-2xs"
+                    : "bg-white border-slate-200 text-slate-700 hover:text-[#0F766E] hover:border-teal-200 hover:bg-teal-50/50"
+                }`}
+                title={
+                  isPinned
+                    ? "Pinned to sidebar • Click to unpin"
+                    : "Pin project to sidebar"
+                }
+              >
+                <LuPin
+                  className={`w-3.5 h-3.5 ${isPinned ? "fill-current" : ""}`}
+                />
+                <span>{isPinned ? "Pinned" : "Pin to Sidebar"}</span>
+              </button>
+
               {/* Status Selector for Owner / Manager */}
               {canManage && (
                 <div className="flex items-center bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-xs">

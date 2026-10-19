@@ -18,13 +18,15 @@ import {
   FiChevronLeft,
   FiChevronRight,
   FiLayers,
-  FiEdit2,
 } from "react-icons/fi";
+import { LuPin } from "react-icons/lu";
+import { toast } from "react-toastify";
 import projectService from "@/services/project.service";
 import CreateProjectModal from "@/components/CreateProjectModal";
 import EditProjectModal from "@/components/EditProjectModal";
 import { useOrganization } from "@/context/OrganizationContext";
 import { MEMBER_ROLE, OWNER_ROLE, MANAGER_ROLE } from "@/utils/constants";
+import { getPinnedProjectIds, togglePinProject } from "@/utils/pinnedProjects";
 
 function ProjectsDirectoryContent() {
   const router = useRouter();
@@ -61,6 +63,8 @@ function ProjectsDirectoryContent() {
   const [searchInput, setSearchInput] = useState(initialSearch);
   const [searchQuery, setSearchQuery] = useState(initialSearch);
   const [statusFilter, setStatusFilter] = useState("all");
+  const [showPinnedOnly, setShowPinnedOnly] = useState(false);
+  const [pinnedProjectIds, setPinnedProjectIds] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -144,6 +148,49 @@ function ProjectsDirectoryContent() {
       window.removeEventListener("project-updated", handleProjectChange);
     };
   }, [loadPaginatedProjects]);
+
+  // Sync pinned projects from localStorage and custom events
+  useEffect(() => {
+    if (activeOrg?.id) {
+      setPinnedProjectIds(getPinnedProjectIds(activeOrg.id, user?.id));
+    } else {
+      setPinnedProjectIds([]);
+    }
+  }, [activeOrg?.id, user?.id]);
+
+  useEffect(() => {
+    const handlePinnedChange = () => {
+      if (activeOrg?.id) {
+        setPinnedProjectIds(getPinnedProjectIds(activeOrg.id, user?.id));
+      }
+    };
+    if (typeof window !== "undefined") {
+      window.addEventListener("project-pinned-updated", handlePinnedChange);
+      window.addEventListener("storage", handlePinnedChange);
+    }
+    return () => {
+      if (typeof window !== "undefined") {
+        window.removeEventListener("project-pinned-updated", handlePinnedChange);
+        window.removeEventListener("storage", handlePinnedChange);
+      }
+    };
+  }, [activeOrg?.id, user?.id]);
+
+  const handleTogglePin = (e, projId) => {
+    e.stopPropagation();
+    if (!activeOrg?.id || !projId) return;
+    const nowPinned = togglePinProject(activeOrg.id, user?.id, projId);
+    toast.success(
+      nowPinned
+        ? "Project pinned to sidebar"
+        : "Project unpinned from sidebar"
+    );
+  };
+
+  const displayedProjects = React.useMemo(() => {
+    if (!showPinnedOnly) return projects;
+    return projects.filter((p) => pinnedProjectIds.includes(p.id));
+  }, [projects, showPinnedOnly, pinnedProjectIds]);
 
   const handleProjectClick = (proj) => {
     if (!proj?.id) return;
@@ -240,6 +287,32 @@ function ProjectsDirectoryContent() {
             <option value="archived">Archived</option>
           </select>
 
+          {/* Pinned Projects Filter Button */}
+          <button
+            type="button"
+            onClick={() => {
+              setShowPinnedOnly((prev) => !prev);
+              setPage(1);
+            }}
+            className={`h-9 px-3 rounded-lg border text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+              showPinnedOnly
+                ? "bg-teal-50 border-teal-300 text-[#0F766E] ring-2 ring-teal-600/15"
+                : "bg-white border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50"
+            }`}
+            title={
+              showPinnedOnly
+                ? "Showing only pinned projects (Click to show all)"
+                : "Filter projects pinned to sidebar"
+            }
+          >
+            <LuPin
+              className={`w-3.5 h-3.5 ${
+                showPinnedOnly ? "fill-current text-[#0F766E]" : "text-slate-400"
+              }`}
+            />
+            <span>Pinned ({pinnedProjectIds.length})</span>
+          </button>
+
           {/* Create Project Button (Owner & Manager) */}
           {(isOwner || isManager) && (
             <button
@@ -285,24 +358,40 @@ function ProjectsDirectoryContent() {
             </div>
           ))}
         </div>
-      ) : projects.length === 0 ? (
+      ) : displayedProjects.length === 0 ? (
         <div className="bg-white rounded-xl border border-slate-200 p-12 text-center space-y-4 max-w-md mx-auto shadow-xs">
           <div className="w-16 h-16 rounded-xl bg-teal-50 text-[#0F766E] flex items-center justify-center mx-auto">
-            <FiFolder className="w-8 h-8" />
+            {showPinnedOnly ? (
+              <LuPin className="w-8 h-8 fill-current" />
+            ) : (
+              <FiFolder className="w-8 h-8" />
+            )}
           </div>
           <div className="space-y-1">
             <h3 className="text-base font-bold text-slate-900">
-              {searchQuery || statusFilter !== "all"
+              {showPinnedOnly
+                ? "No Pinned Projects"
+                : searchQuery || statusFilter !== "all"
                 ? "No Matching Projects"
                 : "No Projects Created Yet"}
             </h3>
             <p className="text-xs text-slate-500 leading-relaxed">
-              {searchQuery || statusFilter !== "all"
+              {showPinnedOnly
+                ? "You haven't pinned any projects to your sidebar yet. Click 'Pin' on any project card to show it in your sidebar."
+                : searchQuery || statusFilter !== "all"
                 ? "No projects matched your search criteria. Try clearing filters or using a different keyword."
                 : "Create your first project to start organizing team tasks, issues, and tracking agile sprints."}
             </p>
           </div>
-          {searchQuery || statusFilter !== "all" ? (
+          {showPinnedOnly ? (
+            <button
+              type="button"
+              onClick={() => setShowPinnedOnly(false)}
+              className="btn-secondary px-4 py-2 text-xs font-semibold cursor-pointer"
+            >
+              <span>Show All Projects</span>
+            </button>
+          ) : searchQuery || statusFilter !== "all" ? (
             <button
               type="button"
               onClick={() => {
@@ -331,7 +420,7 @@ function ProjectsDirectoryContent() {
       ) : (
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4.5">
-            {projects.map((proj) => {
+            {displayedProjects.map((proj) => {
               const totalTeam =
                 proj.totalTeamCount ??
                 ((proj.assignedManagers?.length || 0) +
@@ -454,21 +543,33 @@ function ProjectsDirectoryContent() {
                     </div>
 
                     <div className="flex items-center gap-2 shrink-0 ml-2">
-                      {(isOwner || isManager) && (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setEditingProject(proj);
-                            setIsEditModalOpen(true);
-                          }}
-                          className="px-2.5 py-1 text-[11px] font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 hover:text-slate-900 rounded-lg transition-colors cursor-pointer flex items-center gap-1 border border-slate-200"
-                          title="Edit Project"
-                        >
-                          <FiEdit2 className="w-3 h-3 text-slate-500" />
-                          <span>Edit</span>
-                        </button>
-                      )}
+                      {/* Pin button replacing Edit button */}
+                      <button
+                        type="button"
+                        onClick={(e) => handleTogglePin(e, proj.id)}
+                        className={`px-2.5 py-1 text-[11px] font-bold rounded-lg transition-colors cursor-pointer flex items-center gap-1.5 border ${
+                          pinnedProjectIds.includes(proj.id)
+                            ? "bg-teal-50 border-teal-300 text-[#0F766E] shadow-2xs hover:bg-teal-100/70"
+                            : "bg-slate-100 hover:bg-slate-200 hover:text-slate-900 text-slate-700 border-slate-200"
+                        }`}
+                        title={
+                          pinnedProjectIds.includes(proj.id)
+                            ? "Pinned to sidebar • Click to unpin"
+                            : "Pin project to sidebar"
+                        }
+                      >
+                        <LuPin
+                          className={`w-3 h-3 ${
+                            pinnedProjectIds.includes(proj.id)
+                              ? "fill-current text-[#0F766E]"
+                              : "text-slate-500"
+                          }`}
+                        />
+                        <span>
+                          {pinnedProjectIds.includes(proj.id) ? "Pinned" : "Pin"}
+                        </span>
+                      </button>
+
                       <button
                         type="button"
                         onClick={(e) => handleOpenBoard(e, proj.id)}

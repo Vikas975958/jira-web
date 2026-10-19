@@ -18,8 +18,10 @@ import {
   FiSearch,
 } from "react-icons/fi";
 import { supabase } from "@/lib/supabaseconfig";
+import { LuPin } from "react-icons/lu";
 import projectService from "@/services/project.service";
 import { MEMBER_ROLE, MANAGER_ROLE, OWNER_ROLE } from "@/utils/constants";
+import { isProjectPinned, pinProject, unpinProject } from "@/utils/pinnedProjects";
 import Portal from "@/components/Portal";
 
 /**
@@ -286,6 +288,7 @@ export default function EditProjectModal({
   const [status, setStatus] = useState("active");
   const [startDate, setStartDate] = useState("");
   const [dueDate, setDueDate] = useState("");
+  const [pinToSidebar, setPinToSidebar] = useState(false);
 
   // Team Selection
   const [selectedManagerIds, setSelectedManagerIds] = useState([]);
@@ -452,6 +455,7 @@ export default function EditProjectModal({
       setStatus(data.status || "active");
       setStartDate(formatDateForInput(data.start_date));
       setDueDate(formatDateForInput(data.due_date));
+      setPinToSidebar(isProjectPinned(targetOrgId, currentUserId, targetProjectId));
 
       // Extract existing assigned managers
       const mgrIds = [];
@@ -710,6 +714,12 @@ export default function EditProjectModal({
         }
       );
 
+      if (pinToSidebar) {
+        pinProject(targetOrgId, currentUserId, targetProjectId);
+      } else {
+        unpinProject(targetOrgId, currentUserId, targetProjectId);
+      }
+
       toast.success("Project updated successfully!");
       if (onProjectUpdated) {
         onProjectUpdated(updatedProject);
@@ -896,6 +906,32 @@ export default function EditProjectModal({
                           className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-[#0F766E] text-slate-800"
                         />
                       </div>
+                    </div>
+
+                    {/* Pin to sidebar option */}
+                    <div className="p-3 bg-slate-50/80 rounded-lg border border-slate-200/80 flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-7 h-7 rounded-md bg-teal-50 border border-teal-200/60 text-[#0F766E] flex items-center justify-center shrink-0">
+                          <LuPin className="w-3.5 h-3.5 fill-current" />
+                        </div>
+                        <div>
+                          <span className="text-xs font-bold text-slate-800">
+                            Pin to Sidebar
+                          </span>
+                          <p className="text-[10px] text-slate-400">
+                            Show this project in your sidebar navigation
+                          </p>
+                        </div>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={pinToSidebar}
+                          onChange={(e) => setPinToSidebar(e.target.checked)}
+                          className="sr-only peer"
+                        />
+                        <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#0F766E]"></div>
+                      </label>
                     </div>
 
                     <div className="pt-2">
