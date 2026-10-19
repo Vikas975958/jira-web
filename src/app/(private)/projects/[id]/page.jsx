@@ -26,12 +26,14 @@ import {
   FiCheck,
   FiSearch,
   FiX,
+  FiEdit2,
 } from "react-icons/fi";
 import { useOrganization } from "@/context/OrganizationContext";
 import projectService from "@/services/project.service";
 import organizationService from "@/services/organization.service";
 import DeleteProjectConfirmModal from "@/components/DeleteProjectConfirmModal";
 import DeleteConfirmModal from "@/components/DeleteConfirmModal";
+import EditProjectModal from "@/components/EditProjectModal";
 import ProjectDetailsSkeleton from "@/components/ProjectDetailsSkeleton";
 import { MEMBER_ROLE, MANAGER_ROLE, OWNER_ROLE } from "@/utils/constants";
 
@@ -54,6 +56,7 @@ export default function ProjectDetailsPage() {
   const [status, setStatus] = useState("active");
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDeletingProject, setIsDeletingProject] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   // Tab for team actions: 'existing' | 'invite'
   const [addMode, setAddMode] = useState("existing");
@@ -591,6 +594,19 @@ export default function ProjectDetailsPage() {
                 </div>
               )}
 
+              {/* Edit Project Button */}
+              {canManage && (
+                <button
+                  type="button"
+                  onClick={() => setIsEditModalOpen(true)}
+                  className="btn-secondary px-3 py-1.5 text-xs font-semibold flex items-center gap-1.5 cursor-pointer text-slate-700 hover:text-slate-900 border-slate-200"
+                  title="Edit Project"
+                >
+                  <FiEdit2 className="w-3.5 h-3.5 text-slate-600" />
+                  <span>Edit Project</span>
+                </button>
+              )}
+
               {/* Open Kanban Board */}
               <button
                 type="button"
@@ -647,7 +663,17 @@ export default function ProjectDetailsPage() {
                   <FiCalendar className="w-3.5 h-3.5 text-[#0F766E]" /> Start Date:
                 </span>
                 <span className="font-semibold text-slate-800">
-                  {project.start_date ? new Date(project.start_date).toLocaleDateString() : "Not set"}
+                  {project.start_date
+                    ? new Date(
+                        String(project.start_date).includes("T")
+                          ? project.start_date
+                          : `${project.start_date}T00:00:00`
+                      ).toLocaleDateString("en-GB", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        year: "numeric",
+                      })
+                    : "Not set"}
                 </span>
               </div>
               <div className="flex items-center justify-between text-xs">
@@ -655,12 +681,28 @@ export default function ProjectDetailsPage() {
                   <FiClock className="w-3.5 h-3.5 text-amber-600" /> Due Date:
                 </span>
                 <span className="font-semibold text-slate-800">
-                  {project.due_date ? new Date(project.due_date).toLocaleDateString() : "Not set"}
+                  {project.due_date
+                    ? new Date(
+                        String(project.due_date).includes("T")
+                          ? project.due_date
+                          : `${project.due_date}T00:00:00`
+                      ).toLocaleDateString("en-GB", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        year: "numeric",
+                      })
+                    : "Not set"}
                 </span>
               </div>
               <div className="pt-1.5 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400">
                 <span>Created</span>
-                <span>{new Date(project.created_at || Date.now()).toLocaleDateString()}</span>
+                <span>
+                  {new Date(project.created_at || Date.now()).toLocaleDateString("en-GB", {
+                    day: "2-digit",
+                    month: "2-digit",
+                    year: "numeric",
+                  })}
+                </span>
               </div>
             </div>
           </div>
@@ -1100,6 +1142,28 @@ export default function ProjectDetailsPage() {
         isLoading={isDeletingProject}
         projectName={project?.name}
       />
+
+      {/* Edit Project Modal */}
+      {isEditModalOpen && project && (
+        <EditProjectModal
+          isOpen={isEditModalOpen}
+          onClose={() => setIsEditModalOpen(false)}
+          project={project}
+          organizationId={project.organization_id || activeOrg?.id}
+          organizationName={activeOrg?.name}
+          currentUserRole={userRole}
+          currentUserId={user?.id}
+          existingMembers={orgMembers}
+          onProjectUpdated={(updatedProject) => {
+            setIsEditModalOpen(false);
+            if (updatedProject) {
+              setProject(updatedProject);
+              setStatus(updatedProject.status || "active");
+            }
+            loadProject(true);
+          }}
+        />
+      )}
 
       {/* Delete / Remove Confirmation Modal (Members & Invitations) */}
       <DeleteConfirmModal

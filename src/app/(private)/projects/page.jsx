@@ -18,9 +18,11 @@ import {
   FiChevronLeft,
   FiChevronRight,
   FiLayers,
+  FiEdit2,
 } from "react-icons/fi";
 import projectService from "@/services/project.service";
 import CreateProjectModal from "@/components/CreateProjectModal";
+import EditProjectModal from "@/components/EditProjectModal";
 import { useOrganization } from "@/context/OrganizationContext";
 import { MEMBER_ROLE, OWNER_ROLE, MANAGER_ROLE } from "@/utils/constants";
 
@@ -62,6 +64,8 @@ function ProjectsDirectoryContent() {
   const [loading, setLoading] = useState(true);
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingProject, setEditingProject] = useState(null);
 
   // Sync initialSearch if URL query changes
   useEffect(() => {
@@ -133,9 +137,11 @@ function ProjectsDirectoryContent() {
     };
     window.addEventListener("project-created", handleProjectChange);
     window.addEventListener("project-deleted", handleProjectChange);
+    window.addEventListener("project-updated", handleProjectChange);
     return () => {
       window.removeEventListener("project-created", handleProjectChange);
       window.removeEventListener("project-deleted", handleProjectChange);
+      window.removeEventListener("project-updated", handleProjectChange);
     };
   }, [loadPaginatedProjects]);
 
@@ -167,7 +173,7 @@ function ProjectsDirectoryContent() {
         <div>
           <div className="flex items-center gap-2.5 flex-wrap">
             <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
-              Projects
+              Projects     
             </h1>
             <span
               className={`px-2 py-0.5 rounded-lg text-[10px] font-semibold uppercase tracking-wider border ${
@@ -448,6 +454,21 @@ function ProjectsDirectoryContent() {
                     </div>
 
                     <div className="flex items-center gap-2 shrink-0 ml-2">
+                      {(isOwner || isManager) && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingProject(proj);
+                            setIsEditModalOpen(true);
+                          }}
+                          className="px-2.5 py-1 text-[11px] font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 hover:text-slate-900 rounded-lg transition-colors cursor-pointer flex items-center gap-1 border border-slate-200"
+                          title="Edit Project"
+                        >
+                          <FiEdit2 className="w-3 h-3 text-slate-500" />
+                          <span>Edit</span>
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={(e) => handleOpenBoard(e, proj.id)}
@@ -563,6 +584,28 @@ function ProjectsDirectoryContent() {
                 new CustomEvent("project-created", { detail: newProject })
               );
             }
+          }}
+        />
+      )}
+
+      {/* Edit Project Modal */}
+      {isEditModalOpen && editingProject && (
+        <EditProjectModal
+          isOpen={isEditModalOpen}
+          onClose={() => {
+            setIsEditModalOpen(false);
+            setEditingProject(null);
+          }}
+          project={editingProject}
+          organizationId={activeOrg?.id}
+          organizationName={activeOrg?.name}
+          currentUserRole={userRole}
+          currentUserId={user?.id}
+          existingMembers={members}
+          onProjectUpdated={() => {
+            setIsEditModalOpen(false);
+            setEditingProject(null);
+            loadPaginatedProjects();
           }}
         />
       )}
