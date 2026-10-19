@@ -14,12 +14,14 @@ import {
   LuChevronRight,
   LuX,
   LuKanban,
+  LuPin,
 } from "react-icons/lu";
 import { useOrganization } from "@/context/OrganizationContext";
 import { useSidebar } from "@/context/SidebarContext";
 import projectService from "@/services/project.service";
 import CreateProjectModal from "@/components/CreateProjectModal";
 import { MEMBER_ROLE, MANAGER_ROLE, OWNER_ROLE } from "@/utils/constants";
+import { getPinnedProjectIds, unpinProject } from "@/utils/pinnedProjects";
 
 export default function Sidebar() {
   const pathname = usePathname();
@@ -36,7 +38,8 @@ export default function Sidebar() {
   const userRole = currentOrg?.role || organizations?.[0]?.role || user?.role || MEMBER_ROLE;
   const isMember = userRole === MEMBER_ROLE;
 
-  const [projects, setProjects] = useState([]);
+  const [allProjects, setAllProjects] = useState([]);
+  const [pinnedIds, setPinnedIds] = useState([]);
   const [loadingProjects, setLoadingProjects] = useState(false);
   const [isCreateProjectModalOpen, setIsCreateProjectModalOpen] = useState(false);
 
@@ -73,22 +76,52 @@ export default function Sidebar() {
   };
 
   const lastFetchedOrgIdRef = useRef(null);
-  const projectsRef = useRef(projects);
+  const allProjectsRef = useRef(allProjects);
 
   useEffect(() => {
-    projectsRef.current = projects;
-  }, [projects]);
+    allProjectsRef.current = allProjects;
+  }, [allProjects]);
 
-  // Load projects for active workspace
+  // Sync pinnedIds whenever activeOrg or user changes
+  useEffect(() => {
+    if (activeOrg?.id) {
+      setPinnedIds(getPinnedProjectIds(activeOrg.id, user?.id));
+    } else {
+      setPinnedIds([]);
+    }
+  }, [activeOrg?.id, user?.id]);
+
+  // Listen for pinned project updates across the app and across browser tabs
+  useEffect(() => {
+    const handlePinnedChange = () => {
+      if (activeOrg?.id) {
+        setPinnedIds(getPinnedProjectIds(activeOrg.id, user?.id));
+      }
+    };
+
+    if (typeof window !== "undefined") {
+      window.addEventListener("project-pinned-updated", handlePinnedChange);
+      window.addEventListener("storage", handlePinnedChange);
+    }
+
+    return () => {
+      if (typeof window !== "undefined") {
+        window.removeEventListener("project-pinned-updated", handlePinnedChange);
+        window.removeEventListener("storage", handlePinnedChange);
+      }
+    };
+  }, [activeOrg?.id, user?.id]);
+
+  // Load all projects for active workspace
   const loadProjects = useCallback(async (force = false) => {
     const orgId = activeOrg?.id;
     if (!orgId) {
-      setProjects([]);
+      setAllProjects([]);
       lastFetchedOrgIdRef.current = null;
       return;
     }
 
-    if (!force && lastFetchedOrgIdRef.current === orgId && projectsRef.current.length > 0) {
+    if (!force && lastFetchedOrgIdRef.current === orgId && allProjectsRef.current.length > 0) {
       return;
     }
 
@@ -101,10 +134,10 @@ export default function Sidebar() {
         force,
       });
       lastFetchedOrgIdRef.current = orgId;
-      setProjects((data || []).slice(0, 8));
+      setAllProjects(data || []);
     } catch (err) {
       console.error("Sidebar loadProjects error:", err);
-      setProjects([]);
+      setAllProjects([]);
     } finally {
       setLoadingProjects(false);
     }
@@ -117,19 +150,29 @@ export default function Sidebar() {
   useEffect(() => {
     const handleProjectCreated = () => loadProjects(true);
     const handleProjectDeleted = () => loadProjects(true);
+    const handleProjectUpdated = () => loadProjects(true);
 
     if (typeof window !== "undefined") {
       window.addEventListener("project-created", handleProjectCreated);
       window.addEventListener("project-deleted", handleProjectDeleted);
+      window.addEventListener("project-updated", handleProjectUpdated);
     }
 
     return () => {
       if (typeof window !== "undefined") {
         window.removeEventListener("project-created", handleProjectCreated);
         window.removeEventListener("project-deleted", handleProjectDeleted);
+        window.removeEventListener("project-updated", handleProjectUpdated);
       }
     };
   }, [loadProjects]);
+
+  // Only pinned projects are displayed in the sidebar
+  const pinnedProjects = React.useMemo(() => {
+    if (!pinnedIds || pinnedIds.length === 0) return [];
+    const projectMap = new Map((allProjects || []).map((p) => [p.id, p]));
+    return pinnedIds.map((id) => projectMap.get(id)).filter(Boolean);
+  }, [allProjects, pinnedIds]);
 
   return (
     <>
@@ -285,15 +328,15 @@ export default function Sidebar() {
             })}
           </nav>
 
-          {/* PROJECTS Section */}
+          {/* PROJECTS Section - Only shows pinned projects */}
           <div className="space-y-1">
             {!isCollapsed ? (
               <div className="flex items-center justify-between px-3 py-1 text-[11px] font-semibold text-slate-400 tracking-wider uppercase">
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5" title="Pinned projects displayed in sidebar">
                   <span>Projects</span>
-                  {projects.length > 0 && (
-                    <span className="text-[10px] px-1.5 py-0.2 rounded-lg bg-slate-100 text-slate-500 font-semibold">
-                      {projects.length}
+                  {pinnedProjects.length > 0 && (
+                    <span className="text-[10px] px-1.5 py-0.2 rounded-lg bg-teal-50 text-[#0F766E] font-semibold border border-teal-200/60">
+                      {pinnedProjects.length}
                     </span>
                   )}
                 </div>
@@ -309,7 +352,7 @@ export default function Sidebar() {
                 )}
               </div>
             ) : (
-              <div className="pt-2 border-t border-slate-100 flex justify-center">
+              <div className="pt-2 border-t border-slate-100 flex justify-center" title="Pinned Projects">
                 <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-widest">
                   Projects
                 </span>
@@ -322,8 +365,8 @@ export default function Sidebar() {
                   <span className="w-2.5 h-2.5 rounded-full border-2 border-slate-300 border-t-[#0F766E] animate-spin" />
                   {!isCollapsed && <span>Loading projects...</span>}
                 </div>
-              ) : projects && projects.length > 0 ? (
-                projects.map((project) => {
+              ) : pinnedProjects && pinnedProjects.length > 0 ? (
+                pinnedProjects.map((project) => {
                   const totalTeam =
                     project.totalTeamCount ??
                     ((project.assignedManagers?.length || 0) +
@@ -342,7 +385,7 @@ export default function Sidebar() {
                         onClick={() => {
                           closeMobile();
                         }}
-                        title={`${project.name} (${project.status || "active"})`}
+                        title={`${project.name} (${project.status || "active"}) • Pinned`}
                         className="w-full flex items-center justify-center p-1 rounded-lg transition-colors cursor-pointer relative group"
                       >
                         <span
@@ -365,6 +408,10 @@ export default function Sidebar() {
                                 {(project.status || "active").replace("_", " ")}
                               </span>
                             )}
+                            <span className="text-[10px] text-teal-300 flex items-center gap-0.5">
+                              <LuPin className="w-2.5 h-2.5 fill-current" />
+                              Pinned
+                            </span>
                           </div>
                         </div>
                       </Link>
@@ -378,7 +425,7 @@ export default function Sidebar() {
                       onClick={() => {
                         closeMobile();
                       }}
-                      className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs transition-colors cursor-pointer ${
+                      className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs transition-colors cursor-pointer group ${
                         isCurrent
                           ? "bg-slate-100 text-slate-900 font-semibold"
                           : "text-slate-700 hover:bg-slate-50 font-normal"
@@ -414,14 +461,40 @@ export default function Sidebar() {
                             {totalTeam}
                           </span>
                         )}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            unpinProject(activeOrg?.id, user?.id, project.id);
+                          }}
+                          className="opacity-0 group-hover:opacity-100 p-0.5 text-slate-400 hover:text-red-500 rounded transition-all cursor-pointer"
+                          title="Unpin from sidebar"
+                        >
+                          <LuPin className="w-3 h-3 fill-current rotate-45" />
+                        </button>
                       </div>
                     </Link>
                   );
                 })
               ) : (
                 !isCollapsed && (
-                  <div className="px-3 py-2 text-[11px] text-slate-400">
-                    No recent projects.
+                  <div className="px-3 py-2 text-[11px] text-slate-400 space-y-1 bg-slate-50/70 rounded-lg mx-1 my-0.5 border border-dashed border-slate-200">
+                    <div className="flex items-center gap-1.5 font-medium text-slate-600">
+                      <LuPin className="w-3 h-3 text-slate-400" />
+                      <span>No pinned projects</span>
+                    </div>
+                    <p className="text-[10px] text-slate-400 leading-tight">
+                      Pin projects from the list to display them in this sidebar.
+                    </p>
+                    <Link
+                      href="/projects"
+                      onClick={() => closeMobile()}
+                      className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#0F766E] hover:underline pt-0.5 cursor-pointer"
+                    >
+                      <span>Browse projects</span>
+                      <LuChevronRight className="w-3 h-3" />
+                    </Link>
                   </div>
                 )
               )}
