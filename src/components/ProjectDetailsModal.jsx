@@ -13,12 +13,14 @@ import {
   FiTrash2,
   FiPlus,
   FiMail,
+  FiEdit2,
 } from "react-icons/fi";
 import projectService from "@/services/project.service";
 import { MEMBER_ROLE, MANAGER_ROLE, OWNER_ROLE } from "@/utils/constants";
 import Portal from "@/components/Portal";
 import DeleteProjectConfirmModal from "@/components/DeleteProjectConfirmModal";
 import DeleteConfirmModal from "@/components/DeleteConfirmModal";
+import EditProjectModal from "@/components/EditProjectModal";
 
 export default function ProjectDetailsModal({
   isOpen,
@@ -33,6 +35,7 @@ export default function ProjectDetailsModal({
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState(project?.status || "active");
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [memberToRemove, setMemberToRemove] = useState(null);
   const [isRemovingMember, setIsRemovingMember] = useState(false);
 
@@ -384,6 +387,17 @@ export default function ProjectDetailsModal({
             </div>
 
             <div className="flex items-center gap-2.5">
+              {canManage && (
+                <button
+                  type="button"
+                  onClick={() => setIsEditModalOpen(true)}
+                  className="btn-secondary px-3 py-1.5 text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
+                  title="Edit Project"
+                >
+                  <FiEdit2 className="w-3.5 h-3.5 text-slate-600" />
+                  <span>Edit</span>
+                </button>
+              )}
               <button
                 type="button"
                 onClick={onClose}
@@ -416,6 +430,24 @@ export default function ProjectDetailsModal({
           onConfirm={handleConfirmDeleteProject}
           isLoading={loading}
           projectName={project.name}
+        />
+      )}
+
+      {/* Edit Project Modal */}
+      {isEditModalOpen && project && (
+        <EditProjectModal
+          isOpen={isEditModalOpen}
+          onClose={() => setIsEditModalOpen(false)}
+          project={project}
+          currentUserRole={currentUserRole}
+          currentUserId={currentUserId}
+          onProjectUpdated={(updated) => {
+            setIsEditModalOpen(false);
+            if (updated) {
+              setStatus(updated.status || status);
+            }
+            if (onProjectUpdated) onProjectUpdated(updated);
+          }}
         />
       )}
 
