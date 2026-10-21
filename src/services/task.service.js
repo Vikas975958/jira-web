@@ -434,10 +434,12 @@ export const taskService = {
    * Update an existing task.
    * @param {string} taskId
    * @param {Object} updates
-   * @param {Object} [context] - { userId, userRole }
+   * @param {Object} [context] - { userId, userRole, organizationId }
    * @returns {Promise<Object>}
    */
   async updateTask(taskId, updates, context = {}) {
+    if (!taskId) throw new Error("Task ID is required for update");
+
     const knownColumns = [
       "organization_id",
       "project_id",
@@ -453,16 +455,120 @@ export const taskService = {
       "created_by",
     ];
 
+    // 1. Locate existing task so partial updates (e.g. drag & drop status change) never wipe out existing fields
+    const allLocal = this.getLocalTasks();
+    let existingTask = allLocal.find((t) => t.id === taskId) || null;
+
+    if (!existingTask) {
+      try {
+        const { data: dbItem } = await supabase
+          .from("tasks")
+          .select("*")
+          .eq("id", taskId)
+          .maybeSingle();
+        if (dbItem) {
+          existingTask = parseIssue(dbItem);
+        }
+      } catch (_) {}
+    }
+
+    // Resolve project association
+    const finalProjectId =
+      updates.project_id ||
+      updates.projectId ||
+      existingTask?.project_id ||
+      existingTask?.projectId ||
+      null;
+
+    const finalProjectName =
+      updates.project_name ||
+      updates.projectName ||
+      existingTask?.project_name ||
+      existingTask?.projectName ||
+      "Main Project";
+
+    const finalOrgId =
+      updates.organization_id ||
+      existingTask?.organization_id ||
+      context?.organizationId ||
+      null;
+
+    const finalTitle =
+      updates.title !== undefined
+        ? updates.title
+        : (existingTask?.title || "Untitled Issue");
+
+    // 2. Parse and preserve existing description metadata
+    let currentDesc =
+      typeof updates.description !== "undefined"
+        ? updates.description
+        : (existingTask?.description || "");
+
+    let meta = {};
+    const match = (currentDesc || "").match(/<!--wg_meta:([\s\S]*?)-->/);
+    if (match) {
+      try {
+        meta = JSON.parse(match[1]);
+      } catch (_) {}
+    }
+
+    // Preserve all metadata fields from existingTask if not already present in meta
+    if (existingTask) {
+      if (meta.projectId === undefined && existingTask.projectId) meta.projectId = existingTask.projectId;
+      if (meta.projectName === undefined && existingTask.projectName) meta.projectName = existingTask.projectName;
+      if (meta.storyPoints === undefined && existingTask.storyPoints !== undefined) meta.storyPoints = existingTask.storyPoints;
+      if (meta.component === undefined && existingTask.component) meta.component = existingTask.component;
+      if (meta.sprint === undefined && existingTask.sprint) meta.sprint = existingTask.sprint;
+      if (meta.estimatedHours === undefined && existingTask.estimatedHours) meta.estimatedHours = existingTask.estimatedHours;
+      if (meta.isBlocker === undefined && existingTask.isBlocker !== undefined) meta.isBlocker = existingTask.isBlocker;
+      if (meta.branchName === undefined && existingTask.branchName) meta.branchName = existingTask.branchName;
+      if (meta.environment === undefined && existingTask.environment) meta.environment = existingTask.environment;
+      if (meta.acceptanceCriteria === undefined && existingTask.acceptanceCriteria) meta.acceptanceCriteria = existingTask.acceptanceCriteria;
+      if (meta.tags === undefined && existingTask.tags) meta.tags = existingTask.tags;
+      if (meta.subtasks === undefined && existingTask.subtasks) meta.subtasks = existingTask.subtasks;
+      if (meta.links === undefined && existingTask.links) meta.links = existingTask.links;
+      if (meta.comments === undefined && existingTask.comments) meta.comments = existingTask.comments;
+    }
+
+    // Apply updates to metadata
+    if (updates.status) meta.status = updates.status;
+    if (finalProjectId) meta.projectId = finalProjectId;
+    if (finalProjectName) meta.projectName = finalProjectName;
+    if (updates.storyPoints !== undefined) meta.storyPoints = updates.storyPoints;
+    if (updates.component !== undefined) meta.component = updates.component;
+    if (updates.sprint !== undefined) meta.sprint = updates.sprint;
+    if (updates.estimatedHours !== undefined) meta.estimatedHours = updates.estimatedHours;
+    if (updates.isBlocker !== undefined) meta.isBlocker = updates.isBlocker;
+    if (updates.branchName !== undefined) meta.branchName = updates.branchName;
+    if (updates.environment !== undefined) meta.environment = updates.environment;
+    if (updates.acceptanceCriteria !== undefined) meta.acceptanceCriteria = updates.acceptanceCriteria;
+    if (updates.tags !== undefined) meta.tags = updates.tags;
+    if (updates.subtasks !== undefined) meta.subtasks = updates.subtasks;
+    if (updates.links !== undefined) meta.links = updates.links;
+    if (updates.comments !== undefined) meta.comments = updates.comments;
+
+    const cleanDesc = (currentDesc || "")
+      .replace(/<!--wg_meta:[\s\S]*?-->/, "")
+      .trim();
+    const newDesc = cleanDesc
+      ? `${cleanDesc}\n\n<!--wg_meta:${JSON.stringify(meta)}-->`
+      : `<!--wg_meta:${JSON.stringify(meta)}-->`;
+
+    // 3. Prepare payload for DB
     const dbPayload = {
       updated_at: new Date().toISOString(),
+      description: newDesc,
     };
 
-    if (updates.projectId && !updates.project_id) {
-      dbPayload.project_id = updates.projectId;
+    if (finalProjectId) {
+      dbPayload.project_id = finalProjectId;
+    }
+    if (finalProjectName) {
+      dbPayload.project_name = finalProjectName;
     }
 
     Object.keys(updates).forEach((k) => {
-      if (knownColumns.includes(k)) {
+      if (knownColumns.includes(k) && k !== "description") {
         if (k === "status" && updates[k] === "backlog") {
           dbPayload[k] = "todo";
         } else {
@@ -471,34 +577,13 @@ export const taskService = {
       }
     });
 
-    // If status is updated, ensure metadata in description records the new status
-    // so if status is 'backlog', it is preserved even though DB column is 'todo'
-    if (updates.status) {
-      let currentDesc = updates.description;
-      if (typeof currentDesc === "undefined") {
-        const local = this.getLocalTasks().find((t) => t.id === taskId);
-        currentDesc = local?.description || "";
-      }
-      let meta = {};
-      const match = (currentDesc || "").match(/<!--wg_meta:([\s\S]*?)-->/);
-      if (match) {
-        try {
-          meta = JSON.parse(match[1]);
-        } catch (_) {}
-      }
-      meta.status = updates.status;
-      const cleanDesc = (currentDesc || "").replace(/<!--wg_meta:[\s\S]*?-->/, "").trim();
-      const newDesc = cleanDesc
-        ? `${cleanDesc}\n\n<!--wg_meta:${JSON.stringify(meta)}-->`
-        : `<!--wg_meta:${JSON.stringify(meta)}-->`;
-
-      dbPayload.description = newDesc;
-      updates.description = newDesc;
+    if (updates.status && !dbPayload.status) {
+      dbPayload.status = updates.status === "backlog" ? "todo" : updates.status;
     }
 
     let updatedDbData = null;
 
-    // 1. Try Supabase update
+    // 4. Try Supabase update
     try {
       const { data, error } = await supabase
         .from("tasks")
@@ -512,15 +597,24 @@ export const taskService = {
       }
     } catch (_) {}
 
+    // 5. Build full updated task safely merging existingTask, updatedDbData, and updates
     const fullUpdatedTask = parseIssue({
+      ...(existingTask || {}),
       ...(updatedDbData || {}),
       ...updates,
-      status: updates.status || (updatedDbData?.status || "todo"),
       id: taskId,
+      title: finalTitle,
+      organization_id: finalOrgId,
+      project_id: finalProjectId,
+      projectId: finalProjectId,
+      project_name: finalProjectName,
+      projectName: finalProjectName,
+      description: newDesc,
+      status: updates.status || updatedDbData?.status || existingTask?.status || "todo",
       updated_at: new Date().toISOString(),
     });
 
-    // 2. Update cache and localStorage
+    // 6. Update cache and localStorage
     clearTasksCache();
     this.updateLocalTask(taskId, fullUpdatedTask);
     if (typeof window !== "undefined") {
@@ -564,6 +658,7 @@ export const taskService = {
       if (!raw) return [];
       const parsed = JSON.parse(raw);
       if (!Array.isArray(parsed)) return [];
+      if (!organizationId) return parsed;
       return parsed.filter(
         (t) => !t.organization_id || t.organization_id === organizationId
       );
@@ -587,7 +682,10 @@ export const taskService = {
     try {
       const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
       const list = raw ? JSON.parse(raw) : [];
-      const updated = list.map((t) => (t.id === taskId ? { ...t, ...updates } : t));
+      const exists = list.some((t) => t.id === taskId);
+      const updated = exists
+        ? list.map((t) => (t.id === taskId ? { ...t, ...updates } : t))
+        : [{ ...updates, id: taskId }, ...list];
       localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updated));
     } catch (_) {}
   },

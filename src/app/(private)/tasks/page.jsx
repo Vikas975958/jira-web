@@ -276,7 +276,12 @@ function TasksBoardContent() {
 
   // Listen for task creation or updates from dedicated pages/modals
   useEffect(() => {
-    const handleTaskChange = () => {
+    const handleTaskChange = (e) => {
+      if (e?.detail?.id) {
+        setTickets((prev) =>
+          prev.map((t) => (t.id === e.detail.id ? { ...t, ...e.detail } : t)),
+        );
+      }
       loadTickets(true);
     };
     window.addEventListener("workgrid-task-created", handleTaskChange);
@@ -394,6 +399,7 @@ function TasksBoardContent() {
   }, [selectedProject, members, tickets]);
 
   const moveTicket = async (ticketId, nextStatus) => {
+    const targetTicket = tickets.find((t) => t.id === ticketId);
     // Immediate optimistic UI update
     setTickets((prev) =>
       prev.map((t) => (t.id === ticketId ? { ...t, status: nextStatus } : t)),
@@ -401,8 +407,26 @@ function TasksBoardContent() {
     try {
       await taskService.updateTask(
         ticketId,
-        { status: nextStatus },
-        { userId: user?.id, userRole },
+        {
+          status: nextStatus,
+          projectId:
+            targetTicket?.projectId ||
+            targetTicket?.project_id ||
+            (selectedProjectId !== "all" ? selectedProjectId : undefined),
+          project_id:
+            targetTicket?.project_id ||
+            targetTicket?.projectId ||
+            (selectedProjectId !== "all" ? selectedProjectId : undefined),
+          projectName:
+            targetTicket?.projectName ||
+            targetTicket?.project_name ||
+            selectedProject?.name,
+          project_name:
+            targetTicket?.project_name ||
+            targetTicket?.projectName ||
+            selectedProject?.name,
+        },
+        { userId: user?.id, userRole, organizationId: activeOrg?.id },
       );
     } catch (err) {
       console.error("Failed to update task status:", err);
