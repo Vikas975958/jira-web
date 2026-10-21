@@ -150,6 +150,15 @@
   border-radius: var(--border-radius, 8px) !important;
 }
 
+/* Ensure Ant Design popups, dropdowns, and date pickers always render above modals (which use z-[9999]) */
+.ant-picker-dropdown,
+.ant-select-dropdown,
+.ant-dropdown,
+.ant-popover,
+.ant-tooltip {
+  z-index: 100000 !important;
+}
+
 html,
 body {
   background: var(--background);

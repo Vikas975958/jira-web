@@ -31,6 +31,7 @@ export default function StoreProvider({ children }) {
               borderRadius: 8,
               borderRadiusSM: 6,
               borderRadiusLG: 8,
+              zIndexPopupBase: 100000,
             },
             components: {
               Select: {

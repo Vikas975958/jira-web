@@ -876,6 +876,7 @@ export default function EditProjectModal({
                           value={status}
                           onChange={(val) => setStatus(val)}
                           className="w-full h-9 text-xs font-semibold"
+                          popupClassName="!z-[100000]"
                           options={[
                             { value: "planning", label: "📋 Planning" },
                             { value: "active", label: "⚡ Active" },
@@ -894,6 +895,7 @@ export default function EditProjectModal({
                           value={startDate ? dayjs(startDate) : null}
                           onChange={(d, dateStr) => setStartDate(dateStr || "")}
                           className="w-full h-9 text-xs font-semibold"
+                          popupClassName="!z-[100000]"
                           allowClear
                         />
                       </div>
@@ -906,6 +908,7 @@ export default function EditProjectModal({
                           value={dueDate ? dayjs(dueDate) : null}
                           onChange={(d, dateStr) => setDueDate(dateStr || "")}
                           className="w-full h-9 text-xs font-semibold"
+                          popupClassName="!z-[100000]"
                           allowClear
                         />
                       </div>
