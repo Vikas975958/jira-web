@@ -391,17 +391,17 @@ export default function ProjectDetailsModal({
                 <button
                   type="button"
                   onClick={() => setIsEditModalOpen(true)}
-                  className="btn-secondary px-3 py-1.5 text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
+                  className="btn-secondary h-8 px-3 text-xs font-semibold inline-flex items-center justify-center gap-1.5 cursor-pointer"
                   title="Edit Project"
                 >
-                  <FiEdit2 className="w-3.5 h-3.5 text-slate-600" />
+                  <FiEdit2 className="w-3.5 h-3.5 text-slate-600 shrink-0" />
                   <span>Edit</span>
                 </button>
               )}
               <button
                 type="button"
                 onClick={onClose}
-                className="btn-secondary px-3.5 py-1.5 text-xs font-semibold"
+                className="btn-secondary h-8 px-3.5 text-xs font-semibold inline-flex items-center justify-center"
               >
                 Close
               </button>
@@ -412,7 +412,7 @@ export default function ProjectDetailsModal({
                     onClose();
                     onOpenBoard(project);
                   }}
-                  className="btn-primary px-4 py-1.5 text-xs font-semibold"
+                  className="btn-primary h-8 px-4 text-xs font-semibold inline-flex items-center justify-center"
                 >
                   Open Board
                 </button>

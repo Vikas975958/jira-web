@@ -318,9 +318,9 @@ function ProjectsDirectoryContent() {
             <button
               type="button"
               onClick={() => setIsCreateModalOpen(true)}
-              className="btn-primary px-3.5 py-2 text-xs font-semibold whitespace-nowrap cursor-pointer flex items-center gap-1.5"
+              className="btn-primary h-9 px-3.5 text-xs font-semibold whitespace-nowrap cursor-pointer inline-flex items-center justify-center gap-1.5"
             >
-              <FiPlus className="w-3.5 h-3.5" />
+              <FiPlus className="w-3.5 h-3.5 shrink-0" />
               <span>Create Project</span>
             </button>
           )}

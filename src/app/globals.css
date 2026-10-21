@@ -66,6 +66,9 @@
   gap: 0.4rem;
   cursor: pointer;
   border: 1px solid transparent;
+  box-sizing: border-box;
+  line-height: 1;
+  vertical-align: middle;
 }
 
 .btn-primary:hover:not(:disabled) {
@@ -103,6 +106,9 @@
   justify-content: center;
   gap: 0.4rem;
   cursor: pointer;
+  box-sizing: border-box;
+  line-height: 1;
+  vertical-align: middle;
 }
 
 .btn-secondary:hover:not(:disabled) {
