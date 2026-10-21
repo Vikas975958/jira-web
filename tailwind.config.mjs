@@ -50,6 +50,7 @@ export default {
       fontFamily: {
         sans: ["var(--font-family-base)", "sans-serif"],
         poppins: ["var(--font-family-base)", "Poppins", "sans-serif"],
+        montserrat: ["'Montserrat'", "sans-serif"],
       },
     },
   },

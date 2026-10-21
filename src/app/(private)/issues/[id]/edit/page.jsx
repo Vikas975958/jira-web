@@ -421,8 +421,8 @@ export default function IssueEditPage() {
                         onClick={() => setType(t.id)}
                         className={`py-1.5 px-2 rounded-lg border text-left flex items-center gap-1.5 transition-all cursor-pointer ${
                           isSelected
-                            ? "bg-slate-900 text-white border-slate-900 shadow-2xs"
-                            : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
+                            ? "bg-[#0F766E] text-white border-[#0F766E] shadow-sm shadow-teal-900/15"
+                            : "bg-slate-50 text-slate-700 border-slate-200 hover:border-teal-300 hover:bg-teal-50/30"
                         }`}
                       >
                         <div
@@ -471,7 +471,7 @@ export default function IssueEditPage() {
                     onClick={() => setDescTab("write")}
                     className={`px-2 py-0.5 rounded font-semibold transition-colors cursor-pointer flex items-center gap-1 ${
                       descTab === "write"
-                        ? "bg-white text-slate-900 shadow-2xs"
+                        ? "bg-white text-[#0F766E] shadow-2xs"
                         : "text-slate-600 hover:text-slate-900"
                     }`}
                   >
@@ -483,7 +483,7 @@ export default function IssueEditPage() {
                     onClick={() => setDescTab("preview")}
                     className={`px-2 py-0.5 rounded font-semibold transition-colors cursor-pointer flex items-center gap-1 ${
                       descTab === "preview"
-                        ? "bg-white text-slate-900 shadow-2xs"
+                        ? "bg-white text-[#0F766E] shadow-2xs"
                         : "text-slate-600 hover:text-slate-900"
                     }`}
                   >

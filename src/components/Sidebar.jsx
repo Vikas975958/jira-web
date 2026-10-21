@@ -553,27 +553,6 @@ export default function Sidebar() {
             </div>
           </div>
         </div>
-
-        {/* Sidebar Footer Collapse / Expand Toggle */}
-        <div className="p-2 border-t border-slate-200/80 bg-slate-50/50">
-          <button
-            type="button"
-            onClick={toggleSidebar}
-            className={`w-full flex items-center rounded-lg text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer ${
-              isCollapsed ? "justify-center p-2" : "justify-between px-2.5 py-1.5"
-            }`}
-            title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-          >
-            {!isCollapsed && (
-              <span className="text-[11px] font-semibold text-slate-500">Collapse sidebar</span>
-            )}
-            {isCollapsed ? (
-              <LuChevronRight className="w-4 h-4 text-slate-600" />
-            ) : (
-              <LuChevronLeft className="w-4 h-4 text-slate-500" />
-            )}
-          </button>
-        </div>
       </aside>
 
       {/* Create Project Modal */}
