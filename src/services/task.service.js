@@ -331,6 +331,7 @@ export const taskService = {
 
     const insertPayload = {
       organization_id: organizationId,
+      project_id: finalProjectId || null,
       title: title?.trim(),
       description: description?.trim() || "",
       status: dbStatus,
@@ -439,6 +440,7 @@ export const taskService = {
   async updateTask(taskId, updates, context = {}) {
     const knownColumns = [
       "organization_id",
+      "project_id",
       "title",
       "description",
       "status",
@@ -454,6 +456,10 @@ export const taskService = {
     const dbPayload = {
       updated_at: new Date().toISOString(),
     };
+
+    if (updates.projectId && !updates.project_id) {
+      dbPayload.project_id = updates.projectId;
+    }
 
     Object.keys(updates).forEach((k) => {
       if (knownColumns.includes(k)) {
