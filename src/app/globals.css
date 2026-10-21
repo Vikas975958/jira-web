@@ -152,6 +152,19 @@
   box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
 }
 
+/* Ant Design alignment with project border-radius design system (8px) */
+.ant-select-outlined:not(.ant-select-customize-input) .ant-select-selector,
+.ant-select .ant-select-selector,
+.ant-picker {
+  border-radius: var(--border-radius, 8px) !important;
+}
+
+.ant-select-dropdown,
+.ant-picker-dropdown,
+.ant-picker-dropdown .ant-picker-panel-container {
+  border-radius: var(--border-radius, 8px) !important;
+}
+
 html,
 body {
   background: var(--background);

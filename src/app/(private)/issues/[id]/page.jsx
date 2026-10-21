@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { Select } from "antd";
 import Link from "next/link";
 import { useSelector } from "react-redux";
 import { toast } from "react-toastify";
@@ -875,34 +876,30 @@ export default function IssueDetailPage() {
                   <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">
                     Status
                   </label>
-                  <select
+                  <Select
                     value={issue.status || "todo"}
-                    onChange={(e) => handleUpdateStatus(e.target.value)}
-                    className="w-full px-2 py-1.5 text-xs font-bold text-slate-800 bg-white border border-slate-300 rounded-lg focus:border-[#0F766E] outline-none cursor-pointer"
-                  >
-                    {ISSUE_STATUSES.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.label}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(val) => handleUpdateStatus(val)}
+                    className="w-full text-xs font-bold"
+                    options={ISSUE_STATUSES.map((s) => ({
+                      value: s.id,
+                      label: s.label,
+                    }))}
+                  />
                 </div>
 
                 <div>
                   <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">
                     Priority
                   </label>
-                  <select
+                  <Select
                     value={issue.priority || "medium"}
-                    onChange={(e) => handleUpdatePriority(e.target.value)}
-                    className="w-full px-2 py-1.5 text-xs font-bold text-slate-800 bg-white border border-slate-300 rounded-lg focus:border-[#0F766E] outline-none cursor-pointer"
-                  >
-                    {ISSUE_PRIORITIES.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.label}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(val) => handleUpdatePriority(val)}
+                    className="w-full text-xs font-bold"
+                    options={ISSUE_PRIORITIES.map((p) => ({
+                      value: p.id,
+                      label: p.label,
+                    }))}
+                  />
                 </div>
               </div>
             </div>
@@ -928,24 +925,23 @@ export default function IssueDetailPage() {
                 <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">
                   Assignee
                 </label>
-                <select
-                  value={issue.assignee_id || issue.assigneeId || ""}
-                  onChange={(e) => handleUpdateAssignee(e.target.value)}
-                  className="w-full px-2.5 py-1.5 text-xs font-semibold text-slate-800 bg-white border border-slate-300 rounded-lg focus:border-[#0F766E] outline-none cursor-pointer"
-                >
-                  <option value="">Unassigned</option>
-                  {availableAssignees.map((m) => {
+                <Select
+                  value={issue.assignee_id || issue.assigneeId || undefined}
+                  onChange={(val) => handleUpdateAssignee(val || "")}
+                  placeholder="Unassigned"
+                  allowClear
+                  className="w-full text-xs font-semibold"
+                  options={availableAssignees.map((m) => {
                     const uId = m.user_id || m.id || m.profiles?.id;
                     const name =
                       m.full_name || m.name || m.profiles?.full_name || m.email || "Member";
                     const isMe = user?.id && uId === user.id;
-                    return (
-                      <option key={uId || m.email} value={uId}>
-                        {name} {isMe ? "(You)" : ""} - {m.role || "Member"}
-                      </option>
-                    );
+                    return {
+                      value: uId,
+                      label: `${name} ${isMe ? "(You)" : ""} - ${m.role || "Member"}`.trim(),
+                    };
                   })}
-                </select>
+                />
               </div>
 
               <div>

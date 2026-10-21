@@ -28,7 +28,21 @@ export default function StoreProvider({ children }) {
           theme={{
             token: {
               colorPrimary: primary,
-              borderRadius: 12,
+              borderRadius: 8,
+              borderRadiusSM: 6,
+              borderRadiusLG: 8,
+            },
+            components: {
+              Select: {
+                borderRadius: 8,
+                borderRadiusSM: 6,
+                borderRadiusLG: 8,
+              },
+              DatePicker: {
+                borderRadius: 8,
+                borderRadiusSM: 6,
+                borderRadiusLG: 8,
+              },
             },
           }}
         >

@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { useSelector } from "react-redux";
 import { FiX, FiCheck, FiBookmark, FiAlertCircle, FiCheckSquare } from "react-icons/fi";
+import { Select } from "antd";
 import Portal from "@/components/Portal";
 
 export default function CreateIssueModal({
@@ -186,18 +187,14 @@ export default function CreateIssueModal({
                 <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
                   Project
                 </label>
-                <select
-                  value={projectId}
-                  onChange={(e) => setProjectId(e.target.value)}
-                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-[#0F766E]"
-                >
-                  <option value="">General (No Project)</option>
-                  {projects.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
-                    </option>
-                  ))}
-                </select>
+                <Select
+                  value={projectId || undefined}
+                  onChange={(val) => setProjectId(val || "")}
+                  placeholder="Select Project"
+                  allowClear
+                  className="w-full h-9 text-xs font-semibold"
+                  options={projects.map((p) => ({ value: p.id, label: p.name }))}
+                />
               </div>
             ) : (
               <div>
@@ -214,15 +211,16 @@ export default function CreateIssueModal({
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
                 Issue Type
               </label>
-              <select
+              <Select
                 value={type}
-                onChange={(e) => setType(e.target.value)}
-                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-[#0F766E]"
-              >
-                <option value="story">📗 Story</option>
-                <option value="task">📘 Task</option>
-                <option value="bug">🔴 Bug</option>
-              </select>
+                onChange={(val) => setType(val)}
+                className="w-full h-9 text-xs font-semibold"
+                options={[
+                  { value: "story", label: "📗 Story" },
+                  { value: "task", label: "📘 Task" },
+                  { value: "bug", label: "🔴 Bug" },
+                ]}
+              />
             </div>
           </div>
 
@@ -261,33 +259,35 @@ export default function CreateIssueModal({
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
                 Priority
               </label>
-              <select
+              <Select
                 value={priority}
-                onChange={(e) => setPriority(e.target.value)}
-                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-[#0F766E]"
-              >
-                <option value="urgent">🔴 Urgent</option>
-                <option value="high">🟠 High</option>
-                <option value="medium">🟡 Medium</option>
-                <option value="low">🟢 Low</option>
-              </select>
+                onChange={(val) => setPriority(val)}
+                className="w-full h-9 text-xs font-semibold"
+                options={[
+                  { value: "urgent", label: "🔴 Urgent" },
+                  { value: "high", label: "🟠 High" },
+                  { value: "medium", label: "🟡 Medium" },
+                  { value: "low", label: "🟢 Low" },
+                ]}
+              />
             </div>
 
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
                 Initial Status
               </label>
-              <select
+              <Select
                 value={status}
-                onChange={(e) => setStatus(e.target.value)}
-                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-[#0F766E]"
-              >
-                <option value="backlog">📦 Backlog</option>
-                <option value="todo">📋 To Do</option>
-                <option value="in-progress">⚡ In Progress</option>
-                <option value="review">🔍 Code Review</option>
-                <option value="done">✅ Done</option>
-              </select>
+                onChange={(val) => setStatus(val)}
+                className="w-full h-9 text-xs font-semibold"
+                options={[
+                  { value: "backlog", label: "📦 Backlog" },
+                  { value: "todo", label: "📋 To Do" },
+                  { value: "in-progress", label: "⚡ In Progress" },
+                  { value: "review", label: "🔍 Code Review" },
+                  { value: "done", label: "✅ Done" },
+                ]}
+              />
             </div>
           </div>
 
@@ -312,35 +312,44 @@ export default function CreateIssueModal({
                 Assignee
               </label>
               {effectiveAssignees && effectiveAssignees.length > 0 ? (
-                <select
-                  value={assigneeId}
-                  onChange={(e) => {
-                    const selId = e.target.value;
+                <Select
+                  value={assigneeId || undefined}
+                  placeholder="Unassigned"
+                  allowClear
+                  onChange={(selId) => {
                     setAssigneeId(selId);
                     if (!selId) {
                       setAssignee("Unassigned");
                     } else {
                       const found = effectiveAssignees.find(
-                        (m) => (m.user_id || m.profiles?.id || m.id) === selId
+                        (m) => (m.user_id || m.profiles?.id || m.id) === selId,
                       );
-                      const name = found?.full_name || found?.name || found?.email || "Team Member";
+                      const name =
+                        found?.full_name ||
+                        found?.name ||
+                        found?.email ||
+                        "Team Member";
                       setAssignee(name);
                     }
                   }}
-                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-[#0F766E]"
-                >
-                  <option value="">Unassigned</option>
-                  {effectiveAssignees.map((member) => {
-                    const mId = member.user_id || member.profiles?.id || member.id;
-                    const mName = member.full_name || member.name || member.email || "Member";
-                    const isMe = user?.id && (mId === user.id || member.user_id === user.id);
-                    return (
-                      <option key={mId || member.email} value={mId}>
-                        {mName} {isMe ? "(You) " : ""}({member.role})
-                      </option>
-                    );
-                  })}
-                </select>
+                  className="w-full h-9 text-xs font-semibold"
+                  options={effectiveAssignees.map((member) => {
+                      const mId =
+                        member.user_id || member.profiles?.id || member.id;
+                      const mName =
+                        member.full_name ||
+                        member.name ||
+                        member.email ||
+                        "Member";
+                      const isMe =
+                        user?.id &&
+                        (mId === user.id || member.user_id === user.id);
+                      return {
+                        value: mId,
+                        label: `${mName} ${isMe ? "(You) " : ""}(${member.role})`,
+                      };
+                    }),
+                />
               ) : (
                 <input
                   type="text"

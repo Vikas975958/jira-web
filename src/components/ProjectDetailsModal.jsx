@@ -21,6 +21,7 @@ import Portal from "@/components/Portal";
 import DeleteProjectConfirmModal from "@/components/DeleteProjectConfirmModal";
 import DeleteConfirmModal from "@/components/DeleteConfirmModal";
 import EditProjectModal from "@/components/EditProjectModal";
+import { Select } from "antd";
 
 export default function ProjectDetailsModal({
   isOpen,
@@ -259,16 +260,18 @@ export default function ProjectDetailsModal({
                   Change Status
                 </div>
                 {canManage ? (
-                  <select
+                  <Select
                     value={status}
-                    onChange={(e) => handleStatusChange(e.target.value)}
-                    className="jira-input w-full text-xs font-semibold py-1 px-2.5 h-7.5"
-                  >
-                    <option value="planning">Planning</option>
-                    <option value="active">Active</option>
-                    <option value="on_hold">On Hold</option>
-                    <option value="completed">Completed</option>
-                  </select>
+                    onChange={(val) => handleStatusChange(val)}
+                    size="small"
+                    className="w-full text-xs font-semibold"
+                    options={[
+                      { value: "planning", label: "Planning" },
+                      { value: "active", label: "Active" },
+                      { value: "on_hold", label: "On Hold" },
+                      { value: "completed", label: "Completed" },
+                    ]}
+                  />
                 ) : (
                   <span className="text-xs font-semibold text-slate-800 capitalize">{status}</span>
                 )}
