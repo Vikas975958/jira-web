@@ -15,6 +15,7 @@ import {
   LuX,
   LuKanban,
   LuPin,
+  LuMessageSquare,
 } from "react-icons/lu";
 import { useOrganization } from "@/context/OrganizationContext";
 import { useSidebar } from "@/context/SidebarContext";
@@ -22,12 +23,15 @@ import projectService from "@/services/project.service";
 import CreateProjectModal from "@/components/CreateProjectModal";
 import { MEMBER_ROLE, MANAGER_ROLE, OWNER_ROLE } from "@/utils/constants";
 import { getPinnedProjectIds, unpinProject } from "@/utils/pinnedProjects";
+import { getNameInitials } from "@/utils/commonFunction";
+import { supabase } from "@/lib/supabaseconfig";
 
 export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
   const queryProjectId = searchParams?.get("projectId");
+  const queryUserId = searchParams?.get("userId");
   const authState = useSelector((state) => state.authSlice);
   const user = authState?.userData;
 
@@ -42,6 +46,7 @@ export default function Sidebar() {
   const [pinnedIds, setPinnedIds] = useState([]);
   const [loadingProjects, setLoadingProjects] = useState(false);
   const [isCreateProjectModalOpen, setIsCreateProjectModalOpen] = useState(false);
+  const [unseenMessages, setUnseenMessages] = useState([]);
 
   const mainNav = [
     {
@@ -53,6 +58,11 @@ export default function Sidebar() {
       name: "Tasks",
       icon: LuKanban,
       path: "/tasks",
+    },
+    {
+      name: "Chat",
+      icon: LuMessageSquare,
+      path: "/chatboard",
     },
     {
       name: "Team",
@@ -173,6 +183,106 @@ export default function Sidebar() {
     const projectMap = new Map((allProjects || []).map((p) => [p.id, p]));
     return pinnedIds.map((id) => projectMap.get(id)).filter(Boolean);
   }, [allProjects, pinnedIds]);
+
+  // Load and sync unseen chat messages
+  const loadUnseenMessages = useCallback(async () => {
+    if (!user?.id) {
+      setUnseenMessages([]);
+      return;
+    }
+    try {
+      const { data, error } = await supabase
+        .from("chat_messages")
+        .select("id, conversation_id, sender_id, message, created_at")
+        .eq("recipient_id", user.id)
+        .eq("is_read", false);
+
+      if (!error && data) {
+        setUnseenMessages(data);
+      }
+    } catch (e) {
+      console.error("loadUnseenMessages error in Sidebar:", e);
+    }
+  }, [user?.id]);
+
+  useEffect(() => {
+    loadUnseenMessages();
+  }, [loadUnseenMessages]);
+
+  // Realtime subscription and window event listeners for unseen messages
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const handleMessagesUpdated = () => {
+      loadUnseenMessages();
+    };
+
+    if (typeof window !== "undefined") {
+      window.addEventListener("chat-messages-read", handleMessagesUpdated);
+      window.addEventListener("chat-new-message", handleMessagesUpdated);
+    }
+
+    const channelName = `sidebar_unseen_${user.id}_${Date.now()}`;
+    const channel = supabase
+      .channel(channelName)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "chat_messages",
+          filter: `recipient_id=eq.${user.id}`,
+        },
+        () => {
+          loadUnseenMessages();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      if (typeof window !== "undefined") {
+        window.removeEventListener("chat-messages-read", handleMessagesUpdated);
+        window.removeEventListener("chat-new-message", handleMessagesUpdated);
+      }
+      channel.unsubscribe();
+    };
+  }, [user?.id, loadUnseenMessages]);
+
+  // Only teammates whose messages have NOT been seen
+  const unseenMembers = React.useMemo(() => {
+    if (!unseenMessages || unseenMessages.length === 0) return [];
+
+    const unseenCountBySender = new Map();
+    unseenMessages.forEach((msg) => {
+      if (msg.sender_id) {
+        unseenCountBySender.set(
+          msg.sender_id,
+          (unseenCountBySender.get(msg.sender_id) || 0) + 1
+        );
+      }
+    });
+
+    const membersMap = new Map(
+      (realMembers || []).map((m) => [m.user_id || m.id || m.profiles?.id, m])
+    );
+
+    return Array.from(unseenCountBySender.entries())
+      .map(([senderId, count]) => {
+        const m = membersMap.get(senderId);
+        return {
+          user_id: senderId,
+          full_name: m?.full_name || m?.name || m?.profiles?.full_name || "Teammate",
+          email: m?.email || m?.profiles?.email || "",
+          role: m?.role || "member",
+          unreadCount: count,
+        };
+      })
+      .filter((m) => m.user_id && m.user_id !== user?.id);
+  }, [unseenMessages, realMembers, user?.id]);
+
+  const totalUnseenCount = React.useMemo(() => {
+    return unseenMembers.reduce((sum, m) => sum + (m.unreadCount || 0), 0);
+  }, [unseenMembers]);
 
   return (
     <>
@@ -552,27 +662,136 @@ export default function Sidebar() {
               )}
             </div>
           </div>
-        </div>
 
-        {/* Sidebar Footer Collapse / Expand Toggle */}
-        <div className="p-2 border-t border-slate-200/80 bg-slate-50/50">
-          <button
-            type="button"
-            onClick={toggleSidebar}
-            className={`w-full flex items-center rounded-lg text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer ${
-              isCollapsed ? "justify-center p-2" : "justify-between px-2.5 py-1.5"
-            }`}
-            title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-          >
-            {!isCollapsed && (
-              <span className="text-[11px] font-semibold text-slate-500">Collapse sidebar</span>
-            )}
-            {isCollapsed ? (
-              <LuChevronRight className="w-4 h-4 text-slate-600" />
+          {/* CHATTING TEAM Section - Only show teammates with unseen messages */}
+          <div className="space-y-1 pt-2 border-t border-slate-100">
+            {!isCollapsed ? (
+              <div className="flex items-center justify-between px-3 py-1 text-[11px] font-semibold text-slate-400 tracking-wider uppercase">
+                <div className="flex items-center gap-1.5 whitespace-nowrap" title="Unread chat messages">
+                  <span>Chat</span>
+                  {totalUnseenCount > 0 && (
+                    <span className="text-[10px] px-1.5 py-0.2 rounded-lg bg-teal-50 text-[#0F766E] font-semibold border border-teal-200/60">
+                      {totalUnseenCount}
+                    </span>
+                  )}
+                </div>
+                <Link
+                  href="/chatboard"
+                  onClick={() => closeMobile()}
+                  className="text-slate-400 hover:text-[#0F766E] p-0.5 rounded-lg transition-colors cursor-pointer"
+                  title="Open Chatboard"
+                >
+                  <LuMessageSquare className="w-3.5 h-3.5" />
+                </Link>
+              </div>
             ) : (
-              <LuChevronLeft className="w-4 h-4 text-slate-500" />
+              <div className="pt-2 border-t border-slate-100 flex justify-center" title="Chat">
+                <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-widest">
+                  Chat
+                </span>
+              </div>
             )}
-          </button>
+
+            <div className="space-y-0.5">
+              {unseenMembers.length > 0 ? (
+                unseenMembers.map((member) => {
+                  const isCurrent =
+                    pathname === "/chatboard" && queryUserId === member.user_id;
+                  const initials = getNameInitials(member.full_name);
+
+                  if (isCollapsed) {
+                    return (
+                      <Link
+                        key={member.user_id}
+                        href={`/chatboard?userId=${member.user_id}`}
+                        onClick={() => closeMobile()}
+                        title={`${member.unreadCount} unread message(s) from ${member.full_name}`}
+                        className="w-full flex items-center justify-center p-1 rounded-lg transition-colors cursor-pointer relative group"
+                      >
+                        <div className="relative">
+                          <span
+                            className={`w-7 h-7 rounded-lg text-xs font-bold flex items-center justify-center uppercase transition-all shadow-2xs ${
+                              isCurrent
+                                ? "bg-[#0F766E] text-white shadow-xs ring-2 ring-teal-600/25 ring-offset-1"
+                                : "bg-slate-100 text-slate-600 border border-slate-200/80 group-hover:bg-teal-50 group-hover:text-[#0F766E] group-hover:border-teal-200"
+                            }`}
+                          >
+                            {initials}
+                          </span>
+                          <span className="absolute -top-1 -right-1 px-1 py-0.2 rounded-full bg-[#0F766E] text-white text-[8px] font-bold ring-1 ring-white">
+                            {member.unreadCount}
+                          </span>
+                        </div>
+
+                        {/* Floating Tooltip */}
+                        <div className="absolute left-full ml-2.5 top-1/2 -translate-y-1/2 opacity-0 pointer-events-none group-hover:opacity-100 transition-all duration-150 flex items-center z-50 drop-shadow-xl">
+                          <div className="w-2 h-2 bg-slate-900 rotate-45 -mr-1 shrink-0 z-10" />
+                          <div className="bg-slate-900 text-white text-xs px-2.5 py-1.5 rounded-md flex items-center gap-2 whitespace-nowrap border border-slate-700/60 shadow-xl">
+                            <span className="font-semibold text-slate-100">{member.full_name}</span>
+                            <span className="text-[10px] px-1.5 py-0.2 rounded bg-[#0F766E] text-white font-medium">
+                              {member.unreadCount} new
+                            </span>
+                          </div>
+                        </div>
+                      </Link>
+                    );
+                  }
+
+                  return (
+                    <Link
+                      key={member.user_id}
+                      href={`/chatboard?userId=${member.user_id}`}
+                      onClick={() => closeMobile()}
+                      className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs transition-colors cursor-pointer group ${
+                        isCurrent
+                          ? "bg-slate-100 text-slate-900 font-semibold"
+                          : "text-slate-700 hover:bg-slate-50 font-normal"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="relative shrink-0">
+                          <div
+                            className={`w-5 h-5 rounded-md flex items-center justify-center font-bold text-[10px] uppercase transition-colors ${
+                              isCurrent
+                                ? "bg-[#0F766E] text-white"
+                                : "bg-teal-50 text-[#0F766E] group-hover:bg-[#0F766E] group-hover:text-white"
+                            }`}
+                          >
+                            {initials}
+                          </div>
+                        </div>
+                        <span className="truncate text-xs font-semibold text-slate-900">{member.full_name}</span>
+                      </div>
+
+                      <div className="flex items-center gap-1.5 shrink-0 ml-1">
+                        <span
+                          className={`text-[8px] px-1.5 py-0.2 rounded-md font-semibold uppercase tracking-wider ${
+                            member.role === OWNER_ROLE
+                              ? "bg-amber-50 text-amber-700 border border-amber-200/70"
+                              : member.role === MANAGER_ROLE
+                              ? "bg-indigo-50 text-indigo-700 border border-indigo-200/70"
+                              : "bg-teal-50 text-[#0F766E] border border-teal-200/70"
+                          }`}
+                        >
+                          {member.role}
+                        </span>
+
+                        <span className="px-1.5 py-0.2 rounded-full bg-[#0F766E] text-white text-[9px] font-bold">
+                          {member.unreadCount}
+                        </span>
+                      </div>
+                    </Link>
+                  );
+                })
+              ) : (
+                !isCollapsed && (
+                  <p className="px-3 py-1 text-[11px] text-slate-400 italic">
+                    No unseen messages
+                  </p>
+                )
+              )}
+            </div>
+          </div>
         </div>
       </aside>
 
