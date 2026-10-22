@@ -12,6 +12,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Cookies from "js-cookie";
 import { toast } from "react-toastify";
+import { Select } from "antd";
 import {
   FiPlus,
   FiUsers,
@@ -984,20 +985,22 @@ function OrganizationDashboardContent({
                 </div>
 
                 {/* Status Filter */}
-                <select
-                  value={projectStatusFilter}
-                  onChange={(e) => {
-                    setProjectStatusFilter(e.target.value);
+                <Select
+                  value={projectStatusFilter && projectStatusFilter !== "all" ? projectStatusFilter : undefined}
+                  onChange={(val) => {
+                    setProjectStatusFilter(val || "all");
                     setProjectPage(1);
                   }}
-                  className="h-9 px-3 text-xs bg-slate-50 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-[#0F766E] font-semibold text-slate-700"
-                >
-                  <option value="all">All Statuses</option>
-                  <option value="planning">📋 Planning</option>
-                  <option value="active">⚡ Active</option>
-                  <option value="on_hold">⏸️ On Hold</option>
-                  <option value="completed">✅ Completed</option>
-                </select>
+                  placeholder="Status"
+                  allowClear
+                  className="w-36 text-xs font-semibold"
+                  options={[
+                    { value: "planning", label: "📋 Planning" },
+                    { value: "active", label: "⚡ Active" },
+                    { value: "on_hold", label: "⏸️ On Hold" },
+                    { value: "completed", label: "✅ Completed" },
+                  ]}
+                />
               </div>
 
               {isAuthorizedAdmin && (
@@ -2530,30 +2533,34 @@ function MemberTasksView({ membership, user, onRefresh }) {
               </div>
 
               <div className="flex items-center gap-2">
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg outline-none text-slate-700 font-medium"
-                >
-                  <option value="all">All Statuses</option>
-                  <option value="backlog">Backlog</option>
-                  <option value="todo">To Do</option>
-                  <option value="in-progress">In Progress</option>
-                  <option value="review">In Review</option>
-                  <option value="done">Done</option>
-                </select>
+                <Select
+                  value={statusFilter && statusFilter !== "all" ? statusFilter : undefined}
+                  onChange={(val) => setStatusFilter(val || "all")}
+                  placeholder="Status"
+                  allowClear
+                  className="w-36 text-xs font-medium"
+                  options={[
+                    { value: "backlog", label: "Backlog" },
+                    { value: "todo", label: "To Do" },
+                    { value: "in-progress", label: "In Progress" },
+                    { value: "review", label: "In Review" },
+                    { value: "done", label: "Done" },
+                  ]}
+                />
 
-                <select
-                  value={priorityFilter}
-                  onChange={(e) => setPriorityFilter(e.target.value)}
-                  className="px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg outline-none text-slate-700 font-medium"
-                >
-                  <option value="all">All Priorities</option>
-                  <option value="urgent">Urgent</option>
-                  <option value="high">High</option>
-                  <option value="medium">Medium</option>
-                  <option value="low">Low</option>
-                </select>
+                <Select
+                  value={priorityFilter && priorityFilter !== "all" ? priorityFilter : undefined}
+                  onChange={(val) => setPriorityFilter(val || "all")}
+                  placeholder="Priority"
+                  allowClear
+                  className="w-36 text-xs font-medium"
+                  options={[
+                    { value: "urgent", label: "Urgent" },
+                    { value: "high", label: "High" },
+                    { value: "medium", label: "Medium" },
+                    { value: "low", label: "Low" },
+                  ]}
+                />
               </div>
             </div>
 
@@ -2644,19 +2651,21 @@ function MemberTasksView({ membership, user, onRefresh }) {
                         <span className="text-[10px] text-slate-400 font-semibold">
                           Move:
                         </span>
-                        <select
+                        <Select
+                          size="small"
                           value={task.status}
-                          onChange={(e) =>
-                            handleUpdateStatus(task.id, e.target.value)
+                          onChange={(val) =>
+                            handleUpdateStatus(task.id, val)
                           }
-                          className="px-2.5 py-1 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-700 outline-none font-medium cursor-pointer"
-                        >
-                          <option value="backlog">Backlog</option>
-                          <option value="todo">To Do</option>
-                          <option value="in-progress">In Progress</option>
-                          <option value="review">In Review</option>
-                          <option value="done">Done</option>
-                        </select>
+                          className="w-28 text-xs font-medium"
+                          options={[
+                            { value: "backlog", label: "Backlog" },
+                            { value: "todo", label: "To Do" },
+                            { value: "in-progress", label: "In Progress" },
+                            { value: "review", label: "In Review" },
+                            { value: "done", label: "Done" },
+                          ]}
+                        />
                       </div>
                     </div>
                   </div>

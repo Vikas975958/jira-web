@@ -21,6 +21,7 @@ import Portal from "@/components/Portal";
 import DeleteProjectConfirmModal from "@/components/DeleteProjectConfirmModal";
 import DeleteConfirmModal from "@/components/DeleteConfirmModal";
 import EditProjectModal from "@/components/EditProjectModal";
+import { Select } from "antd";
 
 export default function ProjectDetailsModal({
   isOpen,
@@ -259,16 +260,18 @@ export default function ProjectDetailsModal({
                   Change Status
                 </div>
                 {canManage ? (
-                  <select
+                  <Select
                     value={status}
-                    onChange={(e) => handleStatusChange(e.target.value)}
-                    className="jira-input w-full text-xs font-semibold py-1 px-2.5 h-7.5"
-                  >
-                    <option value="planning">Planning</option>
-                    <option value="active">Active</option>
-                    <option value="on_hold">On Hold</option>
-                    <option value="completed">Completed</option>
-                  </select>
+                    onChange={(val) => handleStatusChange(val)}
+                    size="small"
+                    className="w-full text-xs font-semibold"
+                    options={[
+                      { value: "planning", label: "Planning" },
+                      { value: "active", label: "Active" },
+                      { value: "on_hold", label: "On Hold" },
+                      { value: "completed", label: "Completed" },
+                    ]}
+                  />
                 ) : (
                   <span className="text-xs font-semibold text-slate-800 capitalize">{status}</span>
                 )}
@@ -391,17 +394,17 @@ export default function ProjectDetailsModal({
                 <button
                   type="button"
                   onClick={() => setIsEditModalOpen(true)}
-                  className="btn-secondary px-3 py-1.5 text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
+                  className="btn-secondary h-8 px-3 text-xs font-semibold inline-flex items-center justify-center gap-1.5 cursor-pointer"
                   title="Edit Project"
                 >
-                  <FiEdit2 className="w-3.5 h-3.5 text-slate-600" />
+                  <FiEdit2 className="w-3.5 h-3.5 text-slate-600 shrink-0" />
                   <span>Edit</span>
                 </button>
               )}
               <button
                 type="button"
                 onClick={onClose}
-                className="btn-secondary px-3.5 py-1.5 text-xs font-semibold"
+                className="btn-secondary h-8 px-3.5 text-xs font-semibold inline-flex items-center justify-center"
               >
                 Close
               </button>
@@ -412,7 +415,7 @@ export default function ProjectDetailsModal({
                     onClose();
                     onOpenBoard(project);
                   }}
-                  className="btn-primary px-4 py-1.5 text-xs font-semibold"
+                  className="btn-primary h-8 px-4 text-xs font-semibold inline-flex items-center justify-center"
                 >
                   Open Board
                 </button>

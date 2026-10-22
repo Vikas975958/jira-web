@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
+import { Select } from "antd";
 import { useSearchParams, useRouter } from "next/navigation";
 import {
   FiUser,
@@ -431,20 +432,16 @@ function SignUpForm() {
                           >
                             Department
                           </label>
-                          <div className="relative">
-                            <select
-                              id="emp-department"
-                              value={department}
-                              onChange={(e) => setDepartment(e.target.value)}
-                              className="w-full h-10 px-3 bg-white border border-slate-300 rounded-lg text-slate-800 text-xs focus:outline-none focus:ring-2 focus:ring-[#0F766E] transition-all cursor-pointer"
-                            >
-                              {DEPARTMENT_OPTIONS.map((dept) => (
-                                <option key={dept} value={dept}>
-                                  {dept}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
+                          <Select
+                            id="emp-department"
+                            value={department}
+                            onChange={(val) => setDepartment(val)}
+                            className="w-full text-xs font-medium"
+                            options={DEPARTMENT_OPTIONS.map((dept) => ({
+                              value: dept,
+                              label: dept,
+                            }))}
+                          />
                         </div>
 
                         <div>
@@ -454,20 +451,16 @@ function SignUpForm() {
                           >
                             Employee Type
                           </label>
-                          <div className="relative">
-                            <select
-                              id="emp-type"
-                              value={employeeType}
-                              onChange={(e) => setEmployeeType(e.target.value)}
-                              className="w-full h-10 px-3 bg-white border border-slate-300 rounded-lg text-slate-800 text-xs focus:outline-none focus:ring-2 focus:ring-[#0F766E] transition-all cursor-pointer"
-                            >
-                              {EMPLOYEE_TYPE_OPTIONS.map((type) => (
-                                <option key={type} value={type}>
-                                  {type}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
+                          <Select
+                            id="emp-type"
+                            value={employeeType}
+                            onChange={(val) => setEmployeeType(val)}
+                            className="w-full text-xs font-medium"
+                            options={EMPLOYEE_TYPE_OPTIONS.map((type) => ({
+                              value: type,
+                              label: type,
+                            }))}
+                          />
                         </div>
                       </div>
 

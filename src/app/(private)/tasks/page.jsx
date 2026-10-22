@@ -29,7 +29,13 @@ import {
   FiChevronRight,
   FiArrowRight,
   FiArrowLeft,
+  FiChevronDown,
+  FiFilter,
 } from "react-icons/fi";
+import { Select, DatePicker } from "antd";
+import dayjs from "dayjs";
+
+const { RangePicker } = DatePicker;
 import { toast } from "react-toastify";
 import projectService from "@/services/project.service";
 import taskService from "@/services/task.service";
@@ -73,11 +79,56 @@ const COLUMNS = [
   },
 ];
 
+// Consistent avatar colors per starting letter
+const LETTER_AVATAR_COLORS = {
+  A: "bg-rose-100 text-rose-700 hover:bg-rose-200 border border-rose-200/80",
+  B: "bg-blue-100 text-blue-700 hover:bg-blue-200 border border-blue-200/80",
+  C: "bg-teal-100 text-[#0F766E] hover:bg-teal-200 border border-teal-200/80",
+  D: "bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border border-emerald-200/80",
+  E: "bg-violet-100 text-violet-700 hover:bg-violet-200 border border-violet-200/80",
+  F: "bg-orange-100 text-orange-700 hover:bg-orange-200 border border-orange-200/80",
+  G: "bg-lime-100 text-lime-800 hover:bg-lime-200 border border-lime-200/80",
+  H: "bg-pink-100 text-pink-700 hover:bg-pink-200 border border-pink-200/80",
+  I: "bg-sky-100 text-sky-700 hover:bg-sky-200 border border-sky-200/80",
+  J: "bg-red-100 text-red-700 hover:bg-red-200 border border-red-200/80",
+  K: "bg-amber-100 text-amber-800 hover:bg-amber-200 border border-amber-200/80",
+  L: "bg-green-100 text-green-700 hover:bg-green-200 border border-green-200/80",
+  M: "bg-fuchsia-100 text-fuchsia-700 hover:bg-fuchsia-200 border border-fuchsia-200/80",
+  N: "bg-cyan-100 text-cyan-700 hover:bg-cyan-200 border border-cyan-200/80",
+  O: "bg-indigo-100 text-indigo-700 hover:bg-indigo-200 border border-indigo-200/80",
+  P: "bg-purple-100 text-purple-700 hover:bg-purple-200 border border-purple-200/80",
+  Q: "bg-teal-100 text-[#0F766E] hover:bg-teal-200 border border-teal-200/80",
+  R: "bg-blue-100 text-blue-700 hover:bg-blue-200 border border-blue-200/80",
+  S: "bg-rose-100 text-rose-700 hover:bg-rose-200 border border-rose-200/80",
+  T: "bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border border-emerald-200/80",
+  U: "bg-amber-100 text-amber-800 hover:bg-amber-200 border border-amber-200/80",
+  V: "bg-violet-100 text-violet-700 hover:bg-violet-200 border border-violet-200/80",
+  W: "bg-cyan-100 text-cyan-700 hover:bg-cyan-200 border border-cyan-200/80",
+  X: "bg-fuchsia-100 text-fuchsia-700 hover:bg-fuchsia-200 border border-fuchsia-200/80",
+  Y: "bg-orange-100 text-orange-700 hover:bg-orange-200 border border-orange-200/80",
+  Z: "bg-purple-100 text-purple-700 hover:bg-purple-200 border border-purple-200/80",
+};
+
+const FALLBACK_PALETTES = Object.values(LETTER_AVATAR_COLORS);
+
+const getAvatarColorByLetter = (str) => {
+  if (!str) return "bg-teal-100 text-[#0F766E] hover:bg-teal-200 border border-teal-200/80";
+  const char = String(str).trim().charAt(0).toUpperCase();
+  if (LETTER_AVATAR_COLORS[char]) {
+    return LETTER_AVATAR_COLORS[char];
+  }
+  const code = char.charCodeAt(0) || 0;
+  return FALLBACK_PALETTES[code % FALLBACK_PALETTES.length];
+};
+
 function TasksBoardContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const queryProjectId = searchParams.get("projectId");
   const querySearch = searchParams.get("search");
+  const queryPriority = searchParams.get("priority");
+  const queryStatus = searchParams.get("status");
+  const queryDate = searchParams.get("date");
 
   const authState = useSelector((state) => state.authSlice);
   const user = authState?.userData;
@@ -93,6 +144,9 @@ function TasksBoardContent() {
   const [selectedProjectId, setSelectedProjectId] = useState(
     queryProjectId || "",
   );
+  const [priorityFilter, setPriorityFilter] = useState(queryPriority || "all");
+  const [statusFilter, setStatusFilter] = useState(queryStatus || "all");
+  const [dateFilter, setDateFilter] = useState(queryDate || "");
   const [tickets, setTickets] = useState([]);
   const [search, setSearch] = useState(querySearch || "");
   const [selectedMemberFilter, setSelectedMemberFilter] = useState(null);
@@ -118,6 +172,79 @@ function TasksBoardContent() {
   const isOwner = userRole === OWNER_ROLE;
   const isManager = userRole === MANAGER_ROLE;
 
+  // Helper to sync filter changes to URL query parameters
+  const updateUrlParams = useCallback(
+    (newParams) => {
+      const params = new URLSearchParams(searchParams.toString());
+      Object.entries(newParams).forEach(([key, val]) => {
+        if (!val || val === "all") {
+          params.delete(key);
+        } else {
+          params.set(key, val);
+        }
+      });
+      const queryString = params.toString();
+      router.replace(queryString ? `/tasks?${queryString}` : "/tasks");
+    },
+    [router, searchParams],
+  );
+
+  const handlePriorityChange = (val) => {
+    setPriorityFilter(val);
+    updateUrlParams({ priority: val });
+  };
+
+  const handleStatusChange = (val) => {
+    setStatusFilter(val);
+    updateUrlParams({ status: val });
+  };
+
+  const handleDateRangeChange = (dates, dateStrings) => {
+    if (dateStrings && dateStrings[0] && dateStrings[1]) {
+      const rangeStr = `${dateStrings[0]}_${dateStrings[1]}`;
+      setDateFilter(rangeStr);
+      updateUrlParams({ date: rangeStr });
+    } else {
+      setDateFilter("");
+      updateUrlParams({ date: "" });
+    }
+  };
+
+  const rangeValue = useMemo(() => {
+    if (!dateFilter) return null;
+    if (dateFilter.includes("_")) {
+      const [start, end] = dateFilter.split("_");
+      if (start && end && dayjs(start).isValid() && dayjs(end).isValid()) {
+        return [dayjs(start), dayjs(end)];
+      }
+    } else if (dateFilter.includes(":")) {
+      const [start, end] = dateFilter.split(":");
+      if (start && end && dayjs(start).isValid() && dayjs(end).isValid()) {
+        return [dayjs(start), dayjs(end)];
+      }
+    } else if (dayjs(dateFilter).isValid()) {
+      return [dayjs(dateFilter), dayjs(dateFilter)];
+    }
+    return null;
+  }, [dateFilter]);
+
+  const handleClearAllFilters = () => {
+    setPriorityFilter("all");
+    setStatusFilter("all");
+    setDateFilter("");
+    setSearch("");
+    setSelectedMemberFilter(null);
+    updateUrlParams({ priority: "all", status: "all", date: "", search: "" });
+  };
+
+  const hasActiveFilters = Boolean(
+    (priorityFilter && priorityFilter !== "all") ||
+      (statusFilter && statusFilter !== "all") ||
+      dateFilter ||
+      search.trim() ||
+      selectedMemberFilter,
+  );
+
   // Sync URL query param to state if changed, or select first project by default
   useEffect(() => {
     if (queryProjectId) {
@@ -132,7 +259,31 @@ function TasksBoardContent() {
     }
   }, [queryProjectId, projects]);
 
-  // Sync search URL query param if present
+  // Sync priority, status, date and search URL query params if present
+  useEffect(() => {
+    if (queryPriority !== null && queryPriority !== undefined) {
+      setPriorityFilter(queryPriority);
+    } else {
+      setPriorityFilter("all");
+    }
+  }, [queryPriority]);
+
+  useEffect(() => {
+    if (queryStatus !== null && queryStatus !== undefined) {
+      setStatusFilter(queryStatus);
+    } else {
+      setStatusFilter("all");
+    }
+  }, [queryStatus]);
+
+  useEffect(() => {
+    if (queryDate !== null && queryDate !== undefined) {
+      setDateFilter(queryDate);
+    } else {
+      setDateFilter("");
+    }
+  }, [queryDate]);
+
   useEffect(() => {
     if (querySearch !== null && querySearch !== undefined) {
       setSearch(querySearch);
@@ -229,7 +380,7 @@ function TasksBoardContent() {
         }
         return;
       }
-      const fetchKey = `${orgId}:${user?.id || ""}:${userRole}`;
+      const fetchKey = `${orgId}:${selectedProjectId || "all"}:${priorityFilter || "all"}:${statusFilter || "all"}:${dateFilter || ""}:${user?.id || ""}:${userRole}`;
       if (
         !force &&
         lastFetchedTicketsKeyRef.current === fetchKey &&
@@ -244,6 +395,19 @@ function TasksBoardContent() {
         setLoadingTickets(true);
         const data = await taskService.getTasks({
           organizationId: orgId,
+          projectId:
+            selectedProjectId && selectedProjectId !== "all"
+              ? selectedProjectId
+              : undefined,
+          priority:
+            priorityFilter && priorityFilter !== "all"
+              ? priorityFilter
+              : undefined,
+          status:
+            statusFilter && statusFilter !== "all"
+              ? statusFilter
+              : undefined,
+          date: dateFilter || undefined,
           userId: user?.id,
           userRole,
           userName: user?.full_name || user?.name || "",
@@ -261,6 +425,10 @@ function TasksBoardContent() {
     },
     [
       activeOrg?.id,
+      selectedProjectId,
+      priorityFilter,
+      statusFilter,
+      dateFilter,
       user?.id,
       userRole,
       user?.full_name,
@@ -271,12 +439,17 @@ function TasksBoardContent() {
   );
 
   useEffect(() => {
-    loadTickets();
+    loadTickets(true);
   }, [loadTickets]);
 
   // Listen for task creation or updates from dedicated pages/modals
   useEffect(() => {
-    const handleTaskChange = () => {
+    const handleTaskChange = (e) => {
+      if (e?.detail?.id) {
+        setTickets((prev) =>
+          prev.map((t) => (t.id === e.detail.id ? { ...t, ...e.detail } : t)),
+        );
+      }
       loadTickets(true);
     };
     window.addEventListener("workgrid-task-created", handleTaskChange);
@@ -394,6 +567,7 @@ function TasksBoardContent() {
   }, [selectedProject, members, tickets]);
 
   const moveTicket = async (ticketId, nextStatus) => {
+    const targetTicket = tickets.find((t) => t.id === ticketId);
     // Immediate optimistic UI update
     setTickets((prev) =>
       prev.map((t) => (t.id === ticketId ? { ...t, status: nextStatus } : t)),
@@ -401,8 +575,26 @@ function TasksBoardContent() {
     try {
       await taskService.updateTask(
         ticketId,
-        { status: nextStatus },
-        { userId: user?.id, userRole },
+        {
+          status: nextStatus,
+          projectId:
+            targetTicket?.projectId ||
+            targetTicket?.project_id ||
+            (selectedProjectId !== "all" ? selectedProjectId : undefined),
+          project_id:
+            targetTicket?.project_id ||
+            targetTicket?.projectId ||
+            (selectedProjectId !== "all" ? selectedProjectId : undefined),
+          projectName:
+            targetTicket?.projectName ||
+            targetTicket?.project_name ||
+            selectedProject?.name,
+          project_name:
+            targetTicket?.project_name ||
+            targetTicket?.projectName ||
+            selectedProject?.name,
+        },
+        { userId: user?.id, userRole, organizationId: activeOrg?.id },
       );
     } catch (err) {
       console.error("Failed to update task status:", err);
@@ -525,57 +717,17 @@ function TasksBoardContent() {
           <button
             type="button"
             onClick={() => router.push("/projects")}
-            className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-[#0F766E] mb-2 font-medium cursor-pointer transition-colors group"
+            className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-[#0F766E] font-medium cursor-pointer transition-colors group"
           >
             <FiArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform" />
             <span>All Projects</span>
           </button>
-          <div className="flex items-center gap-2 flex-wrap">
-            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
-              {selectedProject
-                ? selectedProject.name
-                : isMember
-                  ? "My Assigned Tasks"
-                  : "Tasks Board"}
-            </h1>
-            {selectedProject && (
-              <span
-                className={`px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wider ${
-                  selectedProject.status === "completed"
-                    ? "bg-emerald-50 text-emerald-700 border border-emerald-200/70"
-                    : selectedProject.status === "in_progress"
-                      ? "bg-teal-50 text-[#0F766E] border border-teal-200/70"
-                      : "bg-slate-200/70 text-slate-700 border border-slate-300/70"
-                }`}
-              >
-                {selectedProject.status?.replace("_", " ") || "active"}
-              </span>
-            )}
-            <span
-              className={`px-2 py-0.5 rounded-lg text-[10px] font-semibold uppercase tracking-wider border ${
-                isMember
-                  ? "bg-teal-50 text-[#0F766E] border-teal-200/70"
-                  : isOwner
-                    ? "bg-amber-50 text-amber-800 border-amber-200/70"
-                    : "bg-purple-50 text-purple-800 border-purple-200/70"
-              }`}
-            >
-              Role: {userRole}
-            </span>
-          </div>
-          <p className="text-xs text-slate-500 mt-0.5">
-            {isMember
-              ? `Assigned issues for ${activeOrg?.name || "workspace"}`
-              : selectedProject
-                ? `Sprint and issue tracking for ${selectedProject.name}`
-                : `Kanban sprint tracking for ${activeOrg?.name || "your workspace"}`}
-          </p>
         </div>
 
-        {/* Header Action Controls */}
+        {/* Header Action Controls & Backend Filters */}
         <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
           {/* Search box */}
-          <div className="relative flex-1 md:w-56">
+          <div className="relative flex-1 sm:w-44 md:w-48">
             <FiSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
             <input
               type="text"
@@ -596,15 +748,56 @@ function TasksBoardContent() {
             )}
           </div>
 
-          {/* Create Project Button (Owner & Manager) */}
-          {(isOwner || isManager) && (
+          {/* Ant Design Priority Filter */}
+          <Select
+            value={priorityFilter && priorityFilter !== "all" ? priorityFilter : undefined}
+            onChange={(val) => handlePriorityChange(val || "all")}
+            placeholder="Priority"
+            allowClear
+            className="w-32 sm:w-36 h-8.5 text-xs"
+            options={[
+              { value: "urgent", label: "Urgent" },
+              { value: "high", label: "High" },
+              { value: "medium", label: "Medium" },
+              { value: "low", label: "Low" },
+            ]}
+          />
+
+          {/* Ant Design Status Filter */}
+          <Select
+            value={statusFilter && statusFilter !== "all" ? statusFilter : undefined}
+            onChange={(val) => handleStatusChange(val || "all")}
+            placeholder="Status"
+            allowClear
+            className="w-32 sm:w-36 h-8.5 text-xs"
+            options={[
+              { value: "backlog", label: "Backlog" },
+              { value: "todo", label: "To Do" },
+              { value: "in-progress", label: "In Progress" },
+              { value: "review", label: "In Review" },
+              { value: "done", label: "Done" },
+            ]}
+          />
+
+          {/* Ant Design Date Range Filter */}
+          <RangePicker
+            value={rangeValue}
+            onChange={handleDateRangeChange}
+            placeholder={["Start Date", "End Date"]}
+            className="h-8.5 text-xs w-56 sm:w-60"
+            allowClear
+          />
+
+          {/* Clear All Filters Button */}
+          {hasActiveFilters && (
             <button
               type="button"
-              onClick={() => setIsCreateProjectModalOpen(true)}
-              className="btn-secondary px-3 py-1.5 text-xs whitespace-nowrap"
+              onClick={handleClearAllFilters}
+              className="h-8.5 px-2.5 text-xs text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-lg font-semibold flex items-center gap-1 transition-colors cursor-pointer"
+              title="Reset all filters"
             >
-              <FiFolder className="w-3.5 h-3.5 text-slate-500" />
-              <span>Create Project</span>
+              <FiX className="w-3.5 h-3.5" />
+              <span>Reset</span>
             </button>
           )}
 
@@ -716,7 +909,7 @@ function TasksBoardContent() {
                   className={`w-6.5 h-6.5 rounded-full text-[10px] font-bold flex items-center justify-center transition-all cursor-pointer relative group ${
                     isSelected
                       ? "bg-[#0F766E] text-white ring-2 ring-[#0F766E] ring-offset-2 ring-offset-white scale-105 shadow-xs"
-                      : "bg-teal-100 text-[#0F766E] hover:bg-teal-200 hover:scale-105 border border-teal-200/80"
+                      : `${getAvatarColorByLetter(m.initial || m.name)} hover:scale-105`
                   }`}
                   title={`Filter tasks assigned to ${m.name}`}
                 >
@@ -802,7 +995,9 @@ function TasksBoardContent() {
       ) : filteredTickets.length === 0 ? (
         <div className="bg-white rounded-lg border border-slate-200 p-12 text-center space-y-4 max-w-md mx-auto shadow-xs">
           <div className="w-16 h-16 rounded-lg bg-teal-50 text-[#0F766E] flex items-center justify-center mx-auto">
-            {projects.length === 0 ? (
+            {hasActiveFilters ? (
+              <FiFilter className="w-8 h-8" />
+            ) : projects.length === 0 ? (
               <FiFolder className="w-8 h-8" />
             ) : (
               <FiLayers className="w-8 h-8" />
@@ -810,45 +1005,60 @@ function TasksBoardContent() {
           </div>
           <div className="space-y-1">
             <h3 className="text-base font-bold text-slate-900">
-              {projects.length === 0
-                ? "No Projects Created Yet"
-                : selectedProject
-                  ? `No Issues in ${selectedProject.name}`
-                  : "No Issues Created Yet"}
+              {hasActiveFilters
+                ? "No Matching Issues Found"
+                : projects.length === 0
+                  ? "No Projects Created Yet"
+                  : selectedProject
+                    ? `No Issues in ${selectedProject.name}`
+                    : "No Issues Created Yet"}
             </h3>
             <p className="text-xs text-slate-500 leading-relaxed">
-              {projects.length === 0
-                ? "Create your first project to start organizing issues and tracking agile sprints."
-                : "Your backlog is clear. Click the button below to create your first issue and start sprint planning."}
+              {hasActiveFilters
+                ? "No tasks match your selected filter criteria. Try adjusting or resetting your filters to see more results."
+                : projects.length === 0
+                  ? "Create your first project to start organizing issues and tracking agile sprints."
+                  : "Your backlog is clear. Click the button below to create your first issue and start sprint planning."}
             </p>
           </div>
-          {projects.length === 0
-            ? (isOwner || isManager) && (
-                <button
-                  type="button"
-                  onClick={() => setIsCreateProjectModalOpen(true)}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#0F766E] hover:bg-[#0D655E] active:bg-[#115E59] active:scale-[0.98] text-white text-xs font-bold rounded-lg shadow-md shadow-teal-900/20 transition-all cursor-pointer"
-                >
-                  <FiFolder className="w-4 h-4" />
-                  <span>Create Project</span>
-                </button>
-              )
-            : !isMember && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    const url =
-                      selectedProjectId && selectedProjectId !== "all"
-                        ? `/issues/create?projectId=${selectedProjectId}`
-                        : `/issues/create`;
-                    router.push(url);
-                  }}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#0F766E] hover:bg-[#0D655E] active:bg-[#115E59] active:scale-[0.98] text-white text-xs font-bold rounded-lg shadow-md shadow-teal-900/20 transition-all cursor-pointer"
-                >
-                  <FiPlus className="w-4 h-4" />
-                  <span>Create Issue</span>
-                </button>
-              )}
+          {hasActiveFilters ? (
+            <button
+              type="button"
+              onClick={handleClearAllFilters}
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#0F766E] hover:bg-[#0D655E] active:bg-[#115E59] active:scale-[0.98] text-white text-xs font-bold rounded-lg shadow-md shadow-teal-900/20 transition-all cursor-pointer"
+            >
+              <FiX className="w-4 h-4" />
+              <span>Reset All Filters</span>
+            </button>
+          ) : projects.length === 0 ? (
+            (isOwner || isManager) && (
+              <button
+                type="button"
+                onClick={() => setIsCreateProjectModalOpen(true)}
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#0F766E] hover:bg-[#0D655E] active:bg-[#115E59] active:scale-[0.98] text-white text-xs font-bold rounded-lg shadow-md shadow-teal-900/20 transition-all cursor-pointer"
+              >
+                <FiFolder className="w-4 h-4" />
+                <span>Create Project</span>
+              </button>
+            )
+          ) : (
+            !isMember && (
+              <button
+                type="button"
+                onClick={() => {
+                  const url =
+                    selectedProjectId && selectedProjectId !== "all"
+                      ? `/issues/create?projectId=${selectedProjectId}`
+                      : `/issues/create`;
+                  router.push(url);
+                }}
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#0F766E] hover:bg-[#0D655E] active:bg-[#115E59] active:scale-[0.98] text-white text-xs font-bold rounded-lg shadow-md shadow-teal-900/20 transition-all cursor-pointer"
+              >
+                <FiPlus className="w-4 h-4" />
+                <span>Create Issue</span>
+              </button>
+            )
+          )}
         </div>
       ) : (
         /* ─────────────────────────────────────────────────── */
@@ -918,30 +1128,6 @@ function TasksBoardContent() {
                           >
                             <FiEye className="w-3.5 h-3.5" />
                           </button>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              router.push(`/issues/${ticket.id}/edit`);
-                            }}
-                            className="text-slate-400 hover:text-slate-700 p-0.5 rounded cursor-pointer"
-                            title="Edit issue"
-                          >
-                            <FiEdit3 className="w-3.5 h-3.5" />
-                          </button>
-                          {!isMember && (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteTicketClick(ticket);
-                              }}
-                              className="text-slate-400 hover:text-red-600 p-0.5 rounded cursor-pointer"
-                              title="Delete issue"
-                            >
-                              <FiTrash2 className="w-3.5 h-3.5" />
-                            </button>
-                          )}
                         </div>
                       </div>
 
@@ -977,25 +1163,24 @@ function TasksBoardContent() {
 
                       {/* Quick Move Status Selector */}
                       <div
-                        className="pt-0.5 flex items-center justify-between text-[10px] text-slate-400"
+                        className="pt-1 flex items-center justify-between text-[11px] text-slate-400"
                         onClick={(e) => e.stopPropagation()}
                       >
                         <span>Move:</span>
-                        <select
+                        <Select
+                          size="small"
                           value={ticket.status}
                           onClick={(e) => e.stopPropagation()}
-                          onChange={(e) => {
-                            e.stopPropagation();
-                            moveTicket(ticket.id, e.target.value);
-                          }}
-                          className="bg-slate-50 border border-slate-200 rounded-md px-1.5 py-0.5 text-[10px] text-slate-600 outline-none hover:border-slate-300 focus:border-[#0F766E] cursor-pointer"
-                        >
-                          <option value="backlog">Backlog</option>
-                          <option value="todo">To Do</option>
-                          <option value="in-progress">In Progress</option>
-                          <option value="review">Review</option>
-                          <option value="done">Done</option>
-                        </select>
+                          onChange={(val) => moveTicket(ticket.id, val)}
+                          className="w-28 text-xs"
+                          options={[
+                            { value: "backlog", label: "Backlog" },
+                            { value: "todo", label: "To Do" },
+                            { value: "in-progress", label: "In Progress" },
+                            { value: "review", label: "Review" },
+                            { value: "done", label: "Done" },
+                          ]}
+                        />
                       </div>
                     </div>
                   ))}

@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useSelector } from "react-redux";
 import Link from "next/link";
 import { toast } from "react-toastify";
+import { Select } from "antd";
 import {
   FiArrowLeft,
   FiFolder,
@@ -27,6 +28,7 @@ import {
   FiSearch,
   FiX,
   FiEdit2,
+  FiChevronDown,
 } from "react-icons/fi";
 import { LuPin } from "react-icons/lu";
 import { useOrganization } from "@/context/OrganizationContext";
@@ -620,7 +622,7 @@ export default function ProjectDetailsPage() {
               <button
                 type="button"
                 onClick={handleTogglePin}
-                className={`px-3 py-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                className={`h-8 px-3 rounded-lg border text-xs font-semibold inline-flex items-center justify-center gap-1.5 transition-all cursor-pointer box-border shrink-0 ${
                   isPinned
                     ? "bg-teal-50 border-teal-300 text-[#0F766E] shadow-2xs"
                     : "bg-white border-slate-200 text-slate-700 hover:text-[#0F766E] hover:border-teal-200 hover:bg-teal-50/50"
@@ -632,26 +634,25 @@ export default function ProjectDetailsPage() {
                 }
               >
                 <LuPin
-                  className={`w-3.5 h-3.5 ${isPinned ? "fill-current" : ""}`}
+                  className={`w-3.5 h-3.5 shrink-0 ${isPinned ? "fill-current" : ""}`}
                 />
-                <span>{isPinned ? "Pinned" : "Pin to Sidebar"}</span>
+                <span className="leading-none">{isPinned ? "Pinned" : "Pin to Sidebar"}</span>
               </button>
 
               {/* Status Selector for Owner / Manager */}
               {canManage && (
-                <div className="flex items-center bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-xs">
-                  <select
-                    value={status}
-                    onChange={(e) => handleStatusChange(e.target.value)}
-                    className="bg-transparent font-semibold text-slate-800 outline-none cursor-pointer text-xs"
-                  >
-                    <option value="planning">Planning</option>
-                    <option value="active">Active</option>
-                    <option value="on_hold">On Hold</option>
-                    <option value="completed">Completed</option>
-                    <option value="archived">Archived</option>
-                  </select>
-                </div>
+                <Select
+                  value={status}
+                  onChange={(val) => handleStatusChange(val)}
+                  className="w-32 h-8 text-xs font-semibold"
+                  options={[
+                    { value: "planning", label: "Planning" },
+                    { value: "active", label: "Active" },
+                    { value: "on_hold", label: "On Hold" },
+                    { value: "completed", label: "Completed" },
+                    { value: "archived", label: "Archived" },
+                  ]}
+                />
               )}
 
               {/* Edit Project Button */}
@@ -659,11 +660,11 @@ export default function ProjectDetailsPage() {
                 <button
                   type="button"
                   onClick={() => setIsEditModalOpen(true)}
-                  className="btn-secondary px-3 py-1.5 text-xs font-semibold flex items-center gap-1.5 cursor-pointer text-slate-700 hover:text-slate-900 border-slate-200"
+                  className="btn-secondary h-8 px-3 text-xs font-semibold inline-flex items-center justify-center gap-1.5 cursor-pointer text-slate-700 hover:text-slate-900 border-slate-200 shrink-0"
                   title="Edit Project"
                 >
-                  <FiEdit2 className="w-3.5 h-3.5 text-slate-600" />
-                  <span>Edit Project</span>
+                  <FiEdit2 className="w-3.5 h-3.5 text-slate-600 shrink-0" />
+                  <span className="leading-none">Edit Project</span>
                 </button>
               )}
 
@@ -671,10 +672,10 @@ export default function ProjectDetailsPage() {
               <button
                 type="button"
                 onClick={() => router.push(`/tasks?projectId=${project.id}`)}
-                className="btn-primary px-3.5 py-1.5 text-xs font-semibold whitespace-nowrap"
+                className="btn-primary h-8 px-3.5 text-xs font-semibold whitespace-nowrap inline-flex items-center justify-center gap-1.5 shrink-0"
               >
-                <FiLayers className="w-3.5 h-3.5" />
-                <span>Open Kanban Board</span>
+                <FiLayers className="w-3.5 h-3.5 shrink-0" />
+                <span className="leading-none">Open Kanban Board</span>
               </button>
 
               {/* Delete Project Button (Owner Only) */}
@@ -682,11 +683,11 @@ export default function ProjectDetailsPage() {
                 <button
                   type="button"
                   onClick={handleDeleteClick}
-                  className="btn-secondary px-3 py-1.5 text-xs font-semibold text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                  className="btn-secondary h-8 px-3 text-xs font-semibold text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 inline-flex items-center justify-center gap-1.5 shrink-0"
                   title="Delete Project"
                 >
-                  <FiTrash2 className="w-3.5 h-3.5" />
-                  <span>Delete</span>
+                  <FiTrash2 className="w-3.5 h-3.5 shrink-0" />
+                  <span className="leading-none">Delete</span>
                 </button>
               )}
             </div>
@@ -1054,39 +1055,38 @@ export default function ProjectDetailsPage() {
                         <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-1">
                           Select Workspace Member
                         </label>
-                        <select
-                          value={selectedExistingUserId}
-                          onChange={(e) => setSelectedExistingUserId(e.target.value)}
-                          className="jira-input w-full text-xs font-medium h-8.5 px-2.5"
-                          required
-                        >
-                          <option value="">-- Choose a team member --</option>
-                          {availableOrgMembers.map((m) => {
+                        <Select
+                          value={selectedExistingUserId || undefined}
+                          onChange={(val) => setSelectedExistingUserId(val || "")}
+                          className="w-full text-xs font-medium"
+                          placeholder="Choose a team member"
+                          allowClear
+                          options={availableOrgMembers.map((m) => {
                             const prof = m.profiles || {};
                             const mName = prof.full_name || prof.email || "Member";
                             const mEmail = prof.email ? `(${prof.email})` : "";
                             const isMe = user?.id && (m.user_id === user.id || m.id === user.id);
-                            return (
-                              <option key={m.id || m.user_id} value={m.user_id || m.id}>
-                                {mName} {isMe ? "(You) " : ""}{mEmail}
-                              </option>
-                            );
+                            return {
+                              value: m.user_id || m.id,
+                              label: `${mName} ${isMe ? "(You) " : ""}${mEmail}`.trim(),
+                            };
                           })}
-                        </select>
+                        />
                       </div>
 
                       <div>
                         <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-1">
                           Assign Project Role
                         </label>
-                        <select
+                        <Select
                           value={assignRole}
-                          onChange={(e) => setAssignRole(e.target.value)}
-                          className="jira-input w-full text-xs font-medium h-8.5 px-2.5"
-                        >
-                          <option value={MEMBER_ROLE}>Member (Tasks & Boards)</option>
-                          <option value={MANAGER_ROLE}>Project Manager (Manage Team & Settings)</option>
-                        </select>
+                          onChange={(val) => setAssignRole(val)}
+                          className="w-full text-xs font-medium"
+                          options={[
+                            { value: MEMBER_ROLE, label: "Member (Tasks & Boards)" },
+                            { value: MANAGER_ROLE, label: "Project Manager (Manage Team & Settings)" },
+                          ]}
+                        />
                       </div>
 
                       <button
@@ -1134,14 +1134,15 @@ export default function ProjectDetailsPage() {
                       <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-1">
                         Intended Project Role
                       </label>
-                      <select
+                      <Select
                         value={inviteRole}
-                        onChange={(e) => setInviteRole(e.target.value)}
-                        className="jira-input w-full text-xs font-medium h-8.5 px-2.5"
-                      >
-                        <option value={MEMBER_ROLE}>Member</option>
-                        <option value={MANAGER_ROLE}>Project Manager</option>
-                      </select>
+                        onChange={(val) => setInviteRole(val)}
+                        className="w-full text-xs font-medium"
+                        options={[
+                          { value: MEMBER_ROLE, label: "Member" },
+                          { value: MANAGER_ROLE, label: "Project Manager" },
+                        ]}
+                      />
                     </div>
 
                     <button
