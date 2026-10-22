@@ -79,6 +79,48 @@ const COLUMNS = [
   },
 ];
 
+// Consistent avatar colors per starting letter
+const LETTER_AVATAR_COLORS = {
+  A: "bg-rose-100 text-rose-700 hover:bg-rose-200 border border-rose-200/80",
+  B: "bg-blue-100 text-blue-700 hover:bg-blue-200 border border-blue-200/80",
+  C: "bg-teal-100 text-[#0F766E] hover:bg-teal-200 border border-teal-200/80",
+  D: "bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border border-emerald-200/80",
+  E: "bg-violet-100 text-violet-700 hover:bg-violet-200 border border-violet-200/80",
+  F: "bg-orange-100 text-orange-700 hover:bg-orange-200 border border-orange-200/80",
+  G: "bg-lime-100 text-lime-800 hover:bg-lime-200 border border-lime-200/80",
+  H: "bg-pink-100 text-pink-700 hover:bg-pink-200 border border-pink-200/80",
+  I: "bg-sky-100 text-sky-700 hover:bg-sky-200 border border-sky-200/80",
+  J: "bg-red-100 text-red-700 hover:bg-red-200 border border-red-200/80",
+  K: "bg-amber-100 text-amber-800 hover:bg-amber-200 border border-amber-200/80",
+  L: "bg-green-100 text-green-700 hover:bg-green-200 border border-green-200/80",
+  M: "bg-fuchsia-100 text-fuchsia-700 hover:bg-fuchsia-200 border border-fuchsia-200/80",
+  N: "bg-cyan-100 text-cyan-700 hover:bg-cyan-200 border border-cyan-200/80",
+  O: "bg-indigo-100 text-indigo-700 hover:bg-indigo-200 border border-indigo-200/80",
+  P: "bg-purple-100 text-purple-700 hover:bg-purple-200 border border-purple-200/80",
+  Q: "bg-teal-100 text-[#0F766E] hover:bg-teal-200 border border-teal-200/80",
+  R: "bg-blue-100 text-blue-700 hover:bg-blue-200 border border-blue-200/80",
+  S: "bg-rose-100 text-rose-700 hover:bg-rose-200 border border-rose-200/80",
+  T: "bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border border-emerald-200/80",
+  U: "bg-amber-100 text-amber-800 hover:bg-amber-200 border border-amber-200/80",
+  V: "bg-violet-100 text-violet-700 hover:bg-violet-200 border border-violet-200/80",
+  W: "bg-cyan-100 text-cyan-700 hover:bg-cyan-200 border border-cyan-200/80",
+  X: "bg-fuchsia-100 text-fuchsia-700 hover:bg-fuchsia-200 border border-fuchsia-200/80",
+  Y: "bg-orange-100 text-orange-700 hover:bg-orange-200 border border-orange-200/80",
+  Z: "bg-purple-100 text-purple-700 hover:bg-purple-200 border border-purple-200/80",
+};
+
+const FALLBACK_PALETTES = Object.values(LETTER_AVATAR_COLORS);
+
+const getAvatarColorByLetter = (str) => {
+  if (!str) return "bg-teal-100 text-[#0F766E] hover:bg-teal-200 border border-teal-200/80";
+  const char = String(str).trim().charAt(0).toUpperCase();
+  if (LETTER_AVATAR_COLORS[char]) {
+    return LETTER_AVATAR_COLORS[char];
+  }
+  const code = char.charCodeAt(0) || 0;
+  return FALLBACK_PALETTES[code % FALLBACK_PALETTES.length];
+};
+
 function TasksBoardContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -867,7 +909,7 @@ function TasksBoardContent() {
                   className={`w-6.5 h-6.5 rounded-full text-[10px] font-bold flex items-center justify-center transition-all cursor-pointer relative group ${
                     isSelected
                       ? "bg-[#0F766E] text-white ring-2 ring-[#0F766E] ring-offset-2 ring-offset-white scale-105 shadow-xs"
-                      : "bg-teal-100 text-[#0F766E] hover:bg-teal-200 hover:scale-105 border border-teal-200/80"
+                      : `${getAvatarColorByLetter(m.initial || m.name)} hover:scale-105`
                   }`}
                   title={`Filter tasks assigned to ${m.name}`}
                 >
