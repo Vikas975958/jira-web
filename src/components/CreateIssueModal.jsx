@@ -27,6 +27,7 @@ export default function CreateIssueModal({
   const [storyPoints, setStoryPoints] = useState(3);
   const [assignee, setAssignee] = useState("");
   const [assigneeId, setAssigneeId] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Sync default projectId when modal opens
   React.useEffect(() => {
@@ -39,40 +40,59 @@ export default function CreateIssueModal({
     return projects.find((p) => p.id === projectId) || null;
   }, [projects, projectId]);
 
-  // Project team members available for assignment
+  // Project team members available for assignment (deduplicated)
   const effectiveAssignees = React.useMemo(() => {
-    let list = [];
+    const map = new Map();
     if (chosenProj) {
-      if (chosenProj.assignedManagers?.length > 0) {
+      if (Array.isArray(chosenProj.assignedManagers)) {
         chosenProj.assignedManagers.forEach((m) => {
-          list.push({
-            id: m.id || m.userId,
-            user_id: m.userId || m.id,
-            full_name: m.fullName || m.name || "Manager",
-            email: m.email || "",
-            role: "manager",
-          });
+          const uId = m.userId || m.user_id || m.id;
+          if (uId && !map.has(uId)) {
+            map.set(uId, {
+              id: uId,
+              user_id: uId,
+              full_name: m.fullName || m.name || m.full_name || "Manager",
+              email: m.email || "",
+              role: "manager",
+            });
+          }
         });
       }
-      if (chosenProj.assignedMembers?.length > 0) {
+      if (Array.isArray(chosenProj.assignedMembers)) {
         chosenProj.assignedMembers.forEach((m) => {
-          list.push({
-            id: m.id || m.userId,
-            user_id: m.userId || m.id,
-            full_name: m.fullName || m.name || "Member",
-            email: m.email || "",
-            role: "member",
-          });
+          const uId = m.userId || m.user_id || m.id;
+          if (uId && !map.has(uId)) {
+            map.set(uId, {
+              id: uId,
+              user_id: uId,
+              full_name: m.fullName || m.name || m.full_name || "Member",
+              email: m.email || "",
+              role: "member",
+            });
+          }
         });
       }
-    } else {
-      list = [...(teamMembers || [])];
+    } else if (Array.isArray(teamMembers)) {
+      teamMembers.forEach((m) => {
+        const uId = m.user_id || m.userId || m.profiles?.id || m.id;
+        if (uId && !map.has(uId)) {
+          map.set(uId, {
+            id: uId,
+            user_id: uId,
+            full_name: m.full_name || m.name || m.profiles?.full_name || m.email || "Member",
+            email: m.email || m.profiles?.email || "",
+            role: m.role || "member",
+          });
+        }
+      });
     }
+
+    const list = Array.from(map.values());
 
     if (user?.id && list.length > 0) {
       list.sort((a, b) => {
-        const aIsMe = (a.user_id === user.id || a.id === user.id || a.profiles?.id === user.id) ? 1 : 0;
-        const bIsMe = (b.user_id === user.id || b.id === user.id || b.profiles?.id === user.id) ? 1 : 0;
+        const aIsMe = (a.user_id === user.id || a.id === user.id) ? 1 : 0;
+        const bIsMe = (b.user_id === user.id || b.id === user.id) ? 1 : 0;
         return bIsMe - aIsMe;
       });
     }
@@ -80,19 +100,23 @@ export default function CreateIssueModal({
     return list;
   }, [chosenProj, teamMembers, user?.id]);
 
-  // Set default assignee and assigneeId when modal opens or user loads
+  // Set default assignee and assigneeId when modal opens
   React.useEffect(() => {
-    if (isOpen && !assigneeId && user) {
-      setAssigneeId(user.id || "");
-      setAssignee(user.full_name || user.name || user.email || "");
+    if (isOpen) {
+      if (user) {
+        setAssigneeId(user.id || "");
+        setAssignee(user.full_name || user.name || user.email || "");
+      }
+    } else {
+      setIsSubmitting(false);
     }
-  }, [isOpen, user, assigneeId]);
+  }, [isOpen, user]);
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!title.trim()) return;
+    if (!title.trim() || isSubmitting) return;
 
     let finalAssigneeId = assigneeId || null;
     let finalAssigneeName = assignee.trim() || user?.full_name || user?.name || "Unassigned";
@@ -123,30 +147,37 @@ export default function CreateIssueModal({
       finalAssigneeId = user.id;
     }
 
-    if (onAddTicket) {
-      onAddTicket({
-        title: title.trim(),
-        description: description.trim(),
-        type,
-        status,
-        priority,
-        storyPoints: Number(storyPoints) || 1,
-        assignee: finalAssigneeName,
-        assigneeId: finalAssigneeId,
-        assignee_id: finalAssigneeId,
-        tags: [],
-        projectId: projectId || null,
-        project_id: projectId || null,
-        projectName: chosenProj?.name || null,
-        project_name: chosenProj?.name || null,
-      });
-    }
+    try {
+      setIsSubmitting(true);
+      if (onAddTicket) {
+        await onAddTicket({
+          title: title.trim(),
+          description: description.trim(),
+          type,
+          status,
+          priority,
+          storyPoints: Number(storyPoints) || 1,
+          assignee: finalAssigneeName,
+          assigneeId: finalAssigneeId,
+          assignee_id: finalAssigneeId,
+          tags: [],
+          projectId: projectId || null,
+          project_id: projectId || null,
+          projectName: chosenProj?.name || null,
+          project_name: chosenProj?.name || null,
+        });
+      }
 
-    setTitle("");
-    setDescription("");
-    setAssigneeId(user?.id || "");
-    setAssignee(user?.full_name || user?.name || "");
-    if (onClose) onClose();
+      setTitle("");
+      setDescription("");
+      setAssigneeId(user?.id || "");
+      setAssignee(user?.full_name || user?.name || "");
+      if (onClose) onClose();
+    } catch (err) {
+      console.error("Create ticket error:", err);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -333,7 +364,9 @@ export default function CreateIssueModal({
                     }
                   }}
                   className="w-full h-9 text-xs font-semibold"
-                  options={effectiveAssignees.map((member) => {
+                  options={effectiveAssignees
+                    .filter((m) => Boolean(m.user_id || m.profiles?.id || m.id))
+                    .map((member) => {
                       const mId =
                         member.user_id || member.profiles?.id || member.id;
                       const mName =
@@ -344,11 +377,12 @@ export default function CreateIssueModal({
                       const isMe =
                         user?.id &&
                         (mId === user.id || member.user_id === user.id);
+                      const roleText = member.role ? ` (${member.role})` : "";
                       return {
                         value: mId,
-                        label: `${mName} ${isMe ? "(You) " : ""}(${member.role})`,
+                        label: `${mName}${isMe ? " (You)" : ""}${roleText}`,
                       };
-                    }),
+                    })}
                 />
               ) : (
                 <input
@@ -386,10 +420,20 @@ export default function CreateIssueModal({
             </button>
             <button
               type="submit"
-              className="btn-primary px-4 py-2 text-xs font-semibold"
+              disabled={isSubmitting || !title.trim()}
+              className="btn-primary px-4 py-2 text-xs font-semibold flex items-center gap-1.5 disabled:opacity-60"
             >
-              <FiCheck className="w-3.5 h-3.5" />
-              <span>Create Issue</span>
+              {isSubmitting ? (
+                <>
+                  <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin shrink-0" />
+                  <span>Creating Issue...</span>
+                </>
+              ) : (
+                <>
+                  <FiCheck className="w-3.5 h-3.5" />
+                  <span>Create Issue</span>
+                </>
+              )}
             </button>
           </div>
         </form>

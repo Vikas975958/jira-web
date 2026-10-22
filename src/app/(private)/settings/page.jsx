@@ -647,10 +647,19 @@ export default function SettingsPage() {
                 <button
                   type="submit"
                   disabled={savingOrg}
-                  className="btn-primary px-4 py-1.5 text-xs font-semibold"
+                  className="btn-primary px-4 py-1.5 text-xs font-semibold flex items-center gap-1.5 disabled:opacity-60"
                 >
-                  <FiCheck className="w-3.5 h-3.5" />
-                  <span>{savingOrg ? "Saving..." : "Save Workspace Settings"}</span>
+                  {savingOrg ? (
+                    <>
+                      <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin shrink-0" />
+                      <span>Saving...</span>
+                    </>
+                  ) : (
+                    <>
+                      <FiCheck className="w-3.5 h-3.5" />
+                      <span>Save Workspace Settings</span>
+                    </>
+                  )}
                 </button>
               </div>
             )}
@@ -720,10 +729,19 @@ export default function SettingsPage() {
               <button
                 type="submit"
                 disabled={savingProfile}
-                className="btn-primary px-4 py-1.5 text-xs font-semibold"
+                className="btn-primary px-4 py-1.5 text-xs font-semibold flex items-center gap-1.5 disabled:opacity-60"
               >
-                <FiCheck className="w-3.5 h-3.5" />
-                <span>{savingProfile ? "Saving..." : "Save Profile"}</span>
+                {savingProfile ? (
+                  <>
+                    <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin shrink-0" />
+                    <span>Saving...</span>
+                  </>
+                ) : (
+                  <>
+                    <FiCheck className="w-3.5 h-3.5" />
+                    <span>Save Profile</span>
+                  </>
+                )}
               </button>
             </div>
           </form>

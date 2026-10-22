@@ -1092,9 +1092,16 @@ export default function ProjectDetailsPage() {
                       <button
                         type="submit"
                         disabled={assigning}
-                        className="btn-primary w-full py-2 text-xs font-semibold"
+                        className="btn-primary w-full py-2 text-xs font-semibold flex items-center justify-center gap-2 disabled:opacity-60"
                       >
-                        {assigning ? "Adding Member..." : "Add Member to Project"}
+                        {assigning ? (
+                          <>
+                            <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin shrink-0" />
+                            <span>Adding Member...</span>
+                          </>
+                        ) : (
+                          <span>Add Member to Project</span>
+                        )}
                       </button>
                     </form>
                   )
@@ -1148,10 +1155,19 @@ export default function ProjectDetailsPage() {
                     <button
                       type="submit"
                       disabled={inviting}
-                      className="btn-primary w-full py-2 text-xs font-semibold"
+                      className="btn-primary w-full py-2 text-xs font-semibold flex items-center justify-center gap-2 disabled:opacity-60"
                     >
-                      <FiSend className="w-3.5 h-3.5" />
-                      <span>{inviting ? "Sending..." : "Send Invitation"}</span>
+                      {inviting ? (
+                        <>
+                          <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin shrink-0" />
+                          <span>Sending...</span>
+                        </>
+                      ) : (
+                        <>
+                          <FiSend className="w-3.5 h-3.5" />
+                          <span>Send Invitation</span>
+                        </>
+                      )}
                     </button>
 
                     {lastInviteLink && (

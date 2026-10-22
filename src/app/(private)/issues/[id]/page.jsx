@@ -69,6 +69,7 @@ export default function IssueDetailPage() {
 
   // Subtask adding inline
   const [newSubtaskText, setNewSubtaskText] = useState("");
+  const [isAddingSubtask, setIsAddingSubtask] = useState(false);
 
   // Comment adding
   const [commentText, setCommentText] = useState("");
@@ -78,10 +79,25 @@ export default function IssueDetailPage() {
   const [showAddLink, setShowAddLink] = useState(false);
   const [newLinkTitle, setNewLinkTitle] = useState("");
   const [newLinkUrl, setNewLinkUrl] = useState("");
+  const [isAddingLink, setIsAddingLink] = useState(false);
 
   // Delete modal
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isNavigatingToEdit, setIsNavigatingToEdit] = useState(false);
+
+  // Prefetch edit route for faster transition
+  useEffect(() => {
+    if (issueId) {
+      router.prefetch(`/issues/${issueId}/edit`);
+    }
+  }, [issueId, router]);
+
+  const handleEditClick = (e) => {
+    e?.preventDefault?.();
+    setIsNavigatingToEdit(true);
+    router.push(`/issues/${issue?.id || issueId}/edit`);
+  };
 
   // Load projects and issue data
   const loadData = useCallback(async () => {
@@ -277,6 +293,7 @@ export default function IssueDetailPage() {
     setNewSubtaskText("");
 
     try {
+      setIsAddingSubtask(true);
       const serialized = serializeIssue(updatedIssue);
       await taskService.updateTask(issue.id, serialized, {
         userId: user?.id,
@@ -286,6 +303,8 @@ export default function IssueDetailPage() {
     } catch (err) {
       toast.error("Failed to save subtask.");
       loadData();
+    } finally {
+      setIsAddingSubtask(false);
     }
   };
 
@@ -364,6 +383,7 @@ export default function IssueDetailPage() {
     setShowAddLink(false);
 
     try {
+      setIsAddingLink(true);
       const serialized = serializeIssue(updatedIssue);
       await taskService.updateTask(issue.id, serialized, {
         userId: user?.id,
@@ -373,6 +393,8 @@ export default function IssueDetailPage() {
     } catch (err) {
       toast.error("Failed to add link.");
       loadData();
+    } finally {
+      setIsAddingLink(false);
     }
   };
 
@@ -488,13 +510,24 @@ export default function IssueDetailPage() {
               <FiCopy className="w-4 h-4" />
             </button>
 
-            <Link
-              href={`/issues/${issue.id}/edit`}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 hover:border-slate-300 rounded-lg shadow-2xs transition-all cursor-pointer"
+            <button
+              type="button"
+              onClick={handleEditClick}
+              disabled={isNavigatingToEdit}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 hover:border-slate-300 rounded-lg shadow-2xs transition-all cursor-pointer disabled:opacity-75 disabled:cursor-wait"
             >
-              <FiEdit3 className="w-3.5 h-3.5 text-slate-500" />
-              <span>Edit Issue</span>
-            </Link>
+              {isNavigatingToEdit ? (
+                <>
+                  <span className="w-3.5 h-3.5 border-2 border-slate-300 border-t-[#0F766E] rounded-full animate-spin shrink-0" />
+                  <span>Loading...</span>
+                </>
+              ) : (
+                <>
+                  <FiEdit3 className="w-3.5 h-3.5 text-slate-500" />
+                  <span>Edit Issue</span>
+                </>
+              )}
+            </button>
 
             {!isMember && (
               <button
@@ -584,13 +617,24 @@ export default function IssueDetailPage() {
                 <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500">
                   Description
                 </h2>
-                <Link
-                  href={`/issues/${issue.id}/edit`}
-                  className="text-xs font-semibold text-[#0F766E] hover:underline flex items-center gap-1"
+                <button
+                  type="button"
+                  onClick={handleEditClick}
+                  disabled={isNavigatingToEdit}
+                  className="text-xs font-semibold text-[#0F766E] hover:underline flex items-center gap-1 cursor-pointer disabled:opacity-75 disabled:cursor-wait"
                 >
-                  <FiEdit3 className="w-3 h-3" />
-                  <span>Edit</span>
-                </Link>
+                  {isNavigatingToEdit ? (
+                    <>
+                      <span className="w-3 h-3 border-2 border-teal-200 border-t-[#0F766E] rounded-full animate-spin shrink-0" />
+                      <span>Loading...</span>
+                    </>
+                  ) : (
+                    <>
+                      <FiEdit3 className="w-3 h-3" />
+                      <span>Edit</span>
+                    </>
+                  )}
+                </button>
               </div>
 
               <div className="pt-0.5">
@@ -695,10 +739,17 @@ export default function IssueDetailPage() {
                 <button
                   type="button"
                   onClick={handleAddSubtask}
-                  disabled={!newSubtaskText.trim()}
-                  className="px-3 py-2 text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 disabled:opacity-40 rounded-lg transition-colors cursor-pointer shrink-0"
+                  disabled={isAddingSubtask || !newSubtaskText.trim()}
+                  className="px-3 py-2 text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 disabled:opacity-40 rounded-lg transition-colors cursor-pointer shrink-0 inline-flex items-center gap-1"
                 >
-                  + Add
+                  {isAddingSubtask ? (
+                    <>
+                      <span className="w-3 h-3 border-2 border-slate-400 border-t-slate-700 rounded-full animate-spin shrink-0" />
+                      <span>Adding...</span>
+                    </>
+                  ) : (
+                    <span>+ Add</span>
+                  )}
                 </button>
               </div>
             </div>
@@ -756,10 +807,17 @@ export default function IssueDetailPage() {
                     <button
                       type="button"
                       onClick={handleAddLink}
-                      disabled={!newLinkUrl.trim()}
-                      className="px-3 py-1 text-xs font-semibold bg-[#0F766E] text-white rounded hover:bg-[#0D655E] disabled:opacity-50 cursor-pointer"
+                      disabled={isAddingLink || !newLinkUrl.trim()}
+                      className="px-3 py-1 text-xs font-semibold bg-[#0F766E] text-white rounded-md hover:bg-[#0D655E] disabled:opacity-50 cursor-pointer inline-flex items-center gap-1"
                     >
-                      Save Link
+                      {isAddingLink ? (
+                        <>
+                          <span className="w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin shrink-0" />
+                          <span>Saving...</span>
+                        </>
+                      ) : (
+                        <span>Save Link</span>
+                      )}
                     </button>
                   </div>
                 </div>
@@ -827,9 +885,16 @@ export default function IssueDetailPage() {
                     type="button"
                     onClick={handlePostComment}
                     disabled={isPostingComment || !commentText.trim()}
-                    className="px-3.5 py-1.5 text-xs font-bold text-white bg-[#0F766E] hover:bg-[#0D655E] disabled:opacity-50 rounded-lg transition-colors cursor-pointer"
+                    className="px-3.5 py-1.5 text-xs font-bold text-white bg-[#0F766E] hover:bg-[#0D655E] disabled:opacity-50 rounded-lg transition-colors cursor-pointer inline-flex items-center gap-1.5"
                   >
-                    {isPostingComment ? "Posting..." : "Comment"}
+                    {isPostingComment ? (
+                      <>
+                        <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin shrink-0" />
+                        <span>Posting...</span>
+                      </>
+                    ) : (
+                      <span>Comment</span>
+                    )}
                   </button>
                 </div>
               </div>

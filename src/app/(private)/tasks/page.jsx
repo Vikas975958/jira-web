@@ -42,6 +42,7 @@ import taskService from "@/services/task.service";
 import CreateProjectModal from "@/components/CreateProjectModal";
 import ProjectDetailsModal from "@/components/ProjectDetailsModal";
 import DeleteTaskConfirmModal from "@/components/DeleteTaskConfirmModal";
+import TaskStatusControl from "@/components/TaskStatusControl";
 import { useOrganization } from "@/context/OrganizationContext";
 import { MEMBER_ROLE, MANAGER_ROLE, OWNER_ROLE } from "@/utils/constants";
 import { formatTaskKey } from "@/utils/commonFunction";
@@ -160,6 +161,7 @@ function TasksBoardContent() {
   const [projectDetailsModalData, setProjectDetailsModalData] = useState(null);
   const [deletingTicket, setDeletingTicket] = useState(null);
   const [isDeletingTicket, setIsDeletingTicket] = useState(false);
+  const [updatingTicketId, setUpdatingTicketId] = useState(null);
 
   const activeOrg =
     currentOrg?.organizations ||
@@ -573,6 +575,7 @@ function TasksBoardContent() {
       prev.map((t) => (t.id === ticketId ? { ...t, status: nextStatus } : t)),
     );
     try {
+      setUpdatingTicketId(ticketId);
       await taskService.updateTask(
         ticketId,
         {
@@ -599,6 +602,8 @@ function TasksBoardContent() {
     } catch (err) {
       console.error("Failed to update task status:", err);
       toast.error("Failed to update task status.");
+    } finally {
+      setUpdatingTicketId(null);
     }
   };
 
@@ -1161,25 +1166,15 @@ function TasksBoardContent() {
                         </span>
                       </div>
 
-                      {/* Quick Move Status Selector */}
+                      {/* Interactive Status Changer & Quick Stage Flow */}
                       <div
-                        className="pt-1 flex items-center justify-between text-[11px] text-slate-400"
+                        className="pt-1 flex items-center justify-between"
                         onClick={(e) => e.stopPropagation()}
                       >
-                        <span>Move:</span>
-                        <Select
-                          size="small"
-                          value={ticket.status}
-                          onClick={(e) => e.stopPropagation()}
+                        <TaskStatusControl
+                          status={ticket.status}
+                          loading={updatingTicketId === ticket.id}
                           onChange={(val) => moveTicket(ticket.id, val)}
-                          className="w-28 text-xs"
-                          options={[
-                            { value: "backlog", label: "Backlog" },
-                            { value: "todo", label: "To Do" },
-                            { value: "in-progress", label: "In Progress" },
-                            { value: "review", label: "Review" },
-                            { value: "done", label: "Done" },
-                          ]}
                         />
                       </div>
                     </div>

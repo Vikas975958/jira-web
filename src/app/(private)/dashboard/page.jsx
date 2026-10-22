@@ -54,6 +54,7 @@ import CreateProjectModal from "@/components/CreateProjectModal";
 import ProjectDetailsModal from "@/components/ProjectDetailsModal";
 import DeleteConfirmModal from "@/components/DeleteConfirmModal";
 import JiraLogo from "@/components/JiraLogo";
+import TaskStatusControl from "@/components/TaskStatusControl";
 import { useOrganization } from "@/context/OrganizationContext";
 import { MEMBER_ROLE, MANAGER_ROLE, OWNER_ROLE } from "@/utils/constants";
 import { formatTaskKey } from "@/utils/commonFunction";
@@ -2111,6 +2112,7 @@ function MemberTasksView({ membership, user, onRefresh }) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [priorityFilter, setPriorityFilter] = useState("all");
+  const [updatingTaskId, setUpdatingTaskId] = useState(null);
 
   const [leadership, setLeadership] = useState({ owner: null, manager: null });
   const [teamMembers, setTeamMembers] = useState([]);
@@ -2202,6 +2204,7 @@ function MemberTasksView({ membership, user, onRefresh }) {
 
   const handleUpdateStatus = async (taskId, newStatus) => {
     try {
+      setUpdatingTaskId(taskId);
       await taskService.updateTask(
         taskId,
         { status: newStatus },
@@ -2210,6 +2213,8 @@ function MemberTasksView({ membership, user, onRefresh }) {
       await loadMemberTasks();
     } catch (err) {
       toast.error("Failed to update task status.");
+    } finally {
+      setUpdatingTaskId(null);
     }
   };
 
@@ -2634,39 +2639,11 @@ function MemberTasksView({ membership, user, onRefresh }) {
                     </div>
 
                     <div className="flex items-center justify-between pt-2 border-t border-slate-100">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-slate-500">
-                          Status:
-                        </span>
-                        <span
-                          className={`px-2 py-0.5 rounded-lg text-xs font-semibold ${
-                            statusStyles[task.status] || statusStyles.todo
-                          }`}
-                        >
-                          {task.status}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[10px] text-slate-400 font-semibold">
-                          Move:
-                        </span>
-                        <Select
-                          size="small"
-                          value={task.status}
-                          onChange={(val) =>
-                            handleUpdateStatus(task.id, val)
-                          }
-                          className="w-28 text-xs font-medium"
-                          options={[
-                            { value: "backlog", label: "Backlog" },
-                            { value: "todo", label: "To Do" },
-                            { value: "in-progress", label: "In Progress" },
-                            { value: "review", label: "In Review" },
-                            { value: "done", label: "Done" },
-                          ]}
-                        />
-                      </div>
+                      <TaskStatusControl
+                        status={task.status}
+                        loading={updatingTaskId === task.id}
+                        onChange={(val) => handleUpdateStatus(task.id, val)}
+                      />
                     </div>
                   </div>
                 ))
