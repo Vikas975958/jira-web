@@ -8,7 +8,6 @@ import {
   LuFolder,
   LuUsers,
   LuLayoutGrid,
-  LuSlidersVertical,
   LuPlus,
   LuChevronLeft,
   LuChevronRight,
@@ -59,11 +58,6 @@ export default function Sidebar() {
       icon: LuUsers,
       path: "/team",
       count: realMembers.length,
-    },
-    {
-      name: "Settings",
-      icon: LuSlidersVertical,
-      path: "/settings",
     },
   ];
 

@@ -31,6 +31,8 @@ import {
   FiArrowLeft,
   FiChevronDown,
   FiFilter,
+  FiCheckSquare,
+  FiAlertCircle,
 } from "react-icons/fi";
 import { Select, DatePicker } from "antd";
 import dayjs from "dayjs";
@@ -46,6 +48,7 @@ import TaskStatusControl from "@/components/TaskStatusControl";
 import { useOrganization } from "@/context/OrganizationContext";
 import { MEMBER_ROLE, MANAGER_ROLE, OWNER_ROLE } from "@/utils/constants";
 import { formatTaskKey } from "@/utils/commonFunction";
+import { parseIssue } from "@/utils/issueHelper";
 
 const COLUMNS = [
   {
@@ -1105,80 +1108,133 @@ function TasksBoardContent() {
                   onDrop={(e) => handleDrop(e, col.id)}
                   className="space-y-2 flex-1 overflow-y-auto min-h-[120px]"
                 >
-                  {colTickets.map((ticket) => (
-                    <div
-                      key={ticket.id}
-                      draggable
-                      onDragStart={(e) => handleDragStart(e, ticket.id)}
-                      onClick={() => router.push(`/issues/${ticket.id}`)}
-                      className="bg-white p-3 rounded-lg border border-slate-200/90 shadow-2xs space-y-2 hover:border-[#0F766E]/40 hover:shadow-xs transition-all group cursor-pointer"
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <span className="text-[10px] font-mono font-semibold text-[#0F766E]">
-                          {formatTaskKey(
-                            ticket,
-                            projects,
-                            selectedProject?.name,
-                          )}
-                        </span>
-                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              router.push(`/issues/${ticket.id}`);
-                            }}
-                            className="text-slate-400 hover:text-[#0F766E] p-0.5 rounded cursor-pointer"
-                            title="View details"
+                  {colTickets.map((ticket) => {
+                    const parsed = parseIssue(ticket) || ticket;
+                    const subtasks = parsed.subtasks || [];
+                    const completedSubtasks = subtasks.filter((s) => s.completed).length;
+                    const totalSubtasks = subtasks.length;
+                    const dueDate = ticket.due_date || ticket.dueDate || parsed.dueDate || parsed.due_date;
+                    const isOverdue = Boolean(dueDate && new Date(dueDate) < new Date() && ticket.status !== "done");
+
+                    return (
+                      <div
+                        key={ticket.id}
+                        draggable
+                        onDragStart={(e) => handleDragStart(e, ticket.id)}
+                        onClick={() => router.push(`/issues/${ticket.id}`)}
+                        className={`bg-white p-3 rounded-lg border shadow-2xs space-y-2 transition-all group cursor-pointer ${
+                          isOverdue
+                            ? "border-rose-200/90 hover:border-rose-400 hover:shadow-xs"
+                            : "border-slate-200/90 hover:border-[#0F766E]/40 hover:shadow-xs"
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="text-[10px] font-mono font-semibold text-[#0F766E]">
+                              {formatTaskKey(
+                                ticket,
+                                projects,
+                                selectedProject?.name,
+                              )}
+                            </span>
+                            {parsed.isBlocker && (
+                              <span className="px-1 py-0.2 rounded text-[8.5px] font-bold uppercase tracking-wider bg-rose-100 text-rose-700 border border-rose-200">
+                                Blocker
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                router.push(`/issues/${ticket.id}`);
+                              }}
+                              className="text-slate-400 hover:text-[#0F766E] p-0.5 rounded cursor-pointer"
+                              title="View details"
+                            >
+                              <FiEye className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+
+                        <p className="text-xs font-semibold text-slate-900 leading-snug">
+                          {ticket.title}
+                        </p>
+
+                        {ticket.description && (
+                          <p className="text-[11px] text-slate-500 line-clamp-2">
+                            {ticket.description
+                              .replace(/<!--wg_meta:[\s\S]*?-->/g, "")
+                              .trim()}
+                          </p>
+                        )}
+
+                        {/* Extra indicators: Due date & Subtask progress */}
+                        {(dueDate || totalSubtasks > 0) && (
+                          <div className="flex items-center gap-2 pt-0.5 flex-wrap">
+                            {dueDate && (
+                              <span
+                                className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9.5px] border ${
+                                  isOverdue
+                                    ? "bg-rose-50 text-rose-700 font-semibold border-rose-200"
+                                    : "bg-slate-50 text-slate-500 border-slate-200"
+                                }`}
+                                title={isOverdue ? `Overdue since ${new Date(dueDate).toLocaleDateString()}` : `Due ${new Date(dueDate).toLocaleDateString()}`}
+                              >
+                                <FiClock className={`w-2.5 h-2.5 shrink-0 ${isOverdue ? "text-rose-600 animate-pulse" : "text-slate-400"}`} />
+                                <span>{new Date(dueDate).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>
+                                {isOverdue && <span className="font-bold text-rose-600">!</span>}
+                              </span>
+                            )}
+                            {totalSubtasks > 0 && (
+                              <span
+                                className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9.5px] border ${
+                                  completedSubtasks === totalSubtasks
+                                    ? "bg-emerald-50 text-emerald-700 font-medium border-emerald-200"
+                                    : "bg-slate-50 text-slate-600 border-slate-200"
+                                }`}
+                                title={`${completedSubtasks} of ${totalSubtasks} subtasks completed`}
+                              >
+                                <FiCheckSquare className={`w-2.5 h-2.5 shrink-0 ${completedSubtasks === totalSubtasks ? "text-emerald-600" : "text-slate-400"}`} />
+                                <span>{completedSubtasks}/{totalSubtasks}</span>
+                              </span>
+                            )}
+                          </div>
+                        )}
+
+                        <div className="pt-1.5 border-t border-slate-100 flex items-center justify-between text-[10px]">
+                          <span
+                            className={`px-1.5 py-0.2 rounded-md uppercase font-semibold text-[9px] border ${
+                              priorityColors[ticket.priority] ||
+                              priorityColors.medium
+                            }`}
                           >
-                            <FiEye className="w-3.5 h-3.5" />
-                          </button>
+                            {ticket.priority || "medium"}
+                          </span>
+
+                          <span
+                            className="text-slate-500 font-medium truncate max-w-[110px]"
+                            title={ticket.assignee}
+                          >
+                            {ticket.assignee || "Unassigned"}
+                          </span>
+                        </div>
+
+                        {/* Interactive Status Changer & Quick Stage Flow */}
+                        <div
+                          className="pt-1 flex items-center justify-between"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <TaskStatusControl
+                            status={ticket.status}
+                            loading={updatingTicketId === ticket.id}
+                            onChange={(val) => moveTicket(ticket.id, val)}
+                          />
                         </div>
                       </div>
-
-                      <p className="text-xs font-semibold text-slate-900 leading-snug">
-                        {ticket.title}
-                      </p>
-
-                      {ticket.description && (
-                        <p className="text-[11px] text-slate-500 line-clamp-2">
-                          {ticket.description
-                            .replace(/<!--wg_meta:[\s\S]*?-->/g, "")
-                            .trim()}
-                        </p>
-                      )}
-
-                      <div className="pt-1.5 border-t border-slate-100 flex items-center justify-between text-[10px]">
-                        <span
-                          className={`px-1.5 py-0.2 rounded-md uppercase font-semibold text-[9px] border ${
-                            priorityColors[ticket.priority] ||
-                            priorityColors.medium
-                          }`}
-                        >
-                          {ticket.priority || "medium"}
-                        </span>
-
-                        <span
-                          className="text-slate-500 font-medium truncate max-w-[110px]"
-                          title={ticket.assignee}
-                        >
-                          {ticket.assignee || "Unassigned"}
-                        </span>
-                      </div>
-
-                      {/* Interactive Status Changer & Quick Stage Flow */}
-                      <div
-                        className="pt-1 flex items-center justify-between"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <TaskStatusControl
-                          status={ticket.status}
-                          loading={updatingTicketId === ticket.id}
-                          onChange={(val) => moveTicket(ticket.id, val)}
-                        />
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
 
                   {colTickets.length === 0 && (
                     <div
