@@ -19,6 +19,10 @@ import {
   FiX,
   FiArrowRight,
   FiUsers,
+  FiAlertTriangle,
+  FiClock,
+  FiCheckCircle,
+  FiCommand,
 } from "react-icons/fi";
 import { LuPanelLeftClose, LuPanelLeftOpen } from "react-icons/lu";
 import { useSidebar } from "@/context/SidebarContext";
@@ -45,6 +49,10 @@ export default function Header({ onCreateIssueClick }) {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [showShortcutsModal, setShowShortcutsModal] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [notifUnreadCount, setNotifUnreadCount] = useState(0);
+  const notifPanelRef = useRef(null);
 
   // Global Search State
   const [searchQuery, setSearchQuery] = useState("");
@@ -76,6 +84,7 @@ export default function Header({ onCreateIssueClick }) {
           organizationId: orgId,
           userId: user?.id,
           userRole,
+          limit: 30,
         }),
         taskService.getTasks({
           organizationId: orgId,
@@ -83,6 +92,7 @@ export default function Header({ onCreateIssueClick }) {
           userRole,
           userName: user?.full_name || user?.name || "",
           userEmail: user?.email || "",
+          limit: 50,
         }),
       ]);
       setSearchProjects(projs || []);
@@ -95,8 +105,11 @@ export default function Header({ onCreateIssueClick }) {
     }
   }, [orgId, user?.id, userRole, user?.full_name, user?.name, user?.email]);
 
-  // Global Keyboard Shortcuts (Ctrl+K, Cmd+K, or '/')
+  // Global Keyboard Shortcuts (Ctrl+K, Cmd+K, '/', '?', 'G+T', 'G+D', 'G+P')
   useEffect(() => {
+    let gPressed = false;
+    let gTimer = null;
+
     const handleKeyDown = (e) => {
       const activeEl = document.activeElement;
       const isInput =
@@ -104,26 +117,79 @@ export default function Header({ onCreateIssueClick }) {
         activeEl?.tagName === "TEXTAREA" ||
         activeEl?.isContentEditable;
 
+      // Ctrl+K or '/' — open search
       if ((e.key === "k" && (e.ctrlKey || e.metaKey)) || (e.key === "/" && !isInput)) {
         e.preventDefault();
         searchInputRef.current?.focus();
         setIsSearchOpen(true);
         loadSearchData();
-      } else if (e.key === "Escape" && isSearchOpen) {
-        setIsSearchOpen(false);
-        searchInputRef.current?.blur();
+        return;
+      }
+
+      // Escape — close search, notifications, or shortcuts modal
+      if (e.key === "Escape") {
+        if (isSearchOpen) {
+          setIsSearchOpen(false);
+          searchInputRef.current?.blur();
+        }
+        setNotificationsOpen(false);
+        setShowShortcutsModal(false);
+        return;
+      }
+
+      // '?' — open shortcuts modal (when not in input)
+      if (e.key === "?" && !isInput) {
+        e.preventDefault();
+        setShowShortcutsModal(true);
+        return;
+      }
+
+      // G+T, G+P, G+D — quick navigation shortcuts
+      if (!isInput) {
+        if (e.key === "g" || e.key === "G") {
+          gPressed = true;
+          clearTimeout(gTimer);
+          gTimer = setTimeout(() => { gPressed = false; }, 1500);
+          return;
+        }
+
+        if (gPressed) {
+          if (e.key === "t" || e.key === "T") {
+            gPressed = false;
+            clearTimeout(gTimer);
+            router.push("/tasks");
+          } else if (e.key === "p" || e.key === "P") {
+            gPressed = false;
+            clearTimeout(gTimer);
+            router.push("/projects");
+          } else if (e.key === "d" || e.key === "D") {
+            gPressed = false;
+            clearTimeout(gTimer);
+            router.push("/dashboard");
+          } else {
+            gPressed = false;
+          }
+        }
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isSearchOpen, loadSearchData]);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      clearTimeout(gTimer);
+    };
+  }, [isSearchOpen, loadSearchData, router]);
 
-  // Close search and dropdown on outside click
+  // Close search, notifications, and dropdown on outside click
   useEffect(() => {
     function handleClickOutside(event) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setDropdownOpen(false);
+      }
+      if (
+        notifPanelRef.current &&
+        !notifPanelRef.current.contains(event.target)
+      ) {
         setNotificationsOpen(false);
       }
       if (
@@ -511,14 +577,153 @@ export default function Header({ onCreateIssueClick }) {
         </div>
 
         {/* Notification Bell */}
-        <button
-          onClick={() => setNotificationsOpen(!notificationsOpen)}
-          className="relative w-8.5 h-8.5 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-800 flex items-center justify-center transition-colors cursor-pointer"
-          title="Notifications"
-        >
-          <FiBell className="w-4 h-4" />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#0F766E]" />
-        </button>
+        <div className="relative" ref={notifPanelRef}>
+          <button
+            onClick={() => {
+              setNotificationsOpen((prev) => !prev);
+              setDropdownOpen(false);
+              // Load notifications when opening
+              if (!notificationsOpen && orgId) {
+                (async () => {
+                  try {
+                    const tasks = await taskService.getTasks({
+                      organizationId: orgId,
+                      userId: user?.id,
+                      userRole,
+                      userName: user?.full_name || user?.name || "",
+                      userEmail: user?.email || "",
+                      limit: 25,
+                    });
+                    const now = new Date();
+                    const overdue = (tasks || []).filter((t) => {
+                      if (!t.due_date || t.status === "done") return false;
+                      return new Date(t.due_date) < now;
+                    }).slice(0, 5);
+                    const recentlyUpdated = (tasks || [])
+                      .filter((t) => t.status !== "done" && t.updated_at)
+                      .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))
+                      .slice(0, 3);
+                    const notifList = [
+                      ...overdue.map((t) => ({
+                        id: `overdue-${t.id}`,
+                        type: "overdue",
+                        title: t.title,
+                        taskId: t.id,
+                        dueDate: t.due_date,
+                        priority: t.priority,
+                      })),
+                      ...recentlyUpdated.map((t) => ({
+                        id: `updated-${t.id}`,
+                        type: "updated",
+                        title: t.title,
+                        taskId: t.id,
+                        updatedAt: t.updated_at,
+                        status: t.status,
+                      })),
+                    ];
+                    setNotifications(notifList);
+                    setNotifUnreadCount(overdue.length);
+                  } catch (_) {}
+                })();
+              }
+            }}
+            className="relative w-8.5 h-8.5 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-800 flex items-center justify-center transition-colors cursor-pointer"
+            title="Notifications (overdue tasks & activity)"
+          >
+            <FiBell className="w-4 h-4" />
+            {notifUnreadCount > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center border-2 border-white">
+                {notifUnreadCount > 9 ? "9+" : notifUnreadCount}
+              </span>
+            )}
+            {notifUnreadCount === 0 && (
+              <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-[#0F766E]" />
+            )}
+          </button>
+
+          {/* Notifications Panel */}
+          {notificationsOpen && (
+            <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-lg shadow-xl border border-slate-200 z-50 overflow-hidden animate-fadeIn">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-slate-50">
+                <div className="flex items-center gap-2">
+                  <FiBell className="w-3.5 h-3.5 text-slate-500" />
+                  <span className="text-xs font-bold text-slate-800">Notifications</span>
+                  {notifUnreadCount > 0 && (
+                    <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-red-100 text-red-700 font-semibold">
+                      {notifUnreadCount} overdue
+                    </span>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setNotificationsOpen(false)}
+                  className="p-0.5 text-slate-400 hover:text-slate-600 rounded cursor-pointer"
+                >
+                  <FiX className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              <div className="max-h-80 overflow-y-auto divide-y divide-slate-100">
+                {notifications.length === 0 ? (
+                  <div className="px-4 py-8 text-center space-y-2">
+                    <FiCheckCircle className="w-8 h-8 text-emerald-400 mx-auto" />
+                    <p className="text-xs font-semibold text-slate-600">All caught up!</p>
+                    <p className="text-[11px] text-slate-400">No overdue tasks or pending activity.</p>
+                  </div>
+                ) : (
+                  notifications.map((n) => (
+                    <button
+                      key={n.id}
+                      type="button"
+                      onClick={() => {
+                        setNotificationsOpen(false);
+                        router.push(`/issues/${n.taskId}`);
+                      }}
+                      className="w-full text-left px-4 py-3 hover:bg-slate-50 transition-colors cursor-pointer group"
+                    >
+                      <div className="flex items-start gap-2.5">
+                        <div className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 mt-0.5 ${
+                          n.type === "overdue" ? "bg-red-50 text-red-600" : "bg-blue-50 text-blue-600"
+                        }`}>
+                          {n.type === "overdue" ? (
+                            <FiAlertTriangle className="w-3 h-3" />
+                          ) : (
+                            <FiClock className="w-3 h-3" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-semibold text-slate-800 truncate group-hover:text-[#0F766E]">
+                            {n.title}
+                          </p>
+                          <p className={`text-[10px] mt-0.5 font-medium ${
+                            n.type === "overdue" ? "text-red-600" : "text-slate-500"
+                          }`}>
+                            {n.type === "overdue"
+                              ? `⚠ Overdue since ${new Date(n.dueDate).toLocaleDateString()}`
+                              : `Updated recently • ${n.status}`
+                            }
+                          </p>
+                        </div>
+                        <FiArrowRight className="w-3 h-3 text-slate-300 group-hover:text-[#0F766E] shrink-0 mt-1" />
+                      </div>
+                    </button>
+                  ))
+                )}
+              </div>
+
+              <div className="px-4 py-2.5 border-t border-slate-100 bg-slate-50 flex items-center justify-between">
+                <span className="text-[10px] text-slate-400">Tasks assigned to you</span>
+                <Link
+                  href="/tasks"
+                  onClick={() => setNotificationsOpen(false)}
+                  className="text-[10px] font-semibold text-[#0F766E] hover:underline"
+                >
+                  View all tasks →
+                </Link>
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Settings button */}
         <Link
@@ -529,16 +734,12 @@ export default function Header({ onCreateIssueClick }) {
           <FiSettings className="w-4 h-4" />
         </Link>
 
-        {/* Help button */}
+        {/* Help / Keyboard Shortcuts button */}
         <button
           type="button"
-          onClick={() =>
-            toast.info(
-              "WorkGrid Documentation & Shortcuts: Press '/' or Ctrl+K to search anytime.",
-            )
-          }
+          onClick={() => setShowShortcutsModal(true)}
           className="w-8.5 h-8.5 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-800 hidden sm:flex items-center justify-center transition-colors cursor-pointer"
-          title="Help"
+          title="Keyboard shortcuts & help (Press ?)"
         >
           <FiHelpCircle className="w-4 h-4" />
         </button>
@@ -606,6 +807,68 @@ export default function Header({ onCreateIssueClick }) {
         isLoading={isLoggingOut}
         user={user}
       />
+
+      {/* Keyboard Shortcuts Help Modal */}
+      {showShortcutsModal && (
+        <div
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4"
+          onClick={(e) => { if (e.target === e.currentTarget) setShowShortcutsModal(false); }}
+        >
+          <div className="bg-white rounded-xl shadow-2xl border border-slate-200 w-full max-w-md animate-scaleUp">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <FiCommand className="w-4 h-4 text-[#0F766E]" />
+                <h2 className="text-sm font-bold text-slate-900">Keyboard Shortcuts</h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowShortcutsModal(false)}
+                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 cursor-pointer"
+              >
+                <FiX className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              {[
+                { category: "Navigation", shortcuts: [
+                  { keys: ["/", "Ctrl+K"], desc: "Open global search" },
+                  { keys: ["Esc"], desc: "Close search / modal" },
+                ]},
+                { category: "Tasks & Issues", shortcuts: [
+                  { keys: ["G", "T"], desc: "Go to Tasks board" },
+                  { keys: ["G", "P"], desc: "Go to Projects" },
+                  { keys: ["G", "D"], desc: "Go to Dashboard" },
+                ]},
+                { category: "Interface", shortcuts: [
+                  { keys: ["?"], desc: "Show this shortcuts panel" },
+                ]},
+              ].map((section) => (
+                <div key={section.category}>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">{section.category}</p>
+                  <div className="space-y-1.5">
+                    {section.shortcuts.map((s, i) => (
+                      <div key={i} className="flex items-center justify-between">
+                        <span className="text-xs text-slate-600">{s.desc}</span>
+                        <div className="flex items-center gap-1">
+                          {s.keys.map((k, ki) => (
+                            <span key={ki}>
+                              <kbd className="text-[10px] bg-slate-100 border border-slate-300 text-slate-700 px-1.5 py-0.5 rounded font-mono shadow-sm">{k}</kbd>
+                              {ki < s.keys.length - 1 && <span className="text-[10px] text-slate-400 mx-0.5">then</span>}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="px-5 pb-4">
+              <p className="text-[10px] text-slate-400 text-center">Press <kbd className="text-[10px] bg-slate-100 border border-slate-200 px-1 rounded font-mono">Esc</kbd> or click outside to close</p>
+            </div>
+          </div>
+        </div>
+      )}
     </header>
   );
 }

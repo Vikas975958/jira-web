@@ -31,6 +31,29 @@ export const taskService = {
    * @param {boolean} [params.force]
    * @returns {Promise<Array>} List of tasks
    */
+  /**
+   * Fetch tasks for an organization respecting role, permissions, and pagination.
+   * - Members: Only see their own assigned tasks.
+   * - Managers & Owners: See all tasks for the organization.
+   *
+   * @param {Object} params
+   * @param {string} params.organizationId
+   * @param {string} [params.projectId]
+   * @param {string} [params.priority]
+   * @param {string} [params.status]
+   * @param {string} [params.date]
+   * @param {string} [params.search]
+   * @param {number} [params.page] - 1-based page number
+   * @param {number} [params.limit] - Page size limit (e.g. 25, 50, 100)
+   * @param {string} [params.cursor] - Keyset cursor (created_at timestamp)
+   * @param {string} [params.selectColumns] - Custom column projection
+   * @param {string} params.userId
+   * @param {string} [params.userRole]
+   * @param {string} [params.userName]
+   * @param {string} [params.userEmail]
+   * @param {boolean} [params.force]
+   * @returns {Promise<Array>} List of tasks with attached pagination metadata (totalCount, page, pageSize, totalPages, hasMore)
+   */
   async getTasks({
     organizationId,
     projectId,
@@ -38,6 +61,10 @@ export const taskService = {
     status,
     date,
     search,
+    page,
+    limit,
+    cursor,
+    selectColumns,
     userId,
     userRole = MEMBER_ROLE,
     userName = "",
@@ -51,8 +78,10 @@ export const taskService = {
     const cleanDate = date && date !== "all" ? date : "all";
     const cleanProjectId = projectId && projectId !== "all" ? projectId : "all";
     const cleanSearch = search ? search.trim().toLowerCase() : "";
+    const parsedPage = page ? Math.max(1, parseInt(page, 10)) : null;
+    const parsedLimit = limit && limit !== "all" ? Math.max(1, parseInt(limit, 10)) : null;
 
-    const cacheKey = `${organizationId}:${cleanProjectId}:${userId || ""}:${userRole}:${cleanPriority}:${cleanStatus}:${cleanDate}:${cleanSearch}:${userName || ""}:${userEmail || ""}`;
+    const cacheKey = `${organizationId}:${cleanProjectId}:${userId || ""}:${userRole}:${cleanPriority}:${cleanStatus}:${cleanDate}:${cleanSearch}:${parsedPage || "all"}:${parsedLimit || "all"}:${cursor || ""}:${userName || ""}:${userEmail || ""}`;
 
     if (!force) {
       const cached = tasksCache.get(cacheKey);
@@ -67,12 +96,14 @@ export const taskService = {
     const fetchPromise = (async () => {
 
     let tasksFromDb = null;
+    let totalDbCount = null;
 
-    // 1. Try fetching from Supabase tasks table with backend query filters
+    // 1. Try fetching from Supabase tasks table with backend query filters and pagination
     try {
+      const projection = selectColumns || "*";
       let query = supabase
         .from("tasks")
-        .select("*")
+        .select(projection, { count: "exact" })
         .eq("organization_id", organizationId);
 
       // Backend project filter
@@ -127,27 +158,54 @@ export const taskService = {
         }
       }
 
+      // Backend search filter: filters directly in DB without full table scan
+      if (cleanSearch) {
+        query = query.or(`title.ilike.%${cleanSearch}%,id.ilike.%${cleanSearch}%,assignee.ilike.%${cleanSearch}%`);
+      }
+
       // If user is member, filter by assignee_id or created_by
       if (userRole === MEMBER_ROLE && userId) {
         query = query.or(`assignee_id.eq.${userId},created_by.eq.${userId}`);
       }
 
-      let { data, error } = await query.order("created_at", { ascending: false });
+      // Keyset cursor pagination (fetching older items)
+      if (cursor) {
+        query = query.lt("created_at", cursor);
+      }
 
-      // Fallback: If query with filter returned an error, retry with same filters
+      // Order by created_at desc
+      query = query.order("created_at", { ascending: false });
+
+      // Range / Limit pagination
+      if (parsedPage && parsedLimit) {
+        const from = (parsedPage - 1) * parsedLimit;
+        const to = from + parsedLimit - 1;
+        query = query.range(from, to);
+      } else if (parsedLimit) {
+        query = query.limit(parsedLimit);
+      }
+
+      let { data, count, error } = await query;
+      if (typeof count === "number") {
+        totalDbCount = count;
+      }
+
+      // Fallback: If query with filter returned an error, retry with simple filters
       if (error && userRole === MEMBER_ROLE) {
         let retryQuery = supabase
           .from("tasks")
-          .select("*")
+          .select("*", { count: "exact" })
           .eq("organization_id", organizationId);
         if (cleanProjectId !== "all") retryQuery = retryQuery.eq("project_id", cleanProjectId);
         if (cleanPriority !== "all") retryQuery = retryQuery.eq("priority", cleanPriority);
         if (cleanStatus !== "all") {
           retryQuery = retryQuery.eq("status", cleanStatus === "backlog" ? "todo" : cleanStatus);
         }
+        if (parsedLimit) retryQuery = retryQuery.limit(parsedLimit);
         const retry = await retryQuery.order("created_at", { ascending: false });
         if (!retry.error && retry.data) {
           data = retry.data;
+          totalDbCount = retry.count ?? retry.data.length;
           error = null;
         }
       }
@@ -293,30 +351,43 @@ export const taskService = {
       }
     }
 
+    const attachPaginationMeta = (list) => {
+      const arr = list || [];
+      const total = typeof totalDbCount === "number" ? Math.max(totalDbCount, arr.length) : arr.length;
+      arr.totalCount = total;
+      arr.page = parsedPage || 1;
+      arr.pageSize = parsedLimit || arr.length;
+      arr.totalPages = parsedLimit ? Math.ceil(total / parsedLimit) : 1;
+      arr.hasMore = parsedLimit ? ((parsedPage || 1) * parsedLimit < total) : false;
+      return arr;
+    };
+
     // 4. Strict application-level enforcement of role restrictions
     if (userRole === MEMBER_ROLE) {
       const cleanName = (userName || "").trim().toLowerCase();
       const cleanEmail = (userEmail || "").trim().toLowerCase();
 
-      return (allTasks || []).filter((task) => {
-        // Must belong to current organization
-        if (task.organization_id && task.organization_id !== organizationId) {
-          return false;
-        }
+      return attachPaginationMeta(
+        (allTasks || []).filter((task) => {
+          // Must belong to current organization
+          if (task.organization_id && task.organization_id !== organizationId) {
+            return false;
+          }
 
-        // Assigned to this user by ID, email, or full name, OR created by this user
-        const matchId = userId && (task.assignee_id === userId || task.assigneeId === userId);
-        const matchCreator = userId && (task.created_by === userId || task.createdBy === userId);
-        const taskAssignee = (task.assignee || "").toLowerCase().trim();
-        const matchName = cleanName && (
-          taskAssignee === cleanName ||
-          taskAssignee.includes(cleanName) ||
-          cleanName.includes(taskAssignee)
-        );
-        const matchEmail = cleanEmail && taskAssignee.includes(cleanEmail);
+          // Assigned to this user by ID, email, or full name, OR created by this user
+          const matchId = userId && (task.assignee_id === userId || task.assigneeId === userId);
+          const matchCreator = userId && (task.created_by === userId || task.createdBy === userId);
+          const taskAssignee = (task.assignee || "").toLowerCase().trim();
+          const matchName = cleanName && (
+            taskAssignee === cleanName ||
+            taskAssignee.includes(cleanName) ||
+            cleanName.includes(taskAssignee)
+          );
+          const matchEmail = cleanEmail && taskAssignee.includes(cleanEmail);
 
-        return matchId || matchCreator || matchName || matchEmail;
-      });
+          return matchId || matchCreator || matchName || matchEmail;
+        })
+      );
     }
 
     // Managers only work on projects assigned by the owner or created by themselves
@@ -362,34 +433,38 @@ export const taskService = {
       const cleanName = (userName || "").trim().toLowerCase();
       const cleanEmail = (userEmail || "").trim().toLowerCase();
 
-      return (allTasks || []).filter((task) => {
-        if (task.organization_id && task.organization_id !== organizationId) {
-          return false;
-        }
+      return attachPaginationMeta(
+        (allTasks || []).filter((task) => {
+          if (task.organization_id && task.organization_id !== organizationId) {
+            return false;
+          }
 
-        const taskProjId = task.project_id || task.projectId;
-        if (taskProjId && allowedProjectIds.has(taskProjId)) {
-          return true;
-        }
+          const taskProjId = task.project_id || task.projectId;
+          if (taskProjId && allowedProjectIds.has(taskProjId)) {
+            return true;
+          }
 
-        const matchId = userId && (task.assignee_id === userId || task.assigneeId === userId);
-        const matchCreator = userId && (task.created_by === userId || task.createdBy === userId);
-        const taskAssignee = (task.assignee || "").toLowerCase().trim();
-        const matchName = cleanName && (
-          taskAssignee === cleanName ||
-          taskAssignee.includes(cleanName) ||
-          cleanName.includes(taskAssignee)
-        );
-        const matchEmail = cleanEmail && taskAssignee.includes(cleanEmail);
+          const matchId = userId && (task.assignee_id === userId || task.assigneeId === userId);
+          const matchCreator = userId && (task.created_by === userId || task.createdBy === userId);
+          const taskAssignee = (task.assignee || "").toLowerCase().trim();
+          const matchName = cleanName && (
+            taskAssignee === cleanName ||
+            taskAssignee.includes(cleanName) ||
+            cleanName.includes(taskAssignee)
+          );
+          const matchEmail = cleanEmail && taskAssignee.includes(cleanEmail);
 
-        return matchId || matchCreator || matchName || matchEmail;
-      });
+          return matchId || matchCreator || matchName || matchEmail;
+        })
+      );
     }
 
     // Owners have full access and see all tasks within their organization
-    return (allTasks || []).filter((task) => {
-      return !task.organization_id || task.organization_id === organizationId;
-    });
+    return attachPaginationMeta(
+      (allTasks || []).filter((task) => {
+        return !task.organization_id || task.organization_id === organizationId;
+      })
+    );
     })();
 
     inFlightTasks.set(cacheKey, fetchPromise);
@@ -400,6 +475,37 @@ export const taskService = {
     } finally {
       inFlightTasks.delete(cacheKey);
     }
+  },
+
+  /**
+   * Fast server-side search for tasks (omits heavy descriptions, limits rows).
+   * @param {Object} params
+   * @param {string} params.organizationId
+   * @param {string} params.query
+   * @param {number} [params.limit=10]
+   * @param {string} [params.projectId]
+   * @returns {Promise<Array>}
+   */
+  async searchTasks({ organizationId, query = "", limit = 10, projectId }) {
+    if (!organizationId || !query || !query.trim()) return [];
+    const clean = query.trim().toLowerCase();
+    try {
+      let q = supabase
+        .from("tasks")
+        .select("id, title, status, priority, type, project_id, project_name, assignee, due_date")
+        .eq("organization_id", organizationId);
+
+      if (projectId && projectId !== "all") {
+        q = q.eq("project_id", projectId);
+      }
+
+      q = q.or(`title.ilike.%${clean}%,id.ilike.%${clean}%,assignee.ilike.%${clean}%`);
+      const { data, error } = await q.order("created_at", { ascending: false }).limit(limit);
+      if (!error && data) {
+        return data.map((t) => parseIssue(t));
+      }
+    } catch (_) {}
+    return [];
   },
 
   /**

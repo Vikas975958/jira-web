@@ -33,6 +33,11 @@ function ProjectsDirectoryContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const initialSearch = searchParams.get("search") || "";
+  const initialStatus = searchParams.get("status") || "all";
+  const initialPage = searchParams.get("page")
+    ? Math.max(1, parseInt(searchParams.get("page"), 10))
+    : 1;
+  const initialLimit = searchParams.get("limit") || "9";
 
   const authState = useSelector((state) => state.authSlice);
   const user = authState?.userData;
@@ -58,12 +63,12 @@ function ProjectsDirectoryContent() {
   const [projects, setProjects] = useState([]);
   const [totalCount, setTotalCount] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
-  const [page, setPage] = useState(1);
-  const pageSize = 9;
+  const [page, setPage] = useState(initialPage);
+  const [pageSize, setPageSize] = useState(initialLimit);
 
   const [searchInput, setSearchInput] = useState(initialSearch);
   const [searchQuery, setSearchQuery] = useState(initialSearch);
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState(initialStatus);
   const [showPinnedOnly, setShowPinnedOnly] = useState(false);
   const [pinnedProjectIds, setPinnedProjectIds] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -72,22 +77,100 @@ function ProjectsDirectoryContent() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingProject, setEditingProject] = useState(null);
 
+  // Helper to sync filter and pagination changes to URL query parameters
+  const updateUrlParams = useCallback(
+    (newParams) => {
+      const params = new URLSearchParams(searchParams.toString());
+      Object.entries(newParams).forEach(([key, val]) => {
+        if (
+          !val ||
+          (val === "all" && key !== "limit") ||
+          (key === "page" && String(val) === "1") ||
+          (key === "limit" && String(val) === "9")
+        ) {
+          params.delete(key);
+        } else {
+          params.set(key, String(val));
+        }
+      });
+      const queryString = params.toString();
+      router.replace(queryString ? `/projects?${queryString}` : "/projects");
+    },
+    [router, searchParams],
+  );
+
   // Sync initialSearch if URL query changes
   useEffect(() => {
-    if (initialSearch !== searchInput) {
-      setSearchInput(initialSearch);
-      setSearchQuery(initialSearch);
+    const qSearch = searchParams.get("search") || "";
+    if (qSearch !== searchInput) {
+      setSearchInput(qSearch);
+      setSearchQuery(qSearch);
     }
-  }, [initialSearch]);
+  }, [searchParams]);
+
+  // Sync page from URL query
+  useEffect(() => {
+    const qPage = searchParams.get("page");
+    if (qPage) {
+      const p = Math.max(1, parseInt(qPage, 10));
+      if (p !== page) setPage(p);
+    } else {
+      setPage(1);
+    }
+  }, [searchParams]);
+
+  // Sync limit from URL query
+  useEffect(() => {
+    const qLimit = searchParams.get("limit");
+    if (qLimit && qLimit !== pageSize) {
+      setPageSize(qLimit);
+    }
+  }, [searchParams]);
 
   // Debounce search input
   useEffect(() => {
     const timer = setTimeout(() => {
       setSearchQuery(searchInput);
-      setPage(1);
-    }, 300);
+      if ((searchParams.get("search") || "") !== (searchInput || "")) {
+        setPage(1);
+        updateUrlParams({ search: searchInput, page: "1" });
+      }
+    }, 350);
     return () => clearTimeout(timer);
-  }, [searchInput]);
+  }, [searchInput, searchParams, updateUrlParams]);
+
+  const handlePageChange = (newPage) => {
+    setPage(newPage);
+    updateUrlParams({ page: String(newPage) });
+  };
+
+  const handlePageSizeChange = (newSize) => {
+    setPageSize(newSize);
+    setPage(1);
+    updateUrlParams({ limit: newSize, page: "1" });
+  };
+
+  const handleStatusChange = (val) => {
+    const nextStatus = val || "all";
+    setStatusFilter(nextStatus);
+    setPage(1);
+    updateUrlParams({ status: nextStatus, page: "1" });
+  };
+
+  const handleClearAllFilters = () => {
+    setStatusFilter("all");
+    setSearchInput("");
+    setSearchQuery("");
+    setShowPinnedOnly(false);
+    setPage(1);
+    updateUrlParams({ status: "all", search: "", page: "1" });
+  };
+
+  const hasActiveFilters = Boolean(
+    (statusFilter && statusFilter !== "all") ||
+      searchInput.trim() ||
+      showPinnedOnly,
+  );
 
   // Load paginated projects from Supabase
   const loadPaginatedProjects = useCallback(async () => {
@@ -274,10 +357,7 @@ function ProjectsDirectoryContent() {
           {/* Status Filter */}
           <Select
             value={statusFilter && statusFilter !== "all" ? statusFilter : undefined}
-            onChange={(val) => {
-              setStatusFilter(val || "all");
-              setPage(1);
-            }}
+            onChange={handleStatusChange}
             placeholder="Status"
             allowClear
             className="w-36 h-9 text-xs"
@@ -315,6 +395,19 @@ function ProjectsDirectoryContent() {
             />
             <span>Pinned ({pinnedProjectIds.length})</span>
           </button>
+
+          {/* Reset Filters Button */}
+          {hasActiveFilters && (
+            <button
+              type="button"
+              onClick={handleClearAllFilters}
+              className="h-9 px-2.5 text-xs text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-lg font-semibold flex items-center gap-1 transition-colors cursor-pointer"
+              title="Reset all filters"
+            >
+              <FiX className="w-3.5 h-3.5" />
+              <span>Reset</span>
+            </button>
+          )}
 
           {/* Create Project Button (Owner & Manager) */}
           {(isOwner || isManager) && (
@@ -590,80 +683,121 @@ function ProjectsDirectoryContent() {
           </div>
 
           {/* ─────────────────────────────────────────────────── */}
-          {/* Pagination Controls                                */}
+          {/* Projects Pagination Bar                             */}
           {/* ─────────────────────────────────────────────────── */}
-          {totalPages > 1 && (
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-slate-200/80 bg-white p-3 rounded-xl border">
-              <p className="text-xs text-slate-500 font-medium">
-                Showing{" "}
-                <span className="font-semibold text-slate-800">
-                  {(page - 1) * pageSize + 1}
-                </span>{" "}
-                to{" "}
-                <span className="font-semibold text-slate-800">
-                  {Math.min(page * pageSize, totalCount)}
-                </span>{" "}
-                of{" "}
-                <span className="font-semibold text-slate-800">{totalCount}</span>{" "}
-                projects
-              </p>
+          {totalCount > 0 && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white p-3 sm:px-4 rounded-lg border border-slate-200/80 shadow-2xs select-none">
+              {/* Count status */}
+              <div className="text-xs text-slate-600 font-medium">
+                {pageSize === "all" ? (
+                  <span>
+                    Showing all <strong className="text-slate-900 font-semibold">{totalCount}</strong> projects
+                  </span>
+                ) : (
+                  <span>
+                    Showing{" "}
+                    <strong className="text-slate-900 font-semibold">
+                      {(page - 1) * Number(pageSize) + 1}
+                    </strong>
+                    –
+                    <strong className="text-slate-900 font-semibold">
+                      {Math.min(page * Number(pageSize), totalCount)}
+                    </strong>{" "}
+                    of <strong className="text-slate-900 font-semibold">{totalCount}</strong> projects
+                  </span>
+                )}
+              </div>
 
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  disabled={page <= 1}
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer text-xs font-medium transition-colors flex items-center gap-1"
-                  title="Previous page"
-                >
-                  <FiChevronLeft className="w-3.5 h-3.5" />
-                  <span>Previous</span>
-                </button>
+              {/* Page Nav Buttons */}
+              {pageSize !== "all" && totalPages > 1 && (
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    disabled={page <= 1}
+                    onClick={() => handlePageChange(page - 1)}
+                    className={`px-2.5 py-1 text-xs rounded-md border font-medium flex items-center gap-1 transition-all ${
+                      page <= 1
+                        ? "bg-slate-50 text-slate-300 border-slate-200/60 cursor-not-allowed"
+                        : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50 hover:text-[#0F766E] cursor-pointer"
+                    }`}
+                  >
+                    <FiChevronLeft className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Prev</span>
+                  </button>
 
-                <div className="flex items-center gap-1 px-1">
-                  {[...Array(totalPages)].map((_, idx) => {
-                    const pageNum = idx + 1;
-                    if (
-                      pageNum === 1 ||
-                      pageNum === totalPages ||
-                      (pageNum >= page - 1 && pageNum <= page + 1)
-                    ) {
-                      return (
-                        <button
-                          key={pageNum}
-                          type="button"
-                          onClick={() => setPage(pageNum)}
-                          className={`w-7 h-7 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                            page === pageNum
-                              ? "bg-[#0F766E] text-white shadow-2xs"
-                              : "text-slate-600 hover:bg-slate-100"
-                          }`}
-                        >
-                          {pageNum}
-                        </button>
+                  {/* Page numbers */}
+                  <div className="flex items-center gap-1">
+                    {(() => {
+                      const pages = [];
+                      for (let i = 1; i <= totalPages; i++) {
+                        if (
+                          i === 1 ||
+                          i === totalPages ||
+                          (i >= page - 1 && i <= page + 1)
+                        ) {
+                          pages.push(i);
+                        } else if (pages[pages.length - 1] !== "...") {
+                          pages.push("...");
+                        }
+                      }
+                      return pages.map((p, idx) =>
+                        p === "..." ? (
+                          <span key={`dots-${idx}`} className="px-1 text-slate-400 text-xs">
+                            ...
+                          </span>
+                        ) : (
+                          <button
+                            key={p}
+                            type="button"
+                            onClick={() => handlePageChange(p)}
+                            className={`w-7 h-7 text-xs rounded-md font-semibold transition-all cursor-pointer ${
+                              page === p
+                                ? "bg-[#0F766E] text-white shadow-2xs"
+                                : "bg-white text-slate-700 hover:bg-slate-100 border border-slate-200"
+                            }`}
+                          >
+                            {p}
+                          </button>
+                        ),
                       );
-                    }
-                    if (pageNum === page - 2 || pageNum === page + 2) {
-                      return (
-                        <span key={pageNum} className="text-slate-400 text-xs px-0.5">
-                          ...
-                        </span>
-                      );
-                    }
-                    return null;
-                  })}
+                    })()}
+                  </div>
+
+                  <button
+                    type="button"
+                    disabled={page >= totalPages}
+                    onClick={() => handlePageChange(page + 1)}
+                    className={`px-2.5 py-1 text-xs rounded-md border font-medium flex items-center gap-1 transition-all ${
+                      page >= totalPages
+                        ? "bg-slate-50 text-slate-300 border-slate-200/60 cursor-not-allowed"
+                        : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50 hover:text-[#0F766E] cursor-pointer"
+                    }`}
+                  >
+                    <span className="hidden sm:inline">Next</span>
+                    <FiChevronRight className="w-3.5 h-3.5" />
+                  </button>
                 </div>
+              )}
 
-                <button
-                  type="button"
-                  disabled={page >= totalPages}
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer text-xs font-medium transition-colors flex items-center gap-1"
-                  title="Next page"
-                >
-                  <span>Next</span>
-                  <FiChevronRight className="w-3.5 h-3.5" />
-                </button>
+              {/* Page Size Selector */}
+              <div className="flex items-center gap-2 text-xs">
+                <span className="text-slate-500 font-medium">Per page:</span>
+                <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-0.5">
+                  {["9", "18", "36", "all"].map((size) => (
+                    <button
+                      key={size}
+                      type="button"
+                      onClick={() => handlePageSizeChange(size)}
+                      className={`px-2.5 py-0.5 text-[11px] font-semibold rounded-md transition-all cursor-pointer ${
+                        pageSize === size
+                          ? "bg-white text-[#0F766E] shadow-2xs border border-slate-200/80"
+                          : "text-slate-500 hover:text-slate-900"
+                      }`}
+                    >
+                      {size === "all" ? "All" : size}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
           )}
