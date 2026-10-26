@@ -84,6 +84,7 @@ export default function Header({ onCreateIssueClick }) {
           organizationId: orgId,
           userId: user?.id,
           userRole,
+          limit: 30,
         }),
         taskService.getTasks({
           organizationId: orgId,
@@ -91,6 +92,7 @@ export default function Header({ onCreateIssueClick }) {
           userRole,
           userName: user?.full_name || user?.name || "",
           userEmail: user?.email || "",
+          limit: 50,
         }),
       ]);
       setSearchProjects(projs || []);
@@ -590,6 +592,7 @@ export default function Header({ onCreateIssueClick }) {
                       userRole,
                       userName: user?.full_name || user?.name || "",
                       userEmail: user?.email || "",
+                      limit: 25,
                     });
                     const now = new Date();
                     const overdue = (tasks || []).filter((t) => {

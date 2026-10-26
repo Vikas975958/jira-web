@@ -24,6 +24,9 @@ const singleProjectCache = new Map();
 const inFlightProjectInvitations = new Map();
 const projectInvitationsCache = new Map();
 
+const inFlightPaginatedProjects = new Map();
+const paginatedProjectsCache = new Map();
+
 const PROJECTS_CACHE_TTL = 60000; // 60 seconds (was 3.5s)
 
 export const clearProjectsCache = () => {
@@ -33,6 +36,8 @@ export const clearProjectsCache = () => {
   singleProjectCache.clear();
   inFlightProjectInvitations.clear();
   projectInvitationsCache.clear();
+  inFlightPaginatedProjects.clear();
+  paginatedProjectsCache.clear();
 };
 
 export const projectService = {
@@ -94,10 +99,11 @@ export const projectService = {
    * @param {string} params.userId
    * @param {string} [params.userRole]
    * @param {number} [params.page=1]
-   * @param {number} [params.pageSize=9]
+   * @param {number|string} [params.pageSize=9]
    * @param {string} [params.search=""]
    * @param {string} [params.status="all"]
-   * @returns {Promise<{ projects: Array, totalCount: number, page: number, pageSize: number, totalPages: number }>}
+   * @param {boolean} [params.force=false]
+   * @returns {Promise<{ projects: Array, totalCount: number, page: number, pageSize: number|string, totalPages: number }>}
    */
   async getProjectsPaginated({
     organizationId,
@@ -107,144 +113,200 @@ export const projectService = {
     pageSize = 9,
     search = "",
     status = "all",
+    force = false,
   }) {
     if (!organizationId) {
       return { projects: [], totalCount: 0, page: 1, pageSize, totalPages: 1 };
     }
 
-    const currentPage = Math.max(1, parseInt(page, 10) || 1);
-    const limit = Math.max(1, parseInt(pageSize, 10) || 9);
+    const isAll = pageSize === "all";
+    const currentPage = isAll ? 1 : Math.max(1, parseInt(page, 10) || 1);
+    const limit = isAll ? 500 : Math.max(1, parseInt(pageSize, 10) || 9);
     const from = (currentPage - 1) * limit;
     const to = from + limit - 1;
+    const cleanSearch = (search || "").trim();
+    const cleanStatus = (status || "all").toLowerCase();
 
-    let projectsFromDb = null;
-    let totalCount = 0;
+    const cacheKey = `${organizationId}:${userId || ""}:${userRole}:${currentPage}:${pageSize}:${cleanSearch}:${cleanStatus}`;
 
-    try {
-      let query = supabase
-        .from("projects")
-        .select(`
-          id,
-          organization_id,
-          name,
-          description,
-          status,
-          start_date,
-          due_date,
-          created_by,
-          created_at,
-          updated_at,
-          project_members (
+    if (!force) {
+      const cached = paginatedProjectsCache.get(cacheKey);
+      if (cached && Date.now() - cached.timestamp < PROJECTS_CACHE_TTL) {
+        return cached.data;
+      }
+      if (inFlightPaginatedProjects.has(cacheKey)) {
+        return inFlightPaginatedProjects.get(cacheKey);
+      }
+    }
+
+    const fetchPromise = (async () => {
+      let projectsFromDb = null;
+      let totalCount = 0;
+
+      try {
+        let query = supabase
+          .from("projects")
+          .select(`
             id,
-            project_id,
-            user_id,
-            role,
-            joined_at
-          )
-        `, { count: "exact" })
-        .eq("organization_id", organizationId);
+            organization_id,
+            name,
+            description,
+            status,
+            start_date,
+            due_date,
+            created_by,
+            created_at,
+            updated_at,
+            project_members (
+              id,
+              project_id,
+              user_id,
+              role,
+              joined_at
+            )
+          `, { count: "exact" })
+          .eq("organization_id", organizationId);
 
-      if (userRole === MEMBER_ROLE || userRole === MANAGER_ROLE) {
-        const { data: memberRows } = await supabase
-          .from("project_members")
-          .select("project_id")
-          .eq("user_id", userId);
-        const memberProjectIds = (memberRows || []).map((m) => m.project_id).filter(Boolean);
+        if (userRole === MEMBER_ROLE || userRole === MANAGER_ROLE) {
+          const { data: memberRows } = await supabase
+            .from("project_members")
+            .select("project_id")
+            .eq("user_id", userId);
+          const memberProjectIds = (memberRows || []).map((m) => m.project_id).filter(Boolean);
 
-        if (memberProjectIds.length > 0) {
-          query = query.or(`created_by.eq.${userId},id.in.(${memberProjectIds.join(",")})`);
+          if (memberProjectIds.length > 0) {
+            query = query.or(`created_by.eq.${userId},id.in.(${memberProjectIds.join(",")})`);
+          } else {
+            query = query.eq("created_by", userId);
+          }
+        }
+
+        if (cleanSearch) {
+          query = query.or(`name.ilike.%${cleanSearch}%,description.ilike.%${cleanSearch}%`);
+        }
+
+        if (cleanStatus && cleanStatus !== "all") {
+          query = query.eq("status", cleanStatus);
+        }
+
+        query = query.order("created_at", { ascending: false });
+
+        if (!isAll) {
+          query = query.range(from, to);
         } else {
-          query = query.eq("created_by", userId);
+          query = query.limit(limit);
         }
+
+        const { data, count, error } = await query;
+
+        if (!error && data) {
+          totalCount = count !== null && count !== undefined ? count : data.length;
+
+          const allUserIds = [
+            ...new Set(
+              data
+                .flatMap((p) => (p.project_members || []).map((m) => m.user_id))
+                .filter(Boolean)
+            ),
+          ];
+
+          let profileMap = new Map();
+          if (allUserIds.length > 0) {
+            try {
+              const { data: profs } = await supabase
+                .from("profiles")
+                .select("id, full_name, email, phone, profile_photo")
+                .in("id", allUserIds);
+              (profs || []).forEach((pr) => profileMap.set(pr.id, pr));
+            } catch (_) {}
+          }
+
+          projectsFromDb = data.map((p) => ({
+            ...p,
+            project_members: (p.project_members || []).map((pm) => ({
+              ...pm,
+              profiles: profileMap.get(pm.user_id) || null,
+            })),
+          }));
+        }
+      } catch (err) {
+        console.warn("Supabase paginated projects query error:", err?.message || err);
       }
 
-      if (search && search.trim()) {
-        const q = search.trim();
-        query = query.or(`name.ilike.%${q}%,description.ilike.%${q}%`);
+      if (projectsFromDb === null) {
+        let local = this.getLocalProjects(organizationId);
+
+        if (userRole === MEMBER_ROLE || userRole === MANAGER_ROLE) {
+          local = local.filter((p) => {
+            if (p.created_by === userId) return true;
+            const membersList = p.project_members || [];
+            return membersList.some((m) => (m.user_id || m.userId) === userId);
+          });
+        }
+
+        if (cleanSearch) {
+          const q = cleanSearch.toLowerCase();
+          local = local.filter(
+            (p) =>
+              p.name?.toLowerCase().includes(q) ||
+              p.description?.toLowerCase().includes(q)
+          );
+        }
+
+        if (cleanStatus && cleanStatus !== "all") {
+          local = local.filter((p) => p.status === cleanStatus);
+        }
+
+        totalCount = local.length;
+        projectsFromDb = isAll ? local : local.slice(from, to + 1);
       }
 
-      if (status && status !== "all") {
-        query = query.eq("status", status);
-      }
+      const formattedProjects = (projectsFromDb || []).map((p) => this._normalizeProject(p));
+      const totalPages = isAll ? 1 : (Math.ceil(totalCount / limit) || 1);
 
-      query = query
+      return {
+        projects: formattedProjects,
+        totalCount,
+        page: currentPage,
+        pageSize,
+        totalPages,
+      };
+    })();
+
+    inFlightPaginatedProjects.set(cacheKey, fetchPromise);
+    try {
+      const result = await fetchPromise;
+      paginatedProjectsCache.set(cacheKey, { data: result, timestamp: Date.now() });
+      return result;
+    } finally {
+      inFlightPaginatedProjects.delete(cacheKey);
+    }
+  },
+
+  /**
+   * Fast server-side search for projects (lightweight query).
+   * @param {Object} params
+   * @param {string} params.organizationId
+   * @param {string} params.query
+   * @param {number} [params.limit=8]
+   * @returns {Promise<Array>}
+   */
+  async searchProjects({ organizationId, query = "", limit = 8 }) {
+    if (!organizationId || !query || !query.trim()) return [];
+    const clean = query.trim().toLowerCase();
+    try {
+      const { data, error } = await supabase
+        .from("projects")
+        .select("id, name, description, status, created_at")
+        .eq("organization_id", organizationId)
+        .or(`name.ilike.%${clean}%,description.ilike.%${clean}%`)
         .order("created_at", { ascending: false })
-        .range(from, to);
-
-      const { data, count, error } = await query;
-
+        .limit(limit);
       if (!error && data) {
-        totalCount = count !== null && count !== undefined ? count : data.length;
-
-        const allUserIds = [
-          ...new Set(
-            data
-              .flatMap((p) => (p.project_members || []).map((m) => m.user_id))
-              .filter(Boolean)
-          ),
-        ];
-
-        let profileMap = new Map();
-        if (allUserIds.length > 0) {
-          try {
-            const { data: profs } = await supabase
-              .from("profiles")
-              .select("id, full_name, email, phone, profile_photo")
-              .in("id", allUserIds);
-            (profs || []).forEach((pr) => profileMap.set(pr.id, pr));
-          } catch (_) {}
-        }
-
-        projectsFromDb = data.map((p) => ({
-          ...p,
-          project_members: (p.project_members || []).map((pm) => ({
-            ...pm,
-            profiles: profileMap.get(pm.user_id) || null,
-          })),
-        }));
+        return data;
       }
-    } catch (err) {
-      console.warn("Supabase paginated projects query error:", err?.message || err);
-    }
-
-    if (projectsFromDb === null) {
-      let local = this.getLocalProjects(organizationId);
-
-      if (userRole === MEMBER_ROLE || userRole === MANAGER_ROLE) {
-        local = local.filter((p) => {
-          if (p.created_by === userId) return true;
-          const membersList = p.project_members || [];
-          return membersList.some((m) => (m.user_id || m.userId) === userId);
-        });
-      }
-
-      if (search && search.trim()) {
-        const q = search.trim().toLowerCase();
-        local = local.filter(
-          (p) =>
-            p.name?.toLowerCase().includes(q) ||
-            p.description?.toLowerCase().includes(q)
-        );
-      }
-
-      if (status && status !== "all") {
-        local = local.filter((p) => p.status === status);
-      }
-
-      totalCount = local.length;
-      projectsFromDb = local.slice(from, to + 1);
-    }
-
-    const formattedProjects = (projectsFromDb || []).map((p) => this._normalizeProject(p));
-    const totalPages = Math.ceil(totalCount / limit) || 1;
-
-    return {
-      projects: formattedProjects,
-      totalCount,
-      page: currentPage,
-      pageSize: limit,
-      totalPages,
-    };
+    } catch (_) {}
+    return [];
   },
 
   /**
@@ -256,13 +318,14 @@ export const projectService = {
    * @param {string} params.organizationId
    * @param {string} params.userId
    * @param {string} [params.userRole]
+   * @param {number} [params.limit]
    * @param {boolean} [params.force]
    * @returns {Promise<Array>}
    */
-  async getProjects({ organizationId, userId, userRole = MEMBER_ROLE, force = false }) {
+  async getProjects({ organizationId, userId, userRole = MEMBER_ROLE, limit, force = false }) {
     if (!organizationId) return [];
 
-    const cacheKey = `${organizationId}:${userId || ""}:${userRole}`;
+    const cacheKey = `${organizationId}:${userId || ""}:${userRole}:${limit || "all"}`;
 
     if (!force) {
       const cached = projectsCache.get(cacheKey);
@@ -301,6 +364,10 @@ export const projectService = {
           `)
           .eq("organization_id", organizationId)
           .order("created_at", { ascending: false });
+
+        if (limit && Number(limit) > 0) {
+          query = query.limit(Number(limit));
+        }
 
         const { data, error } = await query;
         if (!error && data) {

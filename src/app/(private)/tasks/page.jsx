@@ -133,6 +133,8 @@ function TasksBoardContent() {
   const queryPriority = searchParams.get("priority");
   const queryStatus = searchParams.get("status");
   const queryDate = searchParams.get("date");
+  const queryPage = searchParams.get("page");
+  const queryLimit = searchParams.get("limit");
 
   const authState = useSelector((state) => state.authSlice);
   const user = authState?.userData;
@@ -153,6 +155,13 @@ function TasksBoardContent() {
   const [dateFilter, setDateFilter] = useState(queryDate || "");
   const [tickets, setTickets] = useState([]);
   const [search, setSearch] = useState(querySearch || "");
+  const [debouncedSearch, setDebouncedSearch] = useState(querySearch || "");
+  const [currentPage, setCurrentPage] = useState(
+    queryPage ? Math.max(1, parseInt(queryPage, 10)) : 1,
+  );
+  const [pageSize, setPageSize] = useState(queryLimit || "50");
+  const [totalTasksCount, setTotalTasksCount] = useState(0);
+  const [columnCardLimits, setColumnCardLimits] = useState({});
   const [selectedMemberFilter, setSelectedMemberFilter] = useState(null);
   const [loadingProjects, setLoadingProjects] = useState(true);
   const [loadingTickets, setLoadingTickets] = useState(true);
@@ -177,15 +186,20 @@ function TasksBoardContent() {
   const isOwner = userRole === OWNER_ROLE;
   const isManager = userRole === MANAGER_ROLE;
 
-  // Helper to sync filter changes to URL query parameters
+  // Helper to sync filter and pagination changes to URL query parameters
   const updateUrlParams = useCallback(
     (newParams) => {
       const params = new URLSearchParams(searchParams.toString());
       Object.entries(newParams).forEach(([key, val]) => {
-        if (!val || val === "all") {
+        if (
+          !val ||
+          (val === "all" && key !== "limit") ||
+          (key === "page" && String(val) === "1") ||
+          (key === "limit" && String(val) === "50")
+        ) {
           params.delete(key);
         } else {
-          params.set(key, val);
+          params.set(key, String(val));
         }
       });
       const queryString = params.toString();
@@ -194,24 +208,66 @@ function TasksBoardContent() {
     [router, searchParams],
   );
 
+  // Debounce search input to avoid spamming server queries
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+      if ((querySearch || "") !== (search || "")) {
+        setCurrentPage(1);
+        updateUrlParams({ search, page: "1" });
+      }
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [search, querySearch, updateUrlParams]);
+
+  // Sync page and limit from URL query params
+  useEffect(() => {
+    if (queryPage) {
+      const p = Math.max(1, parseInt(queryPage, 10));
+      if (p !== currentPage) setCurrentPage(p);
+    } else {
+      setCurrentPage(1);
+    }
+  }, [queryPage]);
+
+  useEffect(() => {
+    if (queryLimit && queryLimit !== pageSize) {
+      setPageSize(queryLimit);
+    }
+  }, [queryLimit]);
+
+  const handlePageChange = (newPage) => {
+    setCurrentPage(newPage);
+    updateUrlParams({ page: String(newPage) });
+  };
+
+  const handlePageSizeChange = (newSize) => {
+    setPageSize(newSize);
+    setCurrentPage(1);
+    updateUrlParams({ limit: newSize, page: "1" });
+  };
+
   const handlePriorityChange = (val) => {
     setPriorityFilter(val);
-    updateUrlParams({ priority: val });
+    setCurrentPage(1);
+    updateUrlParams({ priority: val, page: "1" });
   };
 
   const handleStatusChange = (val) => {
     setStatusFilter(val);
-    updateUrlParams({ status: val });
+    setCurrentPage(1);
+    updateUrlParams({ status: val, page: "1" });
   };
 
   const handleDateRangeChange = (dates, dateStrings) => {
+    setCurrentPage(1);
     if (dateStrings && dateStrings[0] && dateStrings[1]) {
       const rangeStr = `${dateStrings[0]}_${dateStrings[1]}`;
       setDateFilter(rangeStr);
-      updateUrlParams({ date: rangeStr });
+      updateUrlParams({ date: rangeStr, page: "1" });
     } else {
       setDateFilter("");
-      updateUrlParams({ date: "" });
+      updateUrlParams({ date: "", page: "1" });
     }
   };
 
@@ -238,8 +294,10 @@ function TasksBoardContent() {
     setStatusFilter("all");
     setDateFilter("");
     setSearch("");
+    setDebouncedSearch("");
     setSelectedMemberFilter(null);
-    updateUrlParams({ priority: "all", status: "all", date: "", search: "" });
+    setCurrentPage(1);
+    updateUrlParams({ priority: "all", status: "all", date: "", search: "", page: "1" });
   };
 
   const hasActiveFilters = Boolean(
@@ -385,7 +443,7 @@ function TasksBoardContent() {
         }
         return;
       }
-      const fetchKey = `${orgId}:${selectedProjectId || "all"}:${priorityFilter || "all"}:${statusFilter || "all"}:${dateFilter || ""}:${user?.id || ""}:${userRole}`;
+      const fetchKey = `${orgId}:${selectedProjectId || "all"}:${priorityFilter || "all"}:${statusFilter || "all"}:${dateFilter || ""}:${debouncedSearch || ""}:${currentPage}:${pageSize}:${user?.id || ""}:${userRole}`;
       if (
         !force &&
         lastFetchedTicketsKeyRef.current === fetchKey &&
@@ -413,6 +471,9 @@ function TasksBoardContent() {
               ? statusFilter
               : undefined,
           date: dateFilter || undefined,
+          search: debouncedSearch || undefined,
+          page: currentPage,
+          limit: pageSize === "all" ? undefined : pageSize,
           userId: user?.id,
           userRole,
           userName: user?.full_name || user?.name || "",
@@ -421,6 +482,7 @@ function TasksBoardContent() {
         });
         lastFetchedTicketsKeyRef.current = fetchKey;
         setTickets(data || []);
+        setTotalTasksCount(data.totalCount ?? (data || []).length);
       } catch (err) {
         console.error("loadTickets error:", err);
       } finally {
@@ -434,6 +496,9 @@ function TasksBoardContent() {
       priorityFilter,
       statusFilter,
       dateFilter,
+      debouncedSearch,
+      currentPage,
+      pageSize,
       user?.id,
       userRole,
       user?.full_name,
@@ -1072,189 +1137,346 @@ function TasksBoardContent() {
         /* ─────────────────────────────────────────────────── */
         /* Kanban Board Columns                                */
         /* ─────────────────────────────────────────────────── */
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3.5">
-          {COLUMNS.map((col) => {
-            const colTickets = filteredTickets.filter(
-              (t) => t.status === col.id,
-            );
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3.5">
+            {COLUMNS.map((col) => {
+              const colTickets = filteredTickets.filter(
+                (t) => t.status === col.id,
+              );
+              const colLimit = columnCardLimits[col.id] || 15;
+              const visibleTickets = colTickets.slice(0, colLimit);
+              const hasMoreInCol = colTickets.length > colLimit;
 
-            return (
-              <div
-                key={col.id}
-                onDragOver={handleDragOver}
-                onDragEnter={() => setDragOverCol(col.id)}
-                onDragLeave={(e) => {
-                  if (e.currentTarget.contains(e.relatedTarget)) return;
-                  setDragOverCol(null);
-                }}
-                onDrop={(e) => handleDrop(e, col.id)}
-                className={`rounded-lg p-2.5 border transition-all flex flex-col min-h-[520px] min-w-0 ${
-                  dragOverCol === col.id
-                    ? "border-[#0F766E] ring-2 ring-[#0F766E]/20 bg-teal-50/50"
-                    : "border-slate-200/80 bg-slate-100/75"
-                }`}
-              >
-                {/* Column Header */}
-                <div className="flex items-center justify-between pb-2.5 px-1 text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                  <span>{col.label}</span>
-                  <span className="w-5 h-5 rounded-full bg-white text-slate-600 flex items-center justify-center text-[10px] shadow-2xs font-bold border border-slate-200/60">
-                    {colTickets.length}
-                  </span>
-                </div>
-
-                {/* Tickets in Column */}
+              return (
                 <div
+                  key={col.id}
                   onDragOver={handleDragOver}
+                  onDragEnter={() => setDragOverCol(col.id)}
+                  onDragLeave={(e) => {
+                    if (e.currentTarget.contains(e.relatedTarget)) return;
+                    setDragOverCol(null);
+                  }}
                   onDrop={(e) => handleDrop(e, col.id)}
-                  className="space-y-2 flex-1 overflow-y-auto min-h-[120px]"
+                  className={`rounded-lg p-2.5 border transition-all flex flex-col min-h-[520px] min-w-0 ${
+                    dragOverCol === col.id
+                      ? "border-[#0F766E] ring-2 ring-[#0F766E]/20 bg-teal-50/50"
+                      : "border-slate-200/80 bg-slate-100/75"
+                  }`}
                 >
-                  {colTickets.map((ticket) => {
-                    const parsed = parseIssue(ticket) || ticket;
-                    const subtasks = parsed.subtasks || [];
-                    const completedSubtasks = subtasks.filter((s) => s.completed).length;
-                    const totalSubtasks = subtasks.length;
-                    const dueDate = ticket.due_date || ticket.dueDate || parsed.dueDate || parsed.due_date;
-                    const isOverdue = Boolean(dueDate && new Date(dueDate) < new Date() && ticket.status !== "done");
+                  {/* Column Header */}
+                  <div className="flex items-center justify-between pb-2.5 px-1 text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                    <span>{col.label}</span>
+                    <span className="w-5 h-5 rounded-full bg-white text-slate-600 flex items-center justify-center text-[10px] shadow-2xs font-bold border border-slate-200/60">
+                      {colTickets.length}
+                    </span>
+                  </div>
 
-                    return (
+                  {/* Tickets in Column */}
+                  <div
+                    onDragOver={handleDragOver}
+                    onDrop={(e) => handleDrop(e, col.id)}
+                    className="space-y-2 flex-1 overflow-y-auto min-h-[120px]"
+                  >
+                    {visibleTickets.map((ticket) => {
+                      const parsed = parseIssue(ticket) || ticket;
+                      const subtasks = parsed.subtasks || [];
+                      const completedSubtasks = subtasks.filter((s) => s.completed).length;
+                      const totalSubtasks = subtasks.length;
+                      const dueDate = ticket.due_date || ticket.dueDate || parsed.dueDate || parsed.due_date;
+                      const isOverdue = Boolean(dueDate && new Date(dueDate) < new Date() && ticket.status !== "done");
+
+                      return (
+                        <div
+                          key={ticket.id}
+                          draggable
+                          onDragStart={(e) => handleDragStart(e, ticket.id)}
+                          onClick={() => router.push(`/issues/${ticket.id}`)}
+                          className={`bg-white p-3 rounded-lg border shadow-2xs space-y-2 transition-all group cursor-pointer ${
+                            isOverdue
+                              ? "border-rose-200/90 hover:border-rose-400 hover:shadow-xs"
+                              : "border-slate-200/90 hover:border-[#0F766E]/40 hover:shadow-xs"
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="text-[10px] font-mono font-semibold text-[#0F766E]">
+                                {formatTaskKey(
+                                  ticket,
+                                  projects,
+                                  selectedProject?.name,
+                                )}
+                              </span>
+                              {parsed.isBlocker && (
+                                <span className="px-1 py-0.2 rounded text-[8.5px] font-bold uppercase tracking-wider bg-rose-100 text-rose-700 border border-rose-200">
+                                  Blocker
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  router.push(`/issues/${ticket.id}`);
+                                }}
+                                className="text-slate-400 hover:text-[#0F766E] p-0.5 rounded cursor-pointer"
+                                title="View details"
+                              >
+                                <FiEye className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+
+                          <p className="text-xs font-semibold text-slate-900 leading-snug">
+                            {ticket.title}
+                          </p>
+
+                          {ticket.description && (
+                            <p className="text-[11px] text-slate-500 line-clamp-2">
+                              {ticket.description
+                                .replace(/<!--wg_meta:[\s\S]*?-->/g, "")
+                                .trim()}
+                            </p>
+                          )}
+
+                          {/* Extra indicators: Due date & Subtask progress */}
+                          {(dueDate || totalSubtasks > 0) && (
+                            <div className="flex items-center gap-2 pt-0.5 flex-wrap">
+                              {dueDate && (
+                                <span
+                                  className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9.5px] border ${
+                                    isOverdue
+                                      ? "bg-rose-50 text-rose-700 font-semibold border-rose-200"
+                                      : "bg-slate-50 text-slate-500 border-slate-200"
+                                  }`}
+                                  title={isOverdue ? `Overdue since ${new Date(dueDate).toLocaleDateString()}` : `Due ${new Date(dueDate).toLocaleDateString()}`}
+                                >
+                                  <FiClock className={`w-2.5 h-2.5 shrink-0 ${isOverdue ? "text-rose-600 animate-pulse" : "text-slate-400"}`} />
+                                  <span>{new Date(dueDate).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>
+                                  {isOverdue && <span className="font-bold text-rose-600">!</span>}
+                                </span>
+                              )}
+                              {totalSubtasks > 0 && (
+                                <span
+                                  className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9.5px] border ${
+                                    completedSubtasks === totalSubtasks
+                                      ? "bg-emerald-50 text-emerald-700 font-medium border-emerald-200"
+                                      : "bg-slate-50 text-slate-600 border-slate-200"
+                                  }`}
+                                  title={`${completedSubtasks} of ${totalSubtasks} subtasks completed`}
+                                >
+                                  <FiCheckSquare className={`w-2.5 h-2.5 shrink-0 ${completedSubtasks === totalSubtasks ? "text-emerald-600" : "text-slate-400"}`} />
+                                  <span>{completedSubtasks}/{totalSubtasks}</span>
+                                </span>
+                              )}
+                            </div>
+                          )}
+
+                          <div className="pt-1.5 border-t border-slate-100 flex items-center justify-between text-[10px]">
+                            <span
+                              className={`px-1.5 py-0.2 rounded-md uppercase font-semibold text-[9px] border ${
+                                priorityColors[ticket.priority] ||
+                                priorityColors.medium
+                              }`}
+                            >
+                              {ticket.priority || "medium"}
+                            </span>
+
+                            <span
+                              className="text-slate-500 font-medium truncate max-w-[110px]"
+                              title={ticket.assignee}
+                            >
+                              {ticket.assignee || "Unassigned"}
+                            </span>
+                          </div>
+
+                          {/* Interactive Status Changer & Quick Stage Flow */}
+                          <div
+                            className="pt-1 flex items-center justify-between"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <TaskStatusControl
+                              status={ticket.status}
+                              loading={updatingTicketId === ticket.id}
+                              onChange={(val) => moveTicket(ticket.id, val)}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    {/* Column load more button if column has more than colLimit tasks */}
+                    {hasMoreInCol && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setColumnCardLimits((prev) => ({
+                            ...prev,
+                            [col.id]: (prev[col.id] || 15) + 20,
+                          }))
+                        }
+                        className="w-full py-2 px-3 text-[11px] font-semibold text-[#0F766E] hover:text-[#0D655E] bg-teal-50/80 hover:bg-teal-100 border border-teal-200/70 rounded-lg transition-colors cursor-pointer text-center"
+                      >
+                        + Show {Math.min(20, colTickets.length - colLimit)} more ({colTickets.length - colLimit} remaining)
+                      </button>
+                    )}
+
+                    {colLimit > 15 && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setColumnCardLimits((prev) => ({
+                            ...prev,
+                            [col.id]: 15,
+                          }))
+                        }
+                        className="w-full py-1 text-[10px] text-slate-400 hover:text-slate-600 transition-colors text-center cursor-pointer"
+                      >
+                        Collapse to 15
+                      </button>
+                    )}
+
+                    {colTickets.length === 0 && (
                       <div
-                        key={ticket.id}
-                        draggable
-                        onDragStart={(e) => handleDragStart(e, ticket.id)}
-                        onClick={() => router.push(`/issues/${ticket.id}`)}
-                        className={`bg-white p-3 rounded-lg border shadow-2xs space-y-2 transition-all group cursor-pointer ${
-                          isOverdue
-                            ? "border-rose-200/90 hover:border-rose-400 hover:shadow-xs"
-                            : "border-slate-200/90 hover:border-[#0F766E]/40 hover:shadow-xs"
+                        onDragOver={handleDragOver}
+                        onDrop={(e) => handleDrop(e, col.id)}
+                        className={`h-24 rounded-lg border-2 border-dashed flex items-center justify-center text-xs transition-colors ${
+                          dragOverCol === col.id
+                            ? "border-[#0F766E] bg-teal-50 text-[#0F766E] font-medium"
+                            : "border-slate-200 text-slate-400 italic"
                         }`}
                       >
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="text-[10px] font-mono font-semibold text-[#0F766E]">
-                              {formatTaskKey(
-                                ticket,
-                                projects,
-                                selectedProject?.name,
-                              )}
-                            </span>
-                            {parsed.isBlocker && (
-                              <span className="px-1 py-0.2 rounded text-[8.5px] font-bold uppercase tracking-wider bg-rose-100 text-rose-700 border border-rose-200">
-                                Blocker
-                              </span>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                router.push(`/issues/${ticket.id}`);
-                              }}
-                              className="text-slate-400 hover:text-[#0F766E] p-0.5 rounded cursor-pointer"
-                              title="View details"
-                            >
-                              <FiEye className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </div>
+                        {dragOverCol === col.id
+                          ? "Drop to move to " + col.label
+                          : "No issues in this column"}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
 
-                        <p className="text-xs font-semibold text-slate-900 leading-snug">
-                          {ticket.title}
-                        </p>
+          {/* ─────────────────────────────────────────────────── */}
+          {/* Board Pagination Bar                                */}
+          {/* ─────────────────────────────────────────────────── */}
+          {totalTasksCount > 0 && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white p-3 sm:px-4 rounded-lg border border-slate-200/80 shadow-2xs select-none">
+              {/* Count status */}
+              <div className="text-xs text-slate-600 font-medium">
+                {pageSize === "all" ? (
+                  <span>
+                    Showing all <strong className="text-slate-900 font-semibold">{totalTasksCount}</strong> tasks
+                  </span>
+                ) : (
+                  <span>
+                    Showing{" "}
+                    <strong className="text-slate-900 font-semibold">
+                      {(currentPage - 1) * Number(pageSize) + 1}
+                    </strong>
+                    –
+                    <strong className="text-slate-900 font-semibold">
+                      {Math.min(currentPage * Number(pageSize), totalTasksCount)}
+                    </strong>{" "}
+                    of <strong className="text-slate-900 font-semibold">{totalTasksCount}</strong> tasks
+                  </span>
+                )}
+              </div>
 
-                        {ticket.description && (
-                          <p className="text-[11px] text-slate-500 line-clamp-2">
-                            {ticket.description
-                              .replace(/<!--wg_meta:[\s\S]*?-->/g, "")
-                              .trim()}
-                          </p>
-                        )}
+              {/* Page Nav Buttons */}
+              {pageSize !== "all" && Math.ceil(totalTasksCount / Number(pageSize)) > 1 && (
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    disabled={currentPage <= 1}
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    className={`px-2.5 py-1 text-xs rounded-md border font-medium flex items-center gap-1 transition-all ${
+                      currentPage <= 1
+                        ? "bg-slate-50 text-slate-300 border-slate-200/60 cursor-not-allowed"
+                        : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50 hover:text-[#0F766E] cursor-pointer"
+                    }`}
+                  >
+                    <FiChevronLeft className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Prev</span>
+                  </button>
 
-                        {/* Extra indicators: Due date & Subtask progress */}
-                        {(dueDate || totalSubtasks > 0) && (
-                          <div className="flex items-center gap-2 pt-0.5 flex-wrap">
-                            {dueDate && (
-                              <span
-                                className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9.5px] border ${
-                                  isOverdue
-                                    ? "bg-rose-50 text-rose-700 font-semibold border-rose-200"
-                                    : "bg-slate-50 text-slate-500 border-slate-200"
-                                }`}
-                                title={isOverdue ? `Overdue since ${new Date(dueDate).toLocaleDateString()}` : `Due ${new Date(dueDate).toLocaleDateString()}`}
-                              >
-                                <FiClock className={`w-2.5 h-2.5 shrink-0 ${isOverdue ? "text-rose-600 animate-pulse" : "text-slate-400"}`} />
-                                <span>{new Date(dueDate).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>
-                                {isOverdue && <span className="font-bold text-rose-600">!</span>}
-                              </span>
-                            )}
-                            {totalSubtasks > 0 && (
-                              <span
-                                className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9.5px] border ${
-                                  completedSubtasks === totalSubtasks
-                                    ? "bg-emerald-50 text-emerald-700 font-medium border-emerald-200"
-                                    : "bg-slate-50 text-slate-600 border-slate-200"
-                                }`}
-                                title={`${completedSubtasks} of ${totalSubtasks} subtasks completed`}
-                              >
-                                <FiCheckSquare className={`w-2.5 h-2.5 shrink-0 ${completedSubtasks === totalSubtasks ? "text-emerald-600" : "text-slate-400"}`} />
-                                <span>{completedSubtasks}/{totalSubtasks}</span>
-                              </span>
-                            )}
-                          </div>
-                        )}
-
-                        <div className="pt-1.5 border-t border-slate-100 flex items-center justify-between text-[10px]">
-                          <span
-                            className={`px-1.5 py-0.2 rounded-md uppercase font-semibold text-[9px] border ${
-                              priorityColors[ticket.priority] ||
-                              priorityColors.medium
+                  {/* Page numbers */}
+                  <div className="flex items-center gap-1">
+                    {(() => {
+                      const totalPages = Math.ceil(totalTasksCount / Number(pageSize));
+                      const pages = [];
+                      for (let i = 1; i <= totalPages; i++) {
+                        if (
+                          i === 1 ||
+                          i === totalPages ||
+                          (i >= currentPage - 1 && i <= currentPage + 1)
+                        ) {
+                          pages.push(i);
+                        } else if (pages[pages.length - 1] !== "...") {
+                          pages.push("...");
+                        }
+                      }
+                      return pages.map((p, idx) =>
+                        p === "..." ? (
+                          <span key={`dots-${idx}`} className="px-1 text-slate-400 text-xs">
+                            ...
+                          </span>
+                        ) : (
+                          <button
+                            key={p}
+                            type="button"
+                            onClick={() => handlePageChange(p)}
+                            className={`w-7 h-7 text-xs rounded-md font-semibold transition-all cursor-pointer ${
+                              currentPage === p
+                                ? "bg-[#0F766E] text-white shadow-2xs"
+                                : "bg-white text-slate-700 hover:bg-slate-100 border border-slate-200"
                             }`}
                           >
-                            {ticket.priority || "medium"}
-                          </span>
+                            {p}
+                          </button>
+                        ),
+                      );
+                    })()}
+                  </div>
 
-                          <span
-                            className="text-slate-500 font-medium truncate max-w-[110px]"
-                            title={ticket.assignee}
-                          >
-                            {ticket.assignee || "Unassigned"}
-                          </span>
-                        </div>
+                  <button
+                    type="button"
+                    disabled={currentPage >= Math.ceil(totalTasksCount / Number(pageSize))}
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    className={`px-2.5 py-1 text-xs rounded-md border font-medium flex items-center gap-1 transition-all ${
+                      currentPage >= Math.ceil(totalTasksCount / Number(pageSize))
+                        ? "bg-slate-50 text-slate-300 border-slate-200/60 cursor-not-allowed"
+                        : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50 hover:text-[#0F766E] cursor-pointer"
+                    }`}
+                  >
+                    <span className="hidden sm:inline">Next</span>
+                    <FiChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
 
-                        {/* Interactive Status Changer & Quick Stage Flow */}
-                        <div
-                          className="pt-1 flex items-center justify-between"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <TaskStatusControl
-                            status={ticket.status}
-                            loading={updatingTicketId === ticket.id}
-                            onChange={(val) => moveTicket(ticket.id, val)}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
-
-                  {colTickets.length === 0 && (
-                    <div
-                      onDragOver={handleDragOver}
-                      onDrop={(e) => handleDrop(e, col.id)}
-                      className={`h-24 rounded-lg border-2 border-dashed flex items-center justify-center text-xs transition-colors ${
-                        dragOverCol === col.id
-                          ? "border-[#0F766E] bg-teal-50 text-[#0F766E] font-medium"
-                          : "border-slate-200 text-slate-400 italic"
+              {/* Page Size Selector */}
+              <div className="flex items-center gap-2 text-xs">
+                <span className="text-slate-500 font-medium">Per page:</span>
+                <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-0.5">
+                  {["25", "50", "100", "all"].map((size) => (
+                    <button
+                      key={size}
+                      type="button"
+                      onClick={() => handlePageSizeChange(size)}
+                      className={`px-2.5 py-0.5 text-[11px] font-semibold rounded-md transition-all cursor-pointer ${
+                        pageSize === size
+                          ? "bg-white text-[#0F766E] shadow-2xs border border-slate-200/80"
+                          : "text-slate-500 hover:text-slate-900"
                       }`}
                     >
-                      {dragOverCol === col.id
-                        ? "Drop to move to " + col.label
-                        : "No issues in this column"}
-                    </div>
-                  )}
+                      {size === "all" ? "All" : size}
+                    </button>
+                  ))}
                 </div>
               </div>
-            );
-          })}
+            </div>
+          )}
         </div>
       )}
 
