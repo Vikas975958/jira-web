@@ -95,7 +95,7 @@ export default function ChatSidebar({
   };
 
   return (
-    <div className="h-full flex flex-col bg-white border-r border-slate-200 select-none overflow-hidden">
+    <div className="w-full h-full flex flex-col bg-white border-r border-slate-200 select-none overflow-hidden">
       {/* Sidebar Header & Search */}
       <div className="p-3 border-b border-slate-200/80 space-y-2.5 shrink-0 bg-slate-50/50">
         <div className="flex items-center justify-between">

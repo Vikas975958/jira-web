@@ -357,12 +357,12 @@ export default function ChatboardPage() {
   };
 
   return (
-    <div className="h-full max-h-full flex flex-col bg-slate-100 overflow-hidden select-none">
+    <div className="h-full max-h-full flex flex-col bg-white overflow-hidden select-none">
       {/* Main 2-Column Chat Area */}
       <div className="flex-1 flex overflow-hidden min-h-0 relative">
         {/* Left Column: Sidebar (Team Members & Direct Messages) */}
         <div
-          className={`w-full md:w-80 lg:w-96 shrink-0 h-full ${
+          className={`w-full md:w-80 shrink-0 h-full ${
             isMobileChatOpen ? "hidden md:flex" : "flex"
           }`}
         >
