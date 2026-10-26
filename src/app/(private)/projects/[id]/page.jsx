@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useSelector } from "react-redux";
 import Link from "next/link";
 import { toast } from "react-toastify";
+import { Select } from "antd";
 import {
   FiArrowLeft,
   FiFolder,
@@ -640,20 +641,18 @@ export default function ProjectDetailsPage() {
 
               {/* Status Selector for Owner / Manager */}
               {canManage && (
-                <div className="relative inline-flex items-center shrink-0">
-                  <select
-                    value={status}
-                    onChange={(e) => handleStatusChange(e.target.value)}
-                    className="h-8 pl-3 pr-7 bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-lg text-xs font-semibold text-slate-800 outline-none cursor-pointer appearance-none transition-colors"
-                  >
-                    <option value="planning">Planning</option>
-                    <option value="active">Active</option>
-                    <option value="on_hold">On Hold</option>
-                    <option value="completed">Completed</option>
-                    <option value="archived">Archived</option>
-                  </select>
-                  <FiChevronDown className="w-3.5 h-3.5 text-slate-500 absolute right-2 pointer-events-none" />
-                </div>
+                <Select
+                  value={status}
+                  onChange={(val) => handleStatusChange(val)}
+                  className="w-32 h-8 text-xs font-semibold"
+                  options={[
+                    { value: "planning", label: "Planning" },
+                    { value: "active", label: "Active" },
+                    { value: "on_hold", label: "On Hold" },
+                    { value: "completed", label: "Completed" },
+                    { value: "archived", label: "Archived" },
+                  ]}
+                />
               )}
 
               {/* Edit Project Button */}
@@ -1056,47 +1055,53 @@ export default function ProjectDetailsPage() {
                         <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-1">
                           Select Workspace Member
                         </label>
-                        <select
-                          value={selectedExistingUserId}
-                          onChange={(e) => setSelectedExistingUserId(e.target.value)}
-                          className="jira-input w-full text-xs font-medium h-8.5 px-2.5"
-                          required
-                        >
-                          <option value="">-- Choose a team member --</option>
-                          {availableOrgMembers.map((m) => {
+                        <Select
+                          value={selectedExistingUserId || undefined}
+                          onChange={(val) => setSelectedExistingUserId(val || "")}
+                          className="w-full text-xs font-medium"
+                          placeholder="Choose a team member"
+                          allowClear
+                          options={availableOrgMembers.map((m) => {
                             const prof = m.profiles || {};
                             const mName = prof.full_name || prof.email || "Member";
                             const mEmail = prof.email ? `(${prof.email})` : "";
                             const isMe = user?.id && (m.user_id === user.id || m.id === user.id);
-                            return (
-                              <option key={m.id || m.user_id} value={m.user_id || m.id}>
-                                {mName} {isMe ? "(You) " : ""}{mEmail}
-                              </option>
-                            );
+                            return {
+                              value: m.user_id || m.id,
+                              label: `${mName} ${isMe ? "(You) " : ""}${mEmail}`.trim(),
+                            };
                           })}
-                        </select>
+                        />
                       </div>
 
                       <div>
                         <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-1">
                           Assign Project Role
                         </label>
-                        <select
+                        <Select
                           value={assignRole}
-                          onChange={(e) => setAssignRole(e.target.value)}
-                          className="jira-input w-full text-xs font-medium h-8.5 px-2.5"
-                        >
-                          <option value={MEMBER_ROLE}>Member (Tasks & Boards)</option>
-                          <option value={MANAGER_ROLE}>Project Manager (Manage Team & Settings)</option>
-                        </select>
+                          onChange={(val) => setAssignRole(val)}
+                          className="w-full text-xs font-medium"
+                          options={[
+                            { value: MEMBER_ROLE, label: "Member (Tasks & Boards)" },
+                            { value: MANAGER_ROLE, label: "Project Manager (Manage Team & Settings)" },
+                          ]}
+                        />
                       </div>
 
                       <button
                         type="submit"
                         disabled={assigning}
-                        className="btn-primary w-full py-2 text-xs font-semibold"
+                        className="btn-primary w-full py-2 text-xs font-semibold flex items-center justify-center gap-2 disabled:opacity-60"
                       >
-                        {assigning ? "Adding Member..." : "Add Member to Project"}
+                        {assigning ? (
+                          <>
+                            <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin shrink-0" />
+                            <span>Adding Member...</span>
+                          </>
+                        ) : (
+                          <span>Add Member to Project</span>
+                        )}
                       </button>
                     </form>
                   )
@@ -1136,23 +1141,33 @@ export default function ProjectDetailsPage() {
                       <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-1">
                         Intended Project Role
                       </label>
-                      <select
+                      <Select
                         value={inviteRole}
-                        onChange={(e) => setInviteRole(e.target.value)}
-                        className="jira-input w-full text-xs font-medium h-8.5 px-2.5"
-                      >
-                        <option value={MEMBER_ROLE}>Member</option>
-                        <option value={MANAGER_ROLE}>Project Manager</option>
-                      </select>
+                        onChange={(val) => setInviteRole(val)}
+                        className="w-full text-xs font-medium"
+                        options={[
+                          { value: MEMBER_ROLE, label: "Member" },
+                          { value: MANAGER_ROLE, label: "Project Manager" },
+                        ]}
+                      />
                     </div>
 
                     <button
                       type="submit"
                       disabled={inviting}
-                      className="btn-primary w-full py-2 text-xs font-semibold"
+                      className="btn-primary w-full py-2 text-xs font-semibold flex items-center justify-center gap-2 disabled:opacity-60"
                     >
-                      <FiSend className="w-3.5 h-3.5" />
-                      <span>{inviting ? "Sending..." : "Send Invitation"}</span>
+                      {inviting ? (
+                        <>
+                          <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin shrink-0" />
+                          <span>Sending...</span>
+                        </>
+                      ) : (
+                        <>
+                          <FiSend className="w-3.5 h-3.5" />
+                          <span>Send Invitation</span>
+                        </>
+                      )}
                     </button>
 
                     {lastInviteLink && (

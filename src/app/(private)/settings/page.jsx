@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { toast } from "react-toastify";
+import { Select } from "antd";
 import {
   FiSettings,
   FiUser,
@@ -447,36 +448,32 @@ export default function SettingsPage() {
                   <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-600 mb-1">
                     Industry
                   </label>
-                  <select
+                  <Select
                     disabled={!isOwner}
                     value={orgData.industry}
-                    onChange={(e) => setOrgData({ ...orgData, industry: e.target.value })}
-                    className="jira-input w-full text-xs font-medium h-8.5 px-2.5 disabled:bg-slate-50 disabled:text-slate-500"
-                  >
-                    {INDUSTRY_OPTIONS.map((ind) => (
-                      <option key={ind} value={ind}>
-                        {ind}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(val) => setOrgData({ ...orgData, industry: val })}
+                    className="w-full text-xs font-medium"
+                    options={INDUSTRY_OPTIONS.map((ind) => ({
+                      value: ind,
+                      label: ind,
+                    }))}
+                  />
                 </div>
 
                 <div>
                   <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-600 mb-1">
                     Company Size
                   </label>
-                  <select
+                  <Select
                     disabled={!isOwner}
                     value={orgData.company_size}
-                    onChange={(e) => setOrgData({ ...orgData, company_size: e.target.value })}
-                    className="jira-input w-full text-xs font-medium h-8.5 px-2.5 disabled:bg-slate-50 disabled:text-slate-500"
-                  >
-                    {COMPANY_SIZE_OPTIONS.map((size) => (
-                      <option key={size} value={size}>
-                        {size}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(val) => setOrgData({ ...orgData, company_size: val })}
+                    className="w-full text-xs font-medium"
+                    options={COMPANY_SIZE_OPTIONS.map((size) => ({
+                      value: size,
+                      label: size,
+                    }))}
+                  />
                 </div>
               </div>
 
@@ -611,36 +608,36 @@ export default function SettingsPage() {
                   <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-600 mb-1">
                     Workspace Timezone
                   </label>
-                  <select
+                  <Select
                     disabled={!isOwner}
                     value={orgData.timezone}
-                    onChange={(e) => setOrgData({ ...orgData, timezone: e.target.value })}
-                    className="jira-input w-full text-xs font-medium h-8.5 px-2.5 disabled:bg-slate-50 disabled:text-slate-500"
-                  >
-                    {TIMEZONE_OPTIONS.map((tz) => (
-                      <option key={tz.value} value={tz.value}>
-                        {tz.label}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(val) => setOrgData({ ...orgData, timezone: val })}
+                    className="w-full text-xs font-medium"
+                    showSearch
+                    optionFilterProp="label"
+                    options={TIMEZONE_OPTIONS.map((tz) => ({
+                      value: tz.value,
+                      label: tz.label,
+                    }))}
+                  />
                 </div>
 
                 <div>
                   <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-600 mb-1">
                     Currency
                   </label>
-                  <select
+                  <Select
                     disabled={!isOwner}
                     value={orgData.currency}
-                    onChange={(e) => setOrgData({ ...orgData, currency: e.target.value })}
-                    className="jira-input w-full text-xs font-medium h-8.5 px-2.5 disabled:bg-slate-50 disabled:text-slate-500"
-                  >
-                    {CURRENCY_OPTIONS.map((c) => (
-                      <option key={c.code} value={c.code}>
-                        {c.label}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(val) => setOrgData({ ...orgData, currency: val })}
+                    className="w-full text-xs font-medium"
+                    showSearch
+                    optionFilterProp="label"
+                    options={CURRENCY_OPTIONS.map((c) => ({
+                      value: c.code,
+                      label: c.label,
+                    }))}
+                  />
                 </div>
               </div>
             </div>
@@ -650,10 +647,19 @@ export default function SettingsPage() {
                 <button
                   type="submit"
                   disabled={savingOrg}
-                  className="btn-primary px-4 py-1.5 text-xs font-semibold"
+                  className="btn-primary px-4 py-1.5 text-xs font-semibold flex items-center gap-1.5 disabled:opacity-60"
                 >
-                  <FiCheck className="w-3.5 h-3.5" />
-                  <span>{savingOrg ? "Saving..." : "Save Workspace Settings"}</span>
+                  {savingOrg ? (
+                    <>
+                      <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin shrink-0" />
+                      <span>Saving...</span>
+                    </>
+                  ) : (
+                    <>
+                      <FiCheck className="w-3.5 h-3.5" />
+                      <span>Save Workspace Settings</span>
+                    </>
+                  )}
                 </button>
               </div>
             )}
@@ -723,10 +729,19 @@ export default function SettingsPage() {
               <button
                 type="submit"
                 disabled={savingProfile}
-                className="btn-primary px-4 py-1.5 text-xs font-semibold"
+                className="btn-primary px-4 py-1.5 text-xs font-semibold flex items-center gap-1.5 disabled:opacity-60"
               >
-                <FiCheck className="w-3.5 h-3.5" />
-                <span>{savingProfile ? "Saving..." : "Save Profile"}</span>
+                {savingProfile ? (
+                  <>
+                    <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin shrink-0" />
+                    <span>Saving...</span>
+                  </>
+                ) : (
+                  <>
+                    <FiCheck className="w-3.5 h-3.5" />
+                    <span>Save Profile</span>
+                  </>
+                )}
               </button>
             </div>
           </form>

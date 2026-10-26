@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { useSelector } from "react-redux";
 import { FiX, FiCheck, FiBookmark, FiAlertCircle, FiCheckSquare } from "react-icons/fi";
+import { Select } from "antd";
 import Portal from "@/components/Portal";
 
 export default function CreateIssueModal({
@@ -26,6 +27,7 @@ export default function CreateIssueModal({
   const [storyPoints, setStoryPoints] = useState(3);
   const [assignee, setAssignee] = useState("");
   const [assigneeId, setAssigneeId] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Sync default projectId when modal opens
   React.useEffect(() => {
@@ -38,40 +40,59 @@ export default function CreateIssueModal({
     return projects.find((p) => p.id === projectId) || null;
   }, [projects, projectId]);
 
-  // Project team members available for assignment
+  // Project team members available for assignment (deduplicated)
   const effectiveAssignees = React.useMemo(() => {
-    let list = [];
+    const map = new Map();
     if (chosenProj) {
-      if (chosenProj.assignedManagers?.length > 0) {
+      if (Array.isArray(chosenProj.assignedManagers)) {
         chosenProj.assignedManagers.forEach((m) => {
-          list.push({
-            id: m.id || m.userId,
-            user_id: m.userId || m.id,
-            full_name: m.fullName || m.name || "Manager",
-            email: m.email || "",
-            role: "manager",
-          });
+          const uId = m.userId || m.user_id || m.id;
+          if (uId && !map.has(uId)) {
+            map.set(uId, {
+              id: uId,
+              user_id: uId,
+              full_name: m.fullName || m.name || m.full_name || "Manager",
+              email: m.email || "",
+              role: "manager",
+            });
+          }
         });
       }
-      if (chosenProj.assignedMembers?.length > 0) {
+      if (Array.isArray(chosenProj.assignedMembers)) {
         chosenProj.assignedMembers.forEach((m) => {
-          list.push({
-            id: m.id || m.userId,
-            user_id: m.userId || m.id,
-            full_name: m.fullName || m.name || "Member",
-            email: m.email || "",
-            role: "member",
-          });
+          const uId = m.userId || m.user_id || m.id;
+          if (uId && !map.has(uId)) {
+            map.set(uId, {
+              id: uId,
+              user_id: uId,
+              full_name: m.fullName || m.name || m.full_name || "Member",
+              email: m.email || "",
+              role: "member",
+            });
+          }
         });
       }
-    } else {
-      list = [...(teamMembers || [])];
+    } else if (Array.isArray(teamMembers)) {
+      teamMembers.forEach((m) => {
+        const uId = m.user_id || m.userId || m.profiles?.id || m.id;
+        if (uId && !map.has(uId)) {
+          map.set(uId, {
+            id: uId,
+            user_id: uId,
+            full_name: m.full_name || m.name || m.profiles?.full_name || m.email || "Member",
+            email: m.email || m.profiles?.email || "",
+            role: m.role || "member",
+          });
+        }
+      });
     }
+
+    const list = Array.from(map.values());
 
     if (user?.id && list.length > 0) {
       list.sort((a, b) => {
-        const aIsMe = (a.user_id === user.id || a.id === user.id || a.profiles?.id === user.id) ? 1 : 0;
-        const bIsMe = (b.user_id === user.id || b.id === user.id || b.profiles?.id === user.id) ? 1 : 0;
+        const aIsMe = (a.user_id === user.id || a.id === user.id) ? 1 : 0;
+        const bIsMe = (b.user_id === user.id || b.id === user.id) ? 1 : 0;
         return bIsMe - aIsMe;
       });
     }
@@ -79,19 +100,23 @@ export default function CreateIssueModal({
     return list;
   }, [chosenProj, teamMembers, user?.id]);
 
-  // Set default assignee and assigneeId when modal opens or user loads
+  // Set default assignee and assigneeId when modal opens
   React.useEffect(() => {
-    if (isOpen && !assigneeId && user) {
-      setAssigneeId(user.id || "");
-      setAssignee(user.full_name || user.name || user.email || "");
+    if (isOpen) {
+      if (user) {
+        setAssigneeId(user.id || "");
+        setAssignee(user.full_name || user.name || user.email || "");
+      }
+    } else {
+      setIsSubmitting(false);
     }
-  }, [isOpen, user, assigneeId]);
+  }, [isOpen, user]);
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!title.trim()) return;
+    if (!title.trim() || isSubmitting) return;
 
     let finalAssigneeId = assigneeId || null;
     let finalAssigneeName = assignee.trim() || user?.full_name || user?.name || "Unassigned";
@@ -122,30 +147,37 @@ export default function CreateIssueModal({
       finalAssigneeId = user.id;
     }
 
-    if (onAddTicket) {
-      onAddTicket({
-        title: title.trim(),
-        description: description.trim(),
-        type,
-        status,
-        priority,
-        storyPoints: Number(storyPoints) || 1,
-        assignee: finalAssigneeName,
-        assigneeId: finalAssigneeId,
-        assignee_id: finalAssigneeId,
-        tags: [],
-        projectId: projectId || null,
-        project_id: projectId || null,
-        projectName: chosenProj?.name || null,
-        project_name: chosenProj?.name || null,
-      });
-    }
+    try {
+      setIsSubmitting(true);
+      if (onAddTicket) {
+        await onAddTicket({
+          title: title.trim(),
+          description: description.trim(),
+          type,
+          status,
+          priority,
+          storyPoints: Number(storyPoints) || 1,
+          assignee: finalAssigneeName,
+          assigneeId: finalAssigneeId,
+          assignee_id: finalAssigneeId,
+          tags: [],
+          projectId: projectId || null,
+          project_id: projectId || null,
+          projectName: chosenProj?.name || null,
+          project_name: chosenProj?.name || null,
+        });
+      }
 
-    setTitle("");
-    setDescription("");
-    setAssigneeId(user?.id || "");
-    setAssignee(user?.full_name || user?.name || "");
-    if (onClose) onClose();
+      setTitle("");
+      setDescription("");
+      setAssigneeId(user?.id || "");
+      setAssignee(user?.full_name || user?.name || "");
+      if (onClose) onClose();
+    } catch (err) {
+      console.error("Create ticket error:", err);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -186,18 +218,14 @@ export default function CreateIssueModal({
                 <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
                   Project
                 </label>
-                <select
-                  value={projectId}
-                  onChange={(e) => setProjectId(e.target.value)}
-                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-[#0F766E]"
-                >
-                  <option value="">General (No Project)</option>
-                  {projects.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
-                    </option>
-                  ))}
-                </select>
+                <Select
+                  value={projectId || undefined}
+                  onChange={(val) => setProjectId(val || "")}
+                  placeholder="Select Project"
+                  allowClear
+                  className="w-full h-9 text-xs font-semibold"
+                  options={projects.map((p) => ({ value: p.id, label: p.name }))}
+                />
               </div>
             ) : (
               <div>
@@ -214,15 +242,16 @@ export default function CreateIssueModal({
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
                 Issue Type
               </label>
-              <select
+              <Select
                 value={type}
-                onChange={(e) => setType(e.target.value)}
-                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-[#0F766E]"
-              >
-                <option value="story">📗 Story</option>
-                <option value="task">📘 Task</option>
-                <option value="bug">🔴 Bug</option>
-              </select>
+                onChange={(val) => setType(val)}
+                className="w-full h-9 text-xs font-semibold"
+                options={[
+                  { value: "story", label: "📗 Story" },
+                  { value: "task", label: "📘 Task" },
+                  { value: "bug", label: "🔴 Bug" },
+                ]}
+              />
             </div>
           </div>
 
@@ -261,33 +290,35 @@ export default function CreateIssueModal({
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
                 Priority
               </label>
-              <select
+              <Select
                 value={priority}
-                onChange={(e) => setPriority(e.target.value)}
-                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-[#0F766E]"
-              >
-                <option value="urgent">🔴 Urgent</option>
-                <option value="high">🟠 High</option>
-                <option value="medium">🟡 Medium</option>
-                <option value="low">🟢 Low</option>
-              </select>
+                onChange={(val) => setPriority(val)}
+                className="w-full h-9 text-xs font-semibold"
+                options={[
+                  { value: "urgent", label: "🔴 Urgent" },
+                  { value: "high", label: "🟠 High" },
+                  { value: "medium", label: "🟡 Medium" },
+                  { value: "low", label: "🟢 Low" },
+                ]}
+              />
             </div>
 
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
                 Initial Status
               </label>
-              <select
+              <Select
                 value={status}
-                onChange={(e) => setStatus(e.target.value)}
-                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-[#0F766E]"
-              >
-                <option value="backlog">📦 Backlog</option>
-                <option value="todo">📋 To Do</option>
-                <option value="in-progress">⚡ In Progress</option>
-                <option value="review">🔍 Code Review</option>
-                <option value="done">✅ Done</option>
-              </select>
+                onChange={(val) => setStatus(val)}
+                className="w-full h-9 text-xs font-semibold"
+                options={[
+                  { value: "backlog", label: "📦 Backlog" },
+                  { value: "todo", label: "📋 To Do" },
+                  { value: "in-progress", label: "⚡ In Progress" },
+                  { value: "review", label: "🔍 Code Review" },
+                  { value: "done", label: "✅ Done" },
+                ]}
+              />
             </div>
           </div>
 
@@ -312,35 +343,47 @@ export default function CreateIssueModal({
                 Assignee
               </label>
               {effectiveAssignees && effectiveAssignees.length > 0 ? (
-                <select
-                  value={assigneeId}
-                  onChange={(e) => {
-                    const selId = e.target.value;
+                <Select
+                  value={assigneeId || undefined}
+                  placeholder="Unassigned"
+                  allowClear
+                  onChange={(selId) => {
                     setAssigneeId(selId);
                     if (!selId) {
                       setAssignee("Unassigned");
                     } else {
                       const found = effectiveAssignees.find(
-                        (m) => (m.user_id || m.profiles?.id || m.id) === selId
+                        (m) => (m.user_id || m.profiles?.id || m.id) === selId,
                       );
-                      const name = found?.full_name || found?.name || found?.email || "Team Member";
+                      const name =
+                        found?.full_name ||
+                        found?.name ||
+                        found?.email ||
+                        "Team Member";
                       setAssignee(name);
                     }
                   }}
-                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-[#0F766E]"
-                >
-                  <option value="">Unassigned</option>
-                  {effectiveAssignees.map((member) => {
-                    const mId = member.user_id || member.profiles?.id || member.id;
-                    const mName = member.full_name || member.name || member.email || "Member";
-                    const isMe = user?.id && (mId === user.id || member.user_id === user.id);
-                    return (
-                      <option key={mId || member.email} value={mId}>
-                        {mName} {isMe ? "(You) " : ""}({member.role})
-                      </option>
-                    );
-                  })}
-                </select>
+                  className="w-full h-9 text-xs font-semibold"
+                  options={effectiveAssignees
+                    .filter((m) => Boolean(m.user_id || m.profiles?.id || m.id))
+                    .map((member) => {
+                      const mId =
+                        member.user_id || member.profiles?.id || member.id;
+                      const mName =
+                        member.full_name ||
+                        member.name ||
+                        member.email ||
+                        "Member";
+                      const isMe =
+                        user?.id &&
+                        (mId === user.id || member.user_id === user.id);
+                      const roleText = member.role ? ` (${member.role})` : "";
+                      return {
+                        value: mId,
+                        label: `${mName}${isMe ? " (You)" : ""}${roleText}`,
+                      };
+                    })}
+                />
               ) : (
                 <input
                   type="text"
@@ -377,10 +420,20 @@ export default function CreateIssueModal({
             </button>
             <button
               type="submit"
-              className="btn-primary px-4 py-2 text-xs font-semibold"
+              disabled={isSubmitting || !title.trim()}
+              className="btn-primary px-4 py-2 text-xs font-semibold flex items-center gap-1.5 disabled:opacity-60"
             >
-              <FiCheck className="w-3.5 h-3.5" />
-              <span>Create Issue</span>
+              {isSubmitting ? (
+                <>
+                  <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin shrink-0" />
+                  <span>Creating Issue...</span>
+                </>
+              ) : (
+                <>
+                  <FiCheck className="w-3.5 h-3.5" />
+                  <span>Create Issue</span>
+                </>
+              )}
             </button>
           </div>
         </form>

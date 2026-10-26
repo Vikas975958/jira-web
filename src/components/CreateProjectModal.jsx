@@ -21,6 +21,8 @@ import {
   FiChevronUp,
 } from "react-icons/fi";
 import { LuPin } from "react-icons/lu";
+import { Select, DatePicker } from "antd";
+import dayjs from "dayjs";
 import projectService from "@/services/project.service";
 import { MEMBER_ROLE, MANAGER_ROLE, OWNER_ROLE } from "@/utils/constants";
 import { pinProject } from "@/utils/pinnedProjects";
@@ -552,27 +554,30 @@ export default function CreateProjectModal({
                       <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
                         Status
                       </label>
-                      <select
+                      <Select
                         value={status}
-                        onChange={(e) => setStatus(e.target.value)}
-                        className="w-full px-3 py-2 text-xs font-semibold bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-[#0F766E] text-slate-800"
-                      >
-                        <option value="planning">📋 Planning</option>
-                        <option value="active">⚡ Active</option>
-                        <option value="on_hold">⏸️ On Hold</option>
-                        <option value="completed">✅ Completed</option>
-                      </select>
+                        onChange={(val) => setStatus(val)}
+                        className="w-full h-9 text-xs font-semibold"
+                        popupClassName="!z-[100000]"
+                        options={[
+                          { value: "planning", label: "📋 Planning" },
+                          { value: "active", label: "⚡ Active" },
+                          { value: "on_hold", label: "⏸️ On Hold" },
+                          { value: "completed", label: "✅ Completed" },
+                        ]}
+                      />
                     </div>
 
                     <div>
                       <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
                         Start Date
                       </label>
-                      <input
-                        type="date"
-                        value={startDate}
-                        onChange={(e) => setStartDate(e.target.value)}
-                        className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-[#0F766E] text-slate-800"
+                      <DatePicker
+                        value={startDate ? dayjs(startDate) : null}
+                        onChange={(d, dateStr) => setStartDate(dateStr || "")}
+                        className="w-full h-9 text-xs font-semibold"
+                        popupClassName="!z-[100000]"
+                        allowClear
                       />
                     </div>
 
@@ -580,11 +585,12 @@ export default function CreateProjectModal({
                       <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
                         Due Date
                       </label>
-                      <input
-                        type="date"
-                        value={dueDate}
-                        onChange={(e) => setDueDate(e.target.value)}
-                        className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-[#0F766E] text-slate-800"
+                      <DatePicker
+                        value={dueDate ? dayjs(dueDate) : null}
+                        onChange={(d, dateStr) => setDueDate(dateStr || "")}
+                        className="w-full h-9 text-xs font-semibold"
+                        popupClassName="!z-[100000]"
+                        allowClear
                       />
                     </div>
                   </div>
@@ -1041,16 +1047,17 @@ export default function CreateProjectModal({
                         <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">
                           Project Role
                         </label>
-                        <select
+                        <Select
                           value={inviteRole}
-                          onChange={(e) => setInviteRole(e.target.value)}
-                          className="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-[#0F766E] text-slate-800"
-                        >
-                          <option value={MEMBER_ROLE}>Team Member</option>
-                          {canManageManagers && (
-                            <option value={MANAGER_ROLE}>Project Manager</option>
-                          )}
-                        </select>
+                          onChange={(val) => setInviteRole(val)}
+                          className="w-full h-8 text-xs font-semibold"
+                          options={[
+                            { value: MEMBER_ROLE, label: "Team Member" },
+                            ...(canManageManagers
+                              ? [{ value: MANAGER_ROLE, label: "Project Manager" }]
+                              : []),
+                          ]}
+                        />
                       </div>
                     </div>
 

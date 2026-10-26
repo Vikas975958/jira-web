@@ -21,6 +21,7 @@ import {
 } from "react-icons/fi";
 import { LuPin } from "react-icons/lu";
 import { toast } from "react-toastify";
+import { Select } from "antd";
 import projectService from "@/services/project.service";
 import CreateProjectModal from "@/components/CreateProjectModal";
 import EditProjectModal from "@/components/EditProjectModal";
@@ -271,21 +272,23 @@ function ProjectsDirectoryContent() {
           </div>
 
           {/* Status Filter */}
-          <select
-            value={statusFilter}
-            onChange={(e) => {
-              setStatusFilter(e.target.value);
+          <Select
+            value={statusFilter && statusFilter !== "all" ? statusFilter : undefined}
+            onChange={(val) => {
+              setStatusFilter(val || "all");
               setPage(1);
             }}
-            className="h-9 px-3 text-xs bg-white border border-slate-200 hover:border-slate-300 focus:border-[#0F766E] focus:ring-2 focus:ring-[#0F766E]/15 rounded-lg outline-none transition-all text-slate-700 font-medium cursor-pointer"
-          >
-            <option value="all">All Statuses</option>
-            <option value="active">Active</option>
-            <option value="planning">Planning</option>
-            <option value="on_hold">On Hold</option>
-            <option value="completed">Completed</option>
-            <option value="archived">Archived</option>
-          </select>
+            placeholder="Status"
+            allowClear
+            className="w-36 h-9 text-xs"
+            options={[
+              { value: "active", label: "Active" },
+              { value: "planning", label: "Planning" },
+              { value: "on_hold", label: "On Hold" },
+              { value: "completed", label: "Completed" },
+              { value: "archived", label: "Archived" },
+            ]}
+          />
 
           {/* Pinned Projects Filter Button */}
           <button

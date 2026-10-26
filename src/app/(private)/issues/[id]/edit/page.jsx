@@ -5,6 +5,8 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useSelector } from "react-redux";
 import { toast } from "react-toastify";
+import { Select, DatePicker } from "antd";
+import dayjs from "dayjs";
 import {
   FiArrowLeft,
   FiSave,
@@ -419,8 +421,8 @@ export default function IssueEditPage() {
                         onClick={() => setType(t.id)}
                         className={`py-1.5 px-2 rounded-lg border text-left flex items-center gap-1.5 transition-all cursor-pointer ${
                           isSelected
-                            ? "bg-slate-900 text-white border-slate-900 shadow-2xs"
-                            : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
+                            ? "bg-[#0F766E] text-white border-[#0F766E] shadow-sm shadow-teal-900/15"
+                            : "bg-slate-50 text-slate-700 border-slate-200 hover:border-teal-300 hover:bg-teal-50/30"
                         }`}
                       >
                         <div
@@ -469,7 +471,7 @@ export default function IssueEditPage() {
                     onClick={() => setDescTab("write")}
                     className={`px-2 py-0.5 rounded font-semibold transition-colors cursor-pointer flex items-center gap-1 ${
                       descTab === "write"
-                        ? "bg-white text-slate-900 shadow-2xs"
+                        ? "bg-white text-[#0F766E] shadow-2xs"
                         : "text-slate-600 hover:text-slate-900"
                     }`}
                   >
@@ -481,7 +483,7 @@ export default function IssueEditPage() {
                     onClick={() => setDescTab("preview")}
                     className={`px-2 py-0.5 rounded font-semibold transition-colors cursor-pointer flex items-center gap-1 ${
                       descTab === "preview"
-                        ? "bg-white text-slate-900 shadow-2xs"
+                        ? "bg-white text-[#0F766E] shadow-2xs"
                         : "text-slate-600 hover:text-slate-900"
                     }`}
                   >
@@ -703,34 +705,26 @@ export default function IssueEditPage() {
                 <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">
                   Project
                 </label>
-                <select
+                <Select
                   value={projectId}
-                  onChange={(e) => setProjectId(e.target.value)}
-                  className="w-full px-2.5 py-1.5 text-xs font-semibold text-slate-800 bg-white border border-slate-300 rounded-lg focus:border-[#0F766E] outline-none cursor-pointer"
-                >
-                  {projects.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(val) => setProjectId(val)}
+                  className="w-full h-8.5 text-xs font-semibold"
+                  options={projects.map((p) => ({ value: p.id, label: p.name }))}
+                />
               </div>
 
               <div>
                 <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">
                   Sprint / Milestone
                 </label>
-                <select
-                  value={sprint}
-                  onChange={(e) => setSprint(e.target.value)}
-                  className="w-full px-2.5 py-1.5 text-xs font-semibold text-slate-800 bg-white border border-slate-300 rounded-lg focus:border-[#0F766E] outline-none cursor-pointer"
-                >
-                  {COMMON_SPRINTS.map((sp) => (
-                    <option key={sp} value={sp}>
-                      {sp}
-                    </option>
-                  ))}
-                </select>
+                <Select
+                  value={sprint || undefined}
+                  onChange={(val) => setSprint(val || "")}
+                  placeholder="Select Sprint"
+                  allowClear
+                  className="w-full h-8.5 text-xs font-semibold"
+                  options={COMMON_SPRINTS.map((sp) => ({ value: sp, label: sp }))}
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-100">
@@ -738,34 +732,24 @@ export default function IssueEditPage() {
                   <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">
                     Status
                   </label>
-                  <select
+                  <Select
                     value={status}
-                    onChange={(e) => setStatus(e.target.value)}
-                    className="w-full px-2 py-1.5 text-xs font-semibold text-slate-800 bg-white border border-slate-300 rounded-lg focus:border-[#0F766E] outline-none cursor-pointer"
-                  >
-                    {ISSUE_STATUSES.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.label}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(val) => setStatus(val)}
+                    className="w-full h-8.5 text-xs font-semibold"
+                    options={ISSUE_STATUSES.map((s) => ({ value: s.id, label: s.label }))}
+                  />
                 </div>
 
                 <div>
                   <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">
                     Priority
                   </label>
-                  <select
+                  <Select
                     value={priority}
-                    onChange={(e) => setPriority(e.target.value)}
-                    className="w-full px-2 py-1.5 text-xs font-semibold text-slate-800 bg-white border border-slate-300 rounded-lg focus:border-[#0F766E] outline-none cursor-pointer"
-                  >
-                    {ISSUE_PRIORITIES.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.label}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(val) => setPriority(val)}
+                    className="w-full h-8.5 text-xs font-semibold"
+                    options={ISSUE_PRIORITIES.map((p) => ({ value: p.id, label: p.label }))}
+                  />
                 </div>
               </div>
 
@@ -794,38 +778,45 @@ export default function IssueEditPage() {
                 <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">
                   Assignee
                 </label>
-                <select
-                  value={assigneeId}
-                  onChange={(e) => {
-                    const sel = e.target.value;
-                    setAssigneeId(sel);
+                <Select
+                  value={assigneeId || undefined}
+                  placeholder="Unassigned"
+                  allowClear
+                  onChange={(sel) => {
+                    setAssigneeId(sel || "");
                     if (!sel) {
                       setAssigneeName("Unassigned");
                     } else {
                       const match = availableAssignees.find(
                         (m) =>
-                          m.user_id === sel || m.id === sel || m.profiles?.id === sel
+                          m.user_id === sel ||
+                          m.id === sel ||
+                          m.profiles?.id === sel,
                       );
                       setAssigneeName(
-                        match?.full_name || match?.name || match?.email || "Team Member"
+                        match?.full_name ||
+                          match?.name ||
+                          match?.email ||
+                          "Team Member",
                       );
                     }
                   }}
-                  className="w-full px-2.5 py-1.5 text-xs font-semibold text-slate-800 bg-white border border-slate-300 rounded-lg focus:border-[#0F766E] outline-none cursor-pointer"
-                >
-                  <option value="">Unassigned</option>
-                  {availableAssignees.map((m) => {
+                  className="w-full h-8.5 text-xs font-semibold"
+                  options={availableAssignees.map((m) => {
                     const uId = m.user_id || m.id || m.profiles?.id;
                     const name =
-                      m.full_name || m.name || m.profiles?.full_name || m.email || "Member";
+                      m.full_name ||
+                      m.name ||
+                      m.profiles?.full_name ||
+                      m.email ||
+                      "Member";
                     const isMe = user?.id && uId === user.id;
-                    return (
-                      <option key={uId || m.email} value={uId}>
-                        {name} {isMe ? "(You)" : ""} - {m.role || "Member"}
-                      </option>
-                    );
+                    return {
+                      value: uId,
+                      label: `${name} ${isMe ? "(You)" : ""} - ${m.role || "Member"}`,
+                    };
                   })}
-                </select>
+                />
               </div>
             </div>
 
@@ -868,11 +859,11 @@ export default function IssueEditPage() {
                 <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">
                   Due Date
                 </label>
-                <input
-                  type="date"
-                  value={dueDate}
-                  onChange={(e) => setDueDate(e.target.value)}
-                  className="w-full px-2 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-300 rounded-lg focus:border-[#0F766E] outline-none"
+                <DatePicker
+                  value={dueDate ? dayjs(dueDate) : null}
+                  onChange={(d, dateStr) => setDueDate(dateStr || "")}
+                  className="w-full h-8.5 text-xs font-semibold"
+                  allowClear
                 />
               </div>
 
@@ -880,17 +871,14 @@ export default function IssueEditPage() {
                 <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">
                   Component / Module
                 </label>
-                <select
-                  value={component}
-                  onChange={(e) => setComponent(e.target.value)}
-                  className="w-full px-2.5 py-1.5 text-xs font-semibold text-slate-800 bg-white border border-slate-300 rounded-lg focus:border-[#0F766E] outline-none cursor-pointer"
-                >
-                  {COMMON_COMPONENTS.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </select>
+                <Select
+                  value={component || undefined}
+                  onChange={(val) => setComponent(val || "")}
+                  placeholder="Select Component"
+                  allowClear
+                  className="w-full h-8.5 text-xs font-semibold"
+                  options={COMMON_COMPONENTS.map((c) => ({ value: c, label: c }))}
+                />
               </div>
 
               <div>

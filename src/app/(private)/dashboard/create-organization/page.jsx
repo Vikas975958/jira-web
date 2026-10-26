@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
 import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
+import { Select } from "antd";
 import {
   FiGlobe,
   FiArrowLeft,
@@ -472,19 +473,16 @@ export default function CreateOrganizationPage() {
                       >
                         Industry
                       </label>
-                      <select
+                      <Select
                         id="industry"
-                        name="industry"
                         value={formData.industry}
-                        onChange={handleChange}
-                        className="jira-input w-full text-xs font-medium h-8.5 px-2.5"
-                      >
-                        {INDUSTRY_OPTIONS.map((ind) => (
-                          <option key={ind} value={ind}>
-                            {ind}
-                          </option>
-                        ))}
-                      </select>
+                        onChange={(val) => setFormData((prev) => ({ ...prev, industry: val }))}
+                        className="w-full text-xs font-medium"
+                        options={INDUSTRY_OPTIONS.map((ind) => ({
+                          value: ind,
+                          label: ind,
+                        }))}
+                      />
                     </div>
 
                     {/* Company Size */}
@@ -495,19 +493,16 @@ export default function CreateOrganizationPage() {
                       >
                         Company Size
                       </label>
-                      <select
+                      <Select
                         id="company_size"
-                        name="company_size"
                         value={formData.company_size}
-                        onChange={handleChange}
-                        className="jira-input w-full text-xs font-medium h-8.5 px-2.5"
-                      >
-                        {COMPANY_SIZE_OPTIONS.map((size) => (
-                          <option key={size} value={size}>
-                            {size}
-                          </option>
-                        ))}
-                      </select>
+                        onChange={(val) => setFormData((prev) => ({ ...prev, company_size: val }))}
+                        className="w-full text-xs font-medium"
+                        options={COMPANY_SIZE_OPTIONS.map((size) => ({
+                          value: size,
+                          label: size,
+                        }))}
+                      />
                     </div>
                   </div>
 
@@ -718,19 +713,18 @@ export default function CreateOrganizationPage() {
                       >
                         Workspace Timezone
                       </label>
-                      <select
+                      <Select
                         id="timezone"
-                        name="timezone"
                         value={formData.timezone}
-                        onChange={handleChange}
-                        className="jira-input w-full text-xs font-medium h-8.5 px-2.5"
-                      >
-                        {TIMEZONE_OPTIONS.map((tz) => (
-                          <option key={tz.value} value={tz.value}>
-                            {tz.label}
-                          </option>
-                        ))}
-                      </select>
+                        onChange={(val) => setFormData((prev) => ({ ...prev, timezone: val }))}
+                        className="w-full text-xs font-medium"
+                        showSearch
+                        optionFilterProp="label"
+                        options={TIMEZONE_OPTIONS.map((tz) => ({
+                          value: tz.value,
+                          label: tz.label,
+                        }))}
+                      />
                     </div>
 
                     {/* Currency */}
@@ -741,19 +735,18 @@ export default function CreateOrganizationPage() {
                       >
                         Billing & Project Currency
                       </label>
-                      <select
+                      <Select
                         id="currency"
-                        name="currency"
                         value={formData.currency}
-                        onChange={handleChange}
-                        className="jira-input w-full text-xs font-medium h-8.5 px-2.5"
-                      >
-                        {CURRENCY_OPTIONS.map((c) => (
-                          <option key={c.code} value={c.code}>
-                            {c.label}
-                          </option>
-                        ))}
-                      </select>
+                        onChange={(val) => setFormData((prev) => ({ ...prev, currency: val }))}
+                        className="w-full text-xs font-medium"
+                        showSearch
+                        optionFilterProp="label"
+                        options={CURRENCY_OPTIONS.map((c) => ({
+                          value: c.code,
+                          label: c.label,
+                        }))}
+                      />
                     </div>
                   </div>
 
