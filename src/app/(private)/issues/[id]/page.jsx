@@ -60,7 +60,8 @@ export default function IssueDetailPage() {
     currentOrg ||
     organizations?.[0]?.organizations ||
     organizations?.[0];
-  const userRole = currentOrg?.role || organizations?.[0]?.role || user?.role || MEMBER_ROLE;
+  const userRole =
+    currentOrg?.role || organizations?.[0]?.role || user?.role || MEMBER_ROLE;
   const isMember = userRole === MEMBER_ROLE;
 
   const [issue, setIssue] = useState(null);
@@ -149,7 +150,9 @@ export default function IssueDetailPage() {
     if (!issue) return null;
     return (
       projects.find(
-        (p) => p.id === (issue.project_id || issue.projectId) || p.name === issue.project_name
+        (p) =>
+          p.id === (issue.project_id || issue.projectId) ||
+          p.name === issue.project_name,
       ) || null
     );
   }, [projects, issue]);
@@ -233,9 +236,13 @@ export default function IssueDetailPage() {
           (m) =>
             m.user_id === targetUserId ||
             m.id === targetUserId ||
-            m.profiles?.id === targetUserId
+            m.profiles?.id === targetUserId,
         );
-        targetName = matched?.full_name || matched?.name || matched?.email || "Team Member";
+        targetName =
+          matched?.full_name ||
+          matched?.name ||
+          matched?.email ||
+          "Team Member";
       }
 
       const updatedIssue = {
@@ -261,7 +268,7 @@ export default function IssueDetailPage() {
   const handleToggleSubtask = async (subtaskId) => {
     if (!issue) return;
     const updatedSubtasks = (issue.subtasks || []).map((s) =>
-      s.id === subtaskId ? { ...s, done: !s.done } : s
+      s.id === subtaskId ? { ...s, done: !s.done } : s,
     );
     const updatedIssue = { ...issue, subtasks: updatedSubtasks };
     setIssue(updatedIssue);
@@ -311,7 +318,9 @@ export default function IssueDetailPage() {
   // Remove Subtask
   const handleRemoveSubtask = async (subtaskId) => {
     if (!issue) return;
-    const updatedSubtasks = (issue.subtasks || []).filter((s) => s.id !== subtaskId);
+    const updatedSubtasks = (issue.subtasks || []).filter(
+      (s) => s.id !== subtaskId,
+    );
     const updatedIssue = { ...issue, subtasks: updatedSubtasks };
     setIssue(updatedIssue);
 
@@ -336,7 +345,8 @@ export default function IssueDetailPage() {
       const newComment = {
         id: Date.now().toString(),
         userId: user?.id,
-        authorName: user?.full_name || user?.name || user?.email || "Team Member",
+        authorName:
+          user?.full_name || user?.name || user?.email || "Team Member",
         authorEmail: user?.email || "",
         text: commentText.trim(),
         createdAt: new Date().toISOString(),
@@ -454,7 +464,8 @@ export default function IssueDetailPage() {
         <div className="space-y-1">
           <h2 className="text-lg font-bold text-slate-800">Issue Not Found</h2>
           <p className="text-xs text-slate-500 max-w-sm">
-            The issue you are looking for does not exist or may have been deleted.
+            The issue you are looking for does not exist or may have been
+            deleted.
           </p>
         </div>
         <Link
@@ -468,15 +479,19 @@ export default function IssueDetailPage() {
   }
 
   const issueKey = formatTaskKey(issue, projects, project?.name);
-  const typeConfig = ISSUE_TYPES.find((t) => t.id === issue.type) || ISSUE_TYPES[0];
+  const typeConfig =
+    ISSUE_TYPES.find((t) => t.id === issue.type) || ISSUE_TYPES[0];
   const priorityConfig =
-    ISSUE_PRIORITIES.find((p) => p.id === issue.priority) || ISSUE_PRIORITIES[2];
+    ISSUE_PRIORITIES.find((p) => p.id === issue.priority) ||
+    ISSUE_PRIORITIES[2];
   const TypeIcon = typeConfig.icon;
 
   const completedSubtasks = (issue.subtasks || []).filter((s) => s.done).length;
   const totalSubtasks = (issue.subtasks || []).length;
   const subtasksPercent =
-    totalSubtasks > 0 ? Math.round((completedSubtasks / totalSubtasks) * 100) : 0;
+    totalSubtasks > 0
+      ? Math.round((completedSubtasks / totalSubtasks) * 100)
+      : 0;
 
   return (
     <div className="min-h-screen bg-slate-50/70 pb-20 select-none">
@@ -494,9 +509,13 @@ export default function IssueDetailPage() {
                 <span>{project?.name || "Tasks Board"}</span>
               </Link>
               <span className="text-slate-300">/</span>
-              <span className="font-mono font-bold text-[#0F766E]">{issueKey}</span>
+              <span className="font-mono font-bold text-[#0F766E]">
+                {issueKey}
+              </span>
             </div>
-            <h1 className="text-base font-bold text-slate-900">Issue Details</h1>
+            <h1 className="text-base font-bold text-slate-900">
+              Issue Details
+            </h1>
           </div>
 
           {/* Action Toolbar */}
@@ -565,7 +584,9 @@ export default function IssueDetailPage() {
                 <span
                   className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold border ${priorityConfig.badgeClass}`}
                 >
-                  <span className={`w-1.5 h-1.5 rounded-full ${priorityConfig.dotClass}`} />
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full ${priorityConfig.dotClass}`}
+                  />
                   <span>{priorityConfig.label} Priority</span>
                 </span>
 
@@ -591,15 +612,20 @@ export default function IssueDetailPage() {
               <div className="flex items-center justify-between gap-2 p-2 bg-slate-50 border border-slate-200/80 rounded-lg text-xs">
                 <div className="flex items-center gap-1.5 min-w-0 text-slate-600">
                   <FiGitBranch className="w-3.5 h-3.5 text-[#0F766E] shrink-0" />
-                  <span className="text-[11px] font-semibold text-slate-500">Branch:</span>
+                  <span className="text-[11px] font-semibold text-slate-500">
+                    Branch:
+                  </span>
                   <span className="font-mono text-[11px] text-[#0F766E] truncate">
-                    {issue.branchName || generateBranchName(issueKey, issue.title, issue.type)}
+                    {issue.branchName ||
+                      generateBranchName(issueKey, issue.title, issue.type)}
                   </span>
                 </div>
                 <button
                   type="button"
                   onClick={() => {
-                    const branch = issue.branchName || generateBranchName(issueKey, issue.title, issue.type);
+                    const branch =
+                      issue.branchName ||
+                      generateBranchName(issueKey, issue.title, issue.type);
                     navigator.clipboard.writeText(`git checkout -b ${branch}`);
                     toast.info(`Copied: git checkout -b ${branch}`);
                   }}
@@ -916,7 +942,9 @@ export default function IssueDetailPage() {
                         </span>
                       </div>
                       <span className="text-[10px] text-slate-400">
-                        {comment.createdAt ? new Date(comment.createdAt).toLocaleString() : ""}
+                        {comment.createdAt
+                          ? new Date(comment.createdAt).toLocaleString()
+                          : ""}
                       </span>
                     </div>
                     <p className="text-xs text-slate-700 whitespace-pre-wrap pl-7">
@@ -999,11 +1027,16 @@ export default function IssueDetailPage() {
                   options={availableAssignees.map((m) => {
                     const uId = m.user_id || m.id || m.profiles?.id;
                     const name =
-                      m.full_name || m.name || m.profiles?.full_name || m.email || "Member";
+                      m.full_name ||
+                      m.name ||
+                      m.profiles?.full_name ||
+                      m.email ||
+                      "Member";
                     const isMe = user?.id && uId === user.id;
                     return {
                       value: uId,
-                      label: `${name} ${isMe ? "(You)" : ""} - ${m.role || "Member"}`.trim(),
+                      label:
+                        `${name} ${isMe ? "(You)" : ""} - ${m.role || "Member"}`.trim(),
                     };
                   })}
                 />
@@ -1015,7 +1048,9 @@ export default function IssueDetailPage() {
                 </label>
                 <div className="flex items-center gap-2 px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs">
                   <div className="w-4.5 h-4.5 rounded-full bg-slate-300 text-slate-700 flex items-center justify-center text-[10px] font-bold">
-                    {(user?.full_name || user?.name || user?.email || "U").charAt(0).toUpperCase()}
+                    {(user?.full_name || user?.name || user?.email || "U")
+                      .charAt(0)
+                      .toUpperCase()}
                   </div>
                   <span className="font-semibold text-slate-800 truncate">
                     {user?.full_name || user?.name || user?.email || "Creator"}
@@ -1031,7 +1066,9 @@ export default function IssueDetailPage() {
               </span>
 
               <div className="flex items-center justify-between text-xs">
-                <span className="text-slate-500 font-semibold">Story Points:</span>
+                <span className="text-slate-500 font-semibold">
+                  Story Points:
+                </span>
                 <span className="font-bold px-2 py-0.5 rounded bg-teal-50 text-[#0F766E] border border-teal-200/60 font-mono">
                   {issue.storyPoints || 1} pts
                 </span>
@@ -1039,7 +1076,9 @@ export default function IssueDetailPage() {
 
               {issue.estimatedHours && (
                 <div className="flex items-center justify-between text-xs">
-                  <span className="text-slate-500 font-semibold">Est. Time:</span>
+                  <span className="text-slate-500 font-semibold">
+                    Est. Time:
+                  </span>
                   <span className="font-semibold text-slate-800 font-mono">
                     {issue.estimatedHours}
                   </span>
@@ -1049,7 +1088,9 @@ export default function IssueDetailPage() {
               {issue.sprint && (
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-slate-500 font-semibold">Sprint:</span>
-                  <span className="font-semibold text-slate-800">{issue.sprint}</span>
+                  <span className="font-semibold text-slate-800">
+                    {issue.sprint}
+                  </span>
                 </div>
               )}
 
@@ -1062,16 +1103,22 @@ export default function IssueDetailPage() {
 
               {issue.due_date || issue.dueDate ? (
                 <div className="flex items-center justify-between text-xs">
-                  <span className="text-slate-500 font-semibold">Due Date:</span>
+                  <span className="text-slate-500 font-semibold">
+                    Due Date:
+                  </span>
                   <span className="font-semibold text-slate-800">
-                    {new Date(issue.due_date || issue.dueDate).toLocaleDateString()}
+                    {new Date(
+                      issue.due_date || issue.dueDate,
+                    ).toLocaleDateString()}
                   </span>
                 </div>
               ) : null}
 
               {issue.environment && (
                 <div className="text-xs space-y-1 pt-1 border-t border-slate-100">
-                  <span className="text-slate-500 font-semibold">Environment:</span>
+                  <span className="text-slate-500 font-semibold">
+                    Environment:
+                  </span>
                   <p className="text-[11px] font-mono text-slate-700 bg-slate-50 p-1.5 rounded border border-slate-200 break-all">
                     {issue.environment}
                   </p>
@@ -1103,13 +1150,17 @@ export default function IssueDetailPage() {
               <div className="flex justify-between">
                 <span>Created:</span>
                 <span className="font-medium text-slate-700">
-                  {issue.created_at ? new Date(issue.created_at).toLocaleDateString() : "Recently"}
+                  {issue.created_at
+                    ? new Date(issue.created_at).toLocaleDateString()
+                    : "Recently"}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span>Last Updated:</span>
                 <span className="font-medium text-slate-700">
-                  {issue.updated_at ? new Date(issue.updated_at).toLocaleDateString() : "Recently"}
+                  {issue.updated_at
+                    ? new Date(issue.updated_at).toLocaleDateString()
+                    : "Recently"}
                 </span>
               </div>
             </div>

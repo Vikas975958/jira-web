@@ -59,7 +59,8 @@ export default function IssueEditPage() {
     currentOrg ||
     organizations?.[0]?.organizations ||
     organizations?.[0];
-  const userRole = currentOrg?.role || organizations?.[0]?.role || user?.role || MEMBER_ROLE;
+  const userRole =
+    currentOrg?.role || organizations?.[0]?.role || user?.role || MEMBER_ROLE;
 
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -140,7 +141,9 @@ export default function IssueEditPage() {
         setAssigneeName(parsed.assignee || "Unassigned");
         setComponent(parsed.component || "Frontend");
         setEnvironment(parsed.environment || "");
-        setProjectId(parsed.project_id || parsed.projectId || projs?.[0]?.id || "");
+        setProjectId(
+          parsed.project_id || parsed.projectId || projs?.[0]?.id || "",
+        );
         setSubtasks(parsed.subtasks || []);
         setTags(parsed.tags || []);
         setLinks(parsed.links || []);
@@ -227,7 +230,7 @@ export default function IssueEditPage() {
 
   const handleToggleSubtask = (id) => {
     setSubtasks((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, done: !s.done } : s))
+      prev.map((s) => (s.id === id ? { ...s, done: !s.done } : s)),
     );
   };
 
@@ -302,8 +305,10 @@ export default function IssueEditPage() {
         assignee_id: assigneeId || null,
         projectId: projectId || null,
         project_id: projectId || null,
-        projectName: chosenProject?.name || originalIssue?.project_name || "Main Project",
-        project_name: chosenProject?.name || originalIssue?.project_name || "Main Project",
+        projectName:
+          chosenProject?.name || originalIssue?.project_name || "Main Project",
+        project_name:
+          chosenProject?.name || originalIssue?.project_name || "Main Project",
         dueDate: dueDate || null,
         due_date: dueDate || null,
         component,
@@ -344,7 +349,9 @@ export default function IssueEditPage() {
                 className="inline-flex items-center gap-1 text-slate-500 hover:text-slate-900 font-semibold transition-colors"
               >
                 <FiArrowLeft className="w-3.5 h-3.5" />
-                <span className="font-mono font-bold text-[#0F766E]">{issueKey}</span>
+                <span className="font-mono font-bold text-[#0F766E]">
+                  {issueKey}
+                </span>
               </Link>
               <span className="text-slate-300">/</span>
               <span className="text-slate-600 font-medium truncate max-w-[160px]">
@@ -353,7 +360,9 @@ export default function IssueEditPage() {
               <span className="text-slate-300">/</span>
               <span className="text-slate-900 font-bold">Edit Details</span>
             </div>
-            <h1 className="text-sm sm:text-base font-bold text-slate-900">Edit Issue Details</h1>
+            <h1 className="text-sm sm:text-base font-bold text-slate-900">
+              Edit Issue Details
+            </h1>
           </div>
 
           <div className="flex items-center gap-2 self-end sm:self-auto">
@@ -388,7 +397,10 @@ export default function IssueEditPage() {
 
       {/* Main Edit Form - Compact Spacing */}
       <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-3.5">
-        <form onSubmit={handleSave} className="grid grid-cols-1 lg:grid-cols-12 gap-3.5">
+        <form
+          onSubmit={handleSave}
+          className="grid grid-cols-1 lg:grid-cols-12 gap-3.5"
+        >
           {/* Main Area (8 Cols) */}
           <div className="lg:col-span-8 space-y-3.5">
             {/* Title & Type */}
@@ -432,7 +444,9 @@ export default function IssueEditPage() {
                         >
                           <Icon className="w-3 h-3" />
                         </div>
-                        <span className="text-xs font-semibold truncate">{t.label}</span>
+                        <span className="text-xs font-semibold truncate">
+                          {t.label}
+                        </span>
                       </button>
                     );
                   })}
@@ -443,7 +457,9 @@ export default function IssueEditPage() {
               <div className="flex items-center justify-between gap-2 p-2 bg-slate-50 border border-slate-200/80 rounded-lg text-xs">
                 <div className="flex items-center gap-1.5 min-w-0 text-slate-600">
                   <FiGitBranch className="w-3.5 h-3.5 text-[#0F766E] shrink-0" />
-                  <span className="text-[11px] font-semibold text-slate-500">Branch:</span>
+                  <span className="text-[11px] font-semibold text-slate-500">
+                    Branch:
+                  </span>
                   <span className="font-mono text-[11px] text-[#0F766E] truncate">
                     {suggestedBranch}
                   </span>
@@ -573,7 +589,9 @@ export default function IssueEditPage() {
                       />
                       <span
                         className={`text-xs ${
-                          task.done ? "line-through text-slate-400" : "text-slate-800 font-medium"
+                          task.done
+                            ? "line-through text-slate-400"
+                            : "text-slate-800 font-medium"
                         } break-all`}
                       >
                         {task.text}
@@ -709,7 +727,10 @@ export default function IssueEditPage() {
                   value={projectId}
                   onChange={(val) => setProjectId(val)}
                   className="w-full h-8.5 text-xs font-semibold"
-                  options={projects.map((p) => ({ value: p.id, label: p.name }))}
+                  options={projects.map((p) => ({
+                    value: p.id,
+                    label: p.name,
+                  }))}
                 />
               </div>
 
@@ -723,7 +744,10 @@ export default function IssueEditPage() {
                   placeholder="Select Sprint"
                   allowClear
                   className="w-full h-8.5 text-xs font-semibold"
-                  options={COMMON_SPRINTS.map((sp) => ({ value: sp, label: sp }))}
+                  options={COMMON_SPRINTS.map((sp) => ({
+                    value: sp,
+                    label: sp,
+                  }))}
                 />
               </div>
 
@@ -736,7 +760,10 @@ export default function IssueEditPage() {
                     value={status}
                     onChange={(val) => setStatus(val)}
                     className="w-full h-8.5 text-xs font-semibold"
-                    options={ISSUE_STATUSES.map((s) => ({ value: s.id, label: s.label }))}
+                    options={ISSUE_STATUSES.map((s) => ({
+                      value: s.id,
+                      label: s.label,
+                    }))}
                   />
                 </div>
 
@@ -748,7 +775,10 @@ export default function IssueEditPage() {
                     value={priority}
                     onChange={(val) => setPriority(val)}
                     className="w-full h-8.5 text-xs font-semibold"
-                    options={ISSUE_PRIORITIES.map((p) => ({ value: p.id, label: p.label }))}
+                    options={ISSUE_PRIORITIES.map((p) => ({
+                      value: p.id,
+                      label: p.label,
+                    }))}
                   />
                 </div>
               </div>
@@ -836,7 +866,9 @@ export default function IssueEditPage() {
                     min="0"
                     max="100"
                     value={storyPoints}
-                    onChange={(e) => setStoryPoints(Number(e.target.value) || 0)}
+                    onChange={(e) =>
+                      setStoryPoints(Number(e.target.value) || 0)
+                    }
                     className="w-full px-2 py-1 text-xs font-bold text-slate-800 bg-white border border-slate-300 rounded-md focus:border-[#0F766E] outline-none"
                   />
                 </div>
@@ -877,7 +909,10 @@ export default function IssueEditPage() {
                   placeholder="Select Component"
                   allowClear
                   className="w-full h-8.5 text-xs font-semibold"
-                  options={COMMON_COMPONENTS.map((c) => ({ value: c, label: c }))}
+                  options={COMMON_COMPONENTS.map((c) => ({
+                    value: c,
+                    label: c,
+                  }))}
                 />
               </div>
 
