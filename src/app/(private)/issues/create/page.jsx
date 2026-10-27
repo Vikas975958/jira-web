@@ -63,7 +63,8 @@ function CreateIssueContent() {
     currentOrg ||
     organizations?.[0]?.organizations ||
     organizations?.[0];
-  const userRole = currentOrg?.role || organizations?.[0]?.role || user?.role || MEMBER_ROLE;
+  const userRole =
+    currentOrg?.role || organizations?.[0]?.role || user?.role || MEMBER_ROLE;
 
   // Projects list
   const [projects, setProjects] = useState([]);
@@ -119,9 +120,10 @@ function CreateIssueContent() {
         if (isMounted) {
           setProjects(data || []);
           if (!projectId && data && data.length > 0) {
-            const defaultId = initialProjectId && data.some((p) => p.id === initialProjectId)
-              ? initialProjectId
-              : data[0].id;
+            const defaultId =
+              initialProjectId && data.some((p) => p.id === initialProjectId)
+                ? initialProjectId
+                : data[0].id;
             setProjectId(defaultId);
           }
         }
@@ -141,7 +143,9 @@ function CreateIssueContent() {
   useEffect(() => {
     if (user && !assigneeId) {
       setAssigneeId(user.id || "");
-      setAssigneeName(user.full_name || user.name || user.email || "Team Member");
+      setAssigneeName(
+        user.full_name || user.name || user.email || "Team Member",
+      );
     }
   }, [user, assigneeId]);
 
@@ -152,7 +156,13 @@ function CreateIssueContent() {
   // Project prefix key for branch suggestion
   const projectKey = useMemo(() => {
     if (!chosenProject?.name) return "TASK";
-    return chosenProject.name.trim().split(/\s+/)[0]?.toUpperCase().replace(/[^A-Z0-9]/g, "") || "TASK";
+    return (
+      chosenProject.name
+        .trim()
+        .split(/\s+/)[0]
+        ?.toUpperCase()
+        .replace(/[^A-Z0-9]/g, "") || "TASK"
+    );
   }, [chosenProject]);
 
   const suggestedBranch = useMemo(() => {
@@ -194,9 +204,17 @@ function CreateIssueContent() {
     if (user?.id && list.length > 0) {
       list.sort((a, b) => {
         const aIsMe =
-          a.user_id === user.id || a.id === user.id || a.profiles?.id === user.id ? 1 : 0;
+          a.user_id === user.id ||
+          a.id === user.id ||
+          a.profiles?.id === user.id
+            ? 1
+            : 0;
         const bIsMe =
-          b.user_id === user.id || b.id === user.id || b.profiles?.id === user.id ? 1 : 0;
+          b.user_id === user.id ||
+          b.id === user.id ||
+          b.profiles?.id === user.id
+            ? 1
+            : 0;
         return bIsMe - aIsMe;
       });
     }
@@ -217,7 +235,7 @@ function CreateIssueContent() {
 
   const handleToggleSubtask = (id) => {
     setSubtasks((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, done: !s.done } : s))
+      prev.map((s) => (s.id === id ? { ...s, done: !s.done } : s)),
     );
   };
 
@@ -339,7 +357,6 @@ function CreateIssueContent() {
         ? `/tasks?projectId=${resolvedProjectId}`
         : "/tasks";
       router.push(targetUrl);
-
     } catch (err) {
       console.error("Failed to create issue:", err);
       toast.error("Failed to create issue. Please check the details.");
@@ -371,7 +388,9 @@ function CreateIssueContent() {
               <span className="text-slate-300">/</span>
               <span className="text-slate-900 font-bold">New Issue</span>
             </div>
-            <h1 className="text-sm sm:text-base font-bold text-slate-900">Create Issue</h1>
+            <h1 className="text-sm sm:text-base font-bold text-slate-900">
+              Create Issue
+            </h1>
           </div>
 
           <div className="flex items-center gap-2 self-end sm:self-auto">
@@ -406,7 +425,10 @@ function CreateIssueContent() {
 
       {/* Main Container - Compact Spacing & Dev Tools */}
       <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-3.5">
-        <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-3.5">
+        <form
+          onSubmit={handleSubmit}
+          className="grid grid-cols-1 lg:grid-cols-12 gap-3.5"
+        >
           {/* Main Area (8 Cols) */}
           <div className="lg:col-span-8 space-y-3.5">
             {/* Title & Type Card */}
@@ -453,7 +475,9 @@ function CreateIssueContent() {
                         >
                           <Icon className="w-3 h-3" />
                         </div>
-                        <span className="text-xs font-semibold truncate">{t.label}</span>
+                        <span className="text-xs font-semibold truncate">
+                          {t.label}
+                        </span>
                       </button>
                     );
                   })}
@@ -465,7 +489,9 @@ function CreateIssueContent() {
                 <div className="flex items-center justify-between gap-2 p-2 bg-slate-50 border border-slate-200/80 rounded-lg text-xs">
                   <div className="flex items-center gap-1.5 min-w-0 text-slate-600">
                     <FiGitBranch className="w-3.5 h-3.5 text-[#0F766E] shrink-0" />
-                    <span className="text-[11px] font-semibold text-slate-500">Branch:</span>
+                    <span className="text-[11px] font-semibold text-slate-500">
+                      Branch:
+                    </span>
                     <span className="font-mono text-[11px] text-[#0F766E] truncate">
                       {suggestedBranch}
                     </span>
@@ -801,7 +827,10 @@ function CreateIssueContent() {
                     value={projectId}
                     onChange={(val) => setProjectId(val)}
                     className="w-full h-8.5 text-xs font-semibold"
-                    options={projects.map((p) => ({ value: p.id, label: p.name }))}
+                    options={projects.map((p) => ({
+                      value: p.id,
+                      label: p.name,
+                    }))}
                   />
                 )}
               </div>
@@ -816,7 +845,10 @@ function CreateIssueContent() {
                   placeholder="Select Sprint"
                   allowClear
                   className="w-full h-8.5 text-xs font-semibold"
-                  options={COMMON_SPRINTS.map((sp) => ({ value: sp, label: sp }))}
+                  options={COMMON_SPRINTS.map((sp) => ({
+                    value: sp,
+                    label: sp,
+                  }))}
                 />
               </div>
 
@@ -830,7 +862,10 @@ function CreateIssueContent() {
                     value={status}
                     onChange={(val) => setStatus(val)}
                     className="w-full h-8.5 text-xs font-semibold"
-                    options={ISSUE_STATUSES.map((s) => ({ value: s.id, label: s.label }))}
+                    options={ISSUE_STATUSES.map((s) => ({
+                      value: s.id,
+                      label: s.label,
+                    }))}
                   />
                 </div>
 
@@ -842,7 +877,10 @@ function CreateIssueContent() {
                     value={priority}
                     onChange={(val) => setPriority(val)}
                     className="w-full h-8.5 text-xs font-semibold"
-                    options={ISSUE_PRIORITIES.map((p) => ({ value: p.id, label: p.label }))}
+                    options={ISSUE_PRIORITIES.map((p) => ({
+                      value: p.id,
+                      label: p.label,
+                    }))}
                   />
                 </div>
               </div>
@@ -873,7 +911,9 @@ function CreateIssueContent() {
                     type="button"
                     onClick={() => {
                       setAssigneeId(user.id || "");
-                      setAssigneeName(user.full_name || user.name || user.email || "Me");
+                      setAssigneeName(
+                        user.full_name || user.name || user.email || "Me",
+                      );
                     }}
                     className="text-[10px] font-semibold text-[#0F766E] hover:underline cursor-pointer"
                   >
@@ -933,7 +973,9 @@ function CreateIssueContent() {
                 </label>
                 <div className="flex items-center gap-2 px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs">
                   <div className="w-4.5 h-4.5 rounded-full bg-[#0F766E] text-white flex items-center justify-center text-[10px] font-bold">
-                    {(user?.full_name || user?.name || user?.email || "U").charAt(0).toUpperCase()}
+                    {(user?.full_name || user?.name || user?.email || "U")
+                      .charAt(0)
+                      .toUpperCase()}
                   </div>
                   <span className="font-semibold text-slate-800 truncate">
                     {user?.full_name || user?.name || user?.email || "You"}
@@ -1007,7 +1049,10 @@ function CreateIssueContent() {
                   placeholder="Select Component"
                   allowClear
                   className="w-full h-8.5 text-xs font-semibold"
-                  options={COMMON_COMPONENTS.map((c) => ({ value: c, label: c }))}
+                  options={COMMON_COMPONENTS.map((c) => ({
+                    value: c,
+                    label: c,
+                  }))}
                 />
               </div>
             </div>
@@ -1048,16 +1093,18 @@ function CreateIssueContent() {
               />
 
               <div className="flex items-center gap-1 flex-wrap pt-0.5">
-                {["Frontend", "Backend", "UI", "API", "BugFix"].map((quickTag) => (
-                  <button
-                    key={quickTag}
-                    type="button"
-                    onClick={() => handleSelectQuickTag(quickTag)}
-                    className="text-[10px] text-slate-500 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 px-1.5 py-0.5 rounded cursor-pointer"
-                  >
-                    +{quickTag}
-                  </button>
-                ))}
+                {["Frontend", "Backend", "UI", "API", "BugFix"].map(
+                  (quickTag) => (
+                    <button
+                      key={quickTag}
+                      type="button"
+                      onClick={() => handleSelectQuickTag(quickTag)}
+                      className="text-[10px] text-slate-500 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 px-1.5 py-0.5 rounded cursor-pointer"
+                    >
+                      +{quickTag}
+                    </button>
+                  ),
+                )}
               </div>
             </div>
           </div>

@@ -116,7 +116,8 @@ const LETTER_AVATAR_COLORS = {
 const FALLBACK_PALETTES = Object.values(LETTER_AVATAR_COLORS);
 
 const getAvatarColorByLetter = (str) => {
-  if (!str) return "bg-teal-100 text-[#0F766E] hover:bg-teal-200 border border-teal-200/80";
+  if (!str)
+    return "bg-teal-100 text-[#0F766E] hover:bg-teal-200 border border-teal-200/80";
   const char = String(str).trim().charAt(0).toUpperCase();
   if (LETTER_AVATAR_COLORS[char]) {
     return LETTER_AVATAR_COLORS[char];
@@ -297,15 +298,21 @@ function TasksBoardContent() {
     setDebouncedSearch("");
     setSelectedMemberFilter(null);
     setCurrentPage(1);
-    updateUrlParams({ priority: "all", status: "all", date: "", search: "", page: "1" });
+    updateUrlParams({
+      priority: "all",
+      status: "all",
+      date: "",
+      search: "",
+      page: "1",
+    });
   };
 
   const hasActiveFilters = Boolean(
     (priorityFilter && priorityFilter !== "all") ||
-      (statusFilter && statusFilter !== "all") ||
-      dateFilter ||
-      search.trim() ||
-      selectedMemberFilter,
+    (statusFilter && statusFilter !== "all") ||
+    dateFilter ||
+    search.trim() ||
+    selectedMemberFilter,
   );
 
   // Sync URL query param to state if changed, or select first project by default
@@ -467,9 +474,7 @@ function TasksBoardContent() {
               ? priorityFilter
               : undefined,
           status:
-            statusFilter && statusFilter !== "all"
-              ? statusFilter
-              : undefined,
+            statusFilter && statusFilter !== "all" ? statusFilter : undefined,
           date: dateFilter || undefined,
           search: debouncedSearch || undefined,
           page: currentPage,
@@ -597,7 +602,7 @@ function TasksBoardContent() {
         t.projectId === selectedProject.id ||
         (cleanSelectedName &&
           (t.project_name?.trim().toLowerCase() === cleanSelectedName ||
-           t.projectName?.trim().toLowerCase() === cleanSelectedName));
+            t.projectName?.trim().toLowerCase() === cleanSelectedName));
       if (
         matchesProj &&
         t.assignee &&
@@ -717,7 +722,8 @@ function TasksBoardContent() {
     e.preventDefault();
     setDragOverCol(null);
     const ticketId =
-      e.dataTransfer.getData("ticketId") || e.dataTransfer.getData("text/plain");
+      e.dataTransfer.getData("ticketId") ||
+      e.dataTransfer.getData("text/plain");
     if (ticketId) {
       moveTicket(ticketId, statusId);
     }
@@ -734,7 +740,7 @@ function TasksBoardContent() {
           t.projectId === selectedProjectId ||
           (cleanSelectedName &&
             (t.project_name?.trim().toLowerCase() === cleanSelectedName ||
-             t.projectName?.trim().toLowerCase() === cleanSelectedName));
+              t.projectName?.trim().toLowerCase() === cleanSelectedName));
         if (!matchesProject) return false;
       }
 
@@ -823,7 +829,11 @@ function TasksBoardContent() {
 
           {/* Ant Design Priority Filter */}
           <Select
-            value={priorityFilter && priorityFilter !== "all" ? priorityFilter : undefined}
+            value={
+              priorityFilter && priorityFilter !== "all"
+                ? priorityFilter
+                : undefined
+            }
             onChange={(val) => handlePriorityChange(val || "all")}
             placeholder="Priority"
             allowClear
@@ -838,7 +848,9 @@ function TasksBoardContent() {
 
           {/* Ant Design Status Filter */}
           <Select
-            value={statusFilter && statusFilter !== "all" ? statusFilter : undefined}
+            value={
+              statusFilter && statusFilter !== "all" ? statusFilter : undefined
+            }
             onChange={(val) => handleStatusChange(val || "all")}
             placeholder="Status"
             allowClear
@@ -1180,10 +1192,20 @@ function TasksBoardContent() {
                     {visibleTickets.map((ticket) => {
                       const parsed = parseIssue(ticket) || ticket;
                       const subtasks = parsed.subtasks || [];
-                      const completedSubtasks = subtasks.filter((s) => s.completed).length;
+                      const completedSubtasks = subtasks.filter(
+                        (s) => s.completed,
+                      ).length;
                       const totalSubtasks = subtasks.length;
-                      const dueDate = ticket.due_date || ticket.dueDate || parsed.dueDate || parsed.due_date;
-                      const isOverdue = Boolean(dueDate && new Date(dueDate) < new Date() && ticket.status !== "done");
+                      const dueDate =
+                        ticket.due_date ||
+                        ticket.dueDate ||
+                        parsed.dueDate ||
+                        parsed.due_date;
+                      const isOverdue = Boolean(
+                        dueDate &&
+                        new Date(dueDate) < new Date() &&
+                        ticket.status !== "done",
+                      );
 
                       return (
                         <div
@@ -1249,11 +1271,26 @@ function TasksBoardContent() {
                                       ? "bg-rose-50 text-rose-700 font-semibold border-rose-200"
                                       : "bg-slate-50 text-slate-500 border-slate-200"
                                   }`}
-                                  title={isOverdue ? `Overdue since ${new Date(dueDate).toLocaleDateString()}` : `Due ${new Date(dueDate).toLocaleDateString()}`}
+                                  title={
+                                    isOverdue
+                                      ? `Overdue since ${new Date(dueDate).toLocaleDateString()}`
+                                      : `Due ${new Date(dueDate).toLocaleDateString()}`
+                                  }
                                 >
-                                  <FiClock className={`w-2.5 h-2.5 shrink-0 ${isOverdue ? "text-rose-600 animate-pulse" : "text-slate-400"}`} />
-                                  <span>{new Date(dueDate).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>
-                                  {isOverdue && <span className="font-bold text-rose-600">!</span>}
+                                  <FiClock
+                                    className={`w-2.5 h-2.5 shrink-0 ${isOverdue ? "text-rose-600 animate-pulse" : "text-slate-400"}`}
+                                  />
+                                  <span>
+                                    {new Date(dueDate).toLocaleDateString(
+                                      undefined,
+                                      { month: "short", day: "numeric" },
+                                    )}
+                                  </span>
+                                  {isOverdue && (
+                                    <span className="font-bold text-rose-600">
+                                      !
+                                    </span>
+                                  )}
                                 </span>
                               )}
                               {totalSubtasks > 0 && (
@@ -1265,8 +1302,12 @@ function TasksBoardContent() {
                                   }`}
                                   title={`${completedSubtasks} of ${totalSubtasks} subtasks completed`}
                                 >
-                                  <FiCheckSquare className={`w-2.5 h-2.5 shrink-0 ${completedSubtasks === totalSubtasks ? "text-emerald-600" : "text-slate-400"}`} />
-                                  <span>{completedSubtasks}/{totalSubtasks}</span>
+                                  <FiCheckSquare
+                                    className={`w-2.5 h-2.5 shrink-0 ${completedSubtasks === totalSubtasks ? "text-emerald-600" : "text-slate-400"}`}
+                                  />
+                                  <span>
+                                    {completedSubtasks}/{totalSubtasks}
+                                  </span>
                                 </span>
                               )}
                             </div>
@@ -1317,7 +1358,8 @@ function TasksBoardContent() {
                         }
                         className="w-full py-2 px-3 text-[11px] font-semibold text-[#0F766E] hover:text-[#0D655E] bg-teal-50/80 hover:bg-teal-100 border border-teal-200/70 rounded-lg transition-colors cursor-pointer text-center"
                       >
-                        + Show {Math.min(20, colTickets.length - colLimit)} more ({colTickets.length - colLimit} remaining)
+                        + Show {Math.min(20, colTickets.length - colLimit)} more
+                        ({colTickets.length - colLimit} remaining)
                       </button>
                     )}
 
@@ -1366,7 +1408,11 @@ function TasksBoardContent() {
               <div className="text-xs text-slate-600 font-medium">
                 {pageSize === "all" ? (
                   <span>
-                    Showing all <strong className="text-slate-900 font-semibold">{totalTasksCount}</strong> tasks
+                    Showing all{" "}
+                    <strong className="text-slate-900 font-semibold">
+                      {totalTasksCount}
+                    </strong>{" "}
+                    tasks
                   </span>
                 ) : (
                   <span>
@@ -1376,84 +1422,101 @@ function TasksBoardContent() {
                     </strong>
                     –
                     <strong className="text-slate-900 font-semibold">
-                      {Math.min(currentPage * Number(pageSize), totalTasksCount)}
+                      {Math.min(
+                        currentPage * Number(pageSize),
+                        totalTasksCount,
+                      )}
                     </strong>{" "}
-                    of <strong className="text-slate-900 font-semibold">{totalTasksCount}</strong> tasks
+                    of{" "}
+                    <strong className="text-slate-900 font-semibold">
+                      {totalTasksCount}
+                    </strong>{" "}
+                    tasks
                   </span>
                 )}
               </div>
 
               {/* Page Nav Buttons */}
-              {pageSize !== "all" && Math.ceil(totalTasksCount / Number(pageSize)) > 1 && (
-                <div className="flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    disabled={currentPage <= 1}
-                    onClick={() => handlePageChange(currentPage - 1)}
-                    className={`px-2.5 py-1 text-xs rounded-md border font-medium flex items-center gap-1 transition-all ${
-                      currentPage <= 1
-                        ? "bg-slate-50 text-slate-300 border-slate-200/60 cursor-not-allowed"
-                        : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50 hover:text-[#0F766E] cursor-pointer"
-                    }`}
-                  >
-                    <FiChevronLeft className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">Prev</span>
-                  </button>
+              {pageSize !== "all" &&
+                Math.ceil(totalTasksCount / Number(pageSize)) > 1 && (
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      disabled={currentPage <= 1}
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      className={`px-2.5 py-1 text-xs rounded-md border font-medium flex items-center gap-1 transition-all ${
+                        currentPage <= 1
+                          ? "bg-slate-50 text-slate-300 border-slate-200/60 cursor-not-allowed"
+                          : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50 hover:text-[#0F766E] cursor-pointer"
+                      }`}
+                    >
+                      <FiChevronLeft className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline">Prev</span>
+                    </button>
 
-                  {/* Page numbers */}
-                  <div className="flex items-center gap-1">
-                    {(() => {
-                      const totalPages = Math.ceil(totalTasksCount / Number(pageSize));
-                      const pages = [];
-                      for (let i = 1; i <= totalPages; i++) {
-                        if (
-                          i === 1 ||
-                          i === totalPages ||
-                          (i >= currentPage - 1 && i <= currentPage + 1)
-                        ) {
-                          pages.push(i);
-                        } else if (pages[pages.length - 1] !== "...") {
-                          pages.push("...");
+                    {/* Page numbers */}
+                    <div className="flex items-center gap-1">
+                      {(() => {
+                        const totalPages = Math.ceil(
+                          totalTasksCount / Number(pageSize),
+                        );
+                        const pages = [];
+                        for (let i = 1; i <= totalPages; i++) {
+                          if (
+                            i === 1 ||
+                            i === totalPages ||
+                            (i >= currentPage - 1 && i <= currentPage + 1)
+                          ) {
+                            pages.push(i);
+                          } else if (pages[pages.length - 1] !== "...") {
+                            pages.push("...");
+                          }
                         }
-                      }
-                      return pages.map((p, idx) =>
-                        p === "..." ? (
-                          <span key={`dots-${idx}`} className="px-1 text-slate-400 text-xs">
-                            ...
-                          </span>
-                        ) : (
-                          <button
-                            key={p}
-                            type="button"
-                            onClick={() => handlePageChange(p)}
-                            className={`w-7 h-7 text-xs rounded-md font-semibold transition-all cursor-pointer ${
-                              currentPage === p
-                                ? "bg-[#0F766E] text-white shadow-2xs"
-                                : "bg-white text-slate-700 hover:bg-slate-100 border border-slate-200"
-                            }`}
-                          >
-                            {p}
-                          </button>
-                        ),
-                      );
-                    })()}
-                  </div>
+                        return pages.map((p, idx) =>
+                          p === "..." ? (
+                            <span
+                              key={`dots-${idx}`}
+                              className="px-1 text-slate-400 text-xs"
+                            >
+                              ...
+                            </span>
+                          ) : (
+                            <button
+                              key={p}
+                              type="button"
+                              onClick={() => handlePageChange(p)}
+                              className={`w-7 h-7 text-xs rounded-md font-semibold transition-all cursor-pointer ${
+                                currentPage === p
+                                  ? "bg-[#0F766E] text-white shadow-2xs"
+                                  : "bg-white text-slate-700 hover:bg-slate-100 border border-slate-200"
+                              }`}
+                            >
+                              {p}
+                            </button>
+                          ),
+                        );
+                      })()}
+                    </div>
 
-                  <button
-                    type="button"
-                    disabled={currentPage >= Math.ceil(totalTasksCount / Number(pageSize))}
-                    onClick={() => handlePageChange(currentPage + 1)}
-                    className={`px-2.5 py-1 text-xs rounded-md border font-medium flex items-center gap-1 transition-all ${
-                      currentPage >= Math.ceil(totalTasksCount / Number(pageSize))
-                        ? "bg-slate-50 text-slate-300 border-slate-200/60 cursor-not-allowed"
-                        : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50 hover:text-[#0F766E] cursor-pointer"
-                    }`}
-                  >
-                    <span className="hidden sm:inline">Next</span>
-                    <FiChevronRight className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              )}
+                    <button
+                      type="button"
+                      disabled={
+                        currentPage >=
+                        Math.ceil(totalTasksCount / Number(pageSize))
+                      }
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      className={`px-2.5 py-1 text-xs rounded-md border font-medium flex items-center gap-1 transition-all ${
+                        currentPage >=
+                        Math.ceil(totalTasksCount / Number(pageSize))
+                          ? "bg-slate-50 text-slate-300 border-slate-200/60 cursor-not-allowed"
+                          : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50 hover:text-[#0F766E] cursor-pointer"
+                      }`}
+                    >
+                      <span className="hidden sm:inline">Next</span>
+                      <FiChevronRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
 
               {/* Page Size Selector */}
               <div className="flex items-center gap-2 text-xs">
