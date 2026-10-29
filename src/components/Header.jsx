@@ -42,6 +42,7 @@ import authService from "@/services/auth.service";
 import { emptyStore } from "@/store/rootReducer";
 import { getNameInitials, formatTaskKey } from "@/utils/commonFunction";
 import { MEMBER_ROLE } from "@/utils/constants";
+import { useDebounce } from "@/hooks/useDebounce";
 
 export default function Header({ onCreateIssueClick }) {
   const router = useRouter();
@@ -67,10 +68,12 @@ export default function Header({ onCreateIssueClick }) {
   const [searchTasks, setSearchTasks] = useState([]);
   const [isLoadingSearch, setIsLoadingSearch] = useState(false);
 
+  // Debounced query — API fires 400ms after the user stops typing
+  const debouncedSearchQuery = useDebounce(searchQuery, 400);
+
   const dropdownRef = useRef(null);
   const searchContainerRef = useRef(null);
   const searchInputRef = useRef(null);
-  const hasLoadedSearchDataRef = useRef(false);
 
   const activeOrg =
     currentOrg?.organizations ||
@@ -81,36 +84,60 @@ export default function Header({ onCreateIssueClick }) {
   const userRole =
     currentOrg?.role || organizations?.[0]?.role || user?.role || MEMBER_ROLE;
 
-  // Lazily load projects and tasks for quick search when focused or queried
-  const loadSearchData = useCallback(async () => {
-    if (!orgId || hasLoadedSearchDataRef.current) return;
-    try {
-      setIsLoadingSearch(true);
-      const [projs, tsks] = await Promise.all([
-        projectService.getProjects({
-          organizationId: orgId,
-          userId: user?.id,
-          userRole,
-          limit: 30,
-        }),
-        taskService.getTasks({
-          organizationId: orgId,
-          userId: user?.id,
-          userRole,
-          userName: user?.full_name || user?.name || "",
-          userEmail: user?.email || "",
-          limit: 50,
-        }),
-      ]);
-      setSearchProjects(projs || []);
-      setSearchTasks(tsks || []);
-      hasLoadedSearchDataRef.current = true;
-    } catch (e) {
-      console.error("Failed to load search data:", e);
-    } finally {
-      setIsLoadingSearch(false);
-    }
-  }, [orgId, user?.id, userRole, user?.full_name, user?.name, user?.email]);
+  // API search — fires whenever debouncedSearchQuery or orgId changes
+  const runSearch = useCallback(
+    async (query) => {
+      if (!orgId) return;
+      try {
+        setIsLoadingSearch(true);
+        const trimmed = (query || "").trim();
+
+        if (trimmed) {
+          // Targeted DB search: only fetch rows matching the query
+          const [projs, tsks] = await Promise.all([
+            projectService.searchProjects({
+              organizationId: orgId,
+              query: trimmed,
+              limit: 5,
+            }),
+            taskService.searchTasks({
+              organizationId: orgId,
+              query: trimmed,
+              limit: 8,
+            }),
+          ]);
+          setSearchProjects(projs || []);
+          setSearchTasks(tsks || []);
+        } else {
+          // Empty query — load recent projects for quick-launch suggestions
+          const projs = await projectService.getProjects({
+            organizationId: orgId,
+            userId: user?.id,
+            userRole,
+            limit: 5,
+          });
+          setSearchProjects(projs || []);
+          setSearchTasks([]);
+        }
+      } catch (e) {
+        console.error("Search API error:", e);
+      } finally {
+        setIsLoadingSearch(false);
+      }
+    },
+    [orgId, user?.id, userRole],
+  );
+
+  // Trigger API search whenever debounced query changes
+  useEffect(() => {
+    if (!isSearchOpen) return;
+    runSearch(debouncedSearchQuery);
+  }, [debouncedSearchQuery, isSearchOpen, runSearch]);
+
+  // Also load recent items when the search panel first opens
+  const loadSearchData = useCallback(() => {
+    runSearch("");
+  }, [runSearch]);
 
   // Global Keyboard Shortcuts (Ctrl+K, Cmd+K, '/', '?', 'G+T', 'G+D', 'G+P')
   useEffect(() => {
@@ -274,36 +301,22 @@ export default function Header({ onCreateIssueClick }) {
     router.push(href);
   };
 
-  // Filtered Results
+  // Results come directly from API — just expose them with sensible names
   const trimmed = searchQuery.trim().toLowerCase();
 
-  const matchingProjects = useMemo(() => {
-    if (!trimmed) return searchProjects.slice(0, 3);
-    return searchProjects
-      .filter(
-        (p) =>
-          p.name?.toLowerCase().includes(trimmed) ||
-          p.description?.toLowerCase().includes(trimmed),
-      )
-      .slice(0, 4);
-  }, [searchProjects, trimmed]);
+  // Projects: API already returns matched results, slice for display
+  const matchingProjects = useMemo(
+    () => searchProjects.slice(0, 5),
+    [searchProjects],
+  );
 
-  const matchingTasks = useMemo(() => {
-    if (!trimmed) return [];
-    return searchTasks
-      .filter((t) => {
-        const displayKey = formatTaskKey(t, searchProjects).toLowerCase();
-        return (
-          displayKey.includes(trimmed) ||
-          t.title?.toLowerCase().includes(trimmed) ||
-          t.id?.toLowerCase().includes(trimmed) ||
-          t.assignee?.toLowerCase().includes(trimmed) ||
-          t.description?.toLowerCase().includes(trimmed)
-        );
-      })
-      .slice(0, 5);
-  }, [searchTasks, searchProjects, trimmed]);
+  // Tasks: API already filtered, pass through
+  const matchingTasks = useMemo(
+    () => searchTasks.slice(0, 8),
+    [searchTasks],
+  );
 
+  // Members: still filtered client-side (small list from context)
   const matchingMembers = useMemo(() => {
     if (!trimmed) return [];
     const list = members.filter(

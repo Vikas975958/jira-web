@@ -1193,7 +1193,7 @@ function TasksBoardContent() {
                       const parsed = parseIssue(ticket) || ticket;
                       const subtasks = parsed.subtasks || [];
                       const completedSubtasks = subtasks.filter(
-                        (s) => s.completed,
+                        (s) => Boolean(s.done || s.completed),
                       ).length;
                       const totalSubtasks = subtasks.length;
                       const dueDate =

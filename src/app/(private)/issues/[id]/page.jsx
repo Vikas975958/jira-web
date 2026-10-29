@@ -267,9 +267,13 @@ export default function IssueDetailPage() {
   // Toggle Subtask Completion
   const handleToggleSubtask = async (subtaskId) => {
     if (!issue) return;
-    const updatedSubtasks = (issue.subtasks || []).map((s) =>
-      s.id === subtaskId ? { ...s, done: !s.done } : s,
-    );
+    const updatedSubtasks = (issue.subtasks || []).map((s) => {
+      if (s.id === subtaskId) {
+        const isDone = Boolean(s.done || s.completed);
+        return { ...s, done: !isDone, completed: !isDone };
+      }
+      return s;
+    });
     const updatedIssue = { ...issue, subtasks: updatedSubtasks };
     setIssue(updatedIssue);
 
@@ -293,6 +297,7 @@ export default function IssueDetailPage() {
       id: Date.now().toString(),
       text: newSubtaskText.trim(),
       done: false,
+      completed: false,
     };
     const updatedSubtasks = [...(issue.subtasks || []), newSubtask];
     const updatedIssue = { ...issue, subtasks: updatedSubtasks };
@@ -486,7 +491,9 @@ export default function IssueDetailPage() {
     ISSUE_PRIORITIES[2];
   const TypeIcon = typeConfig.icon;
 
-  const completedSubtasks = (issue.subtasks || []).filter((s) => s.done).length;
+  const completedSubtasks = (issue.subtasks || []).filter(
+    (s) => Boolean(s.done || s.completed),
+  ).length;
   const totalSubtasks = (issue.subtasks || []).length;
   const subtasksPercent =
     totalSubtasks > 0
@@ -714,13 +721,13 @@ export default function IssueDetailPage() {
                     <label className="flex items-center gap-2.5 min-w-0 cursor-pointer flex-1">
                       <input
                         type="checkbox"
-                        checked={subtask.done}
+                        checked={Boolean(subtask.done || subtask.completed)}
                         onChange={() => handleToggleSubtask(subtask.id)}
                         className="w-4 h-4 rounded text-[#0F766E] focus:ring-[#0F766E] cursor-pointer"
                       />
                       <span
                         className={`text-xs ${
-                          subtask.done
+                          subtask.done || subtask.completed
                             ? "line-through text-slate-400"
                             : "text-slate-800 font-medium"
                         } break-all`}
