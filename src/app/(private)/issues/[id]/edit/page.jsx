@@ -223,14 +223,25 @@ export default function IssueEditPage() {
     if (!newSubtaskText.trim()) return;
     setSubtasks((prev) => [
       ...prev,
-      { id: Date.now().toString(), text: newSubtaskText.trim(), done: false },
+      {
+        id: Date.now().toString(),
+        text: newSubtaskText.trim(),
+        done: false,
+        completed: false,
+      },
     ]);
     setNewSubtaskText("");
   };
 
   const handleToggleSubtask = (id) => {
     setSubtasks((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, done: !s.done } : s)),
+      prev.map((s) => {
+        if (s.id === id) {
+          const isDone = Boolean(s.done || s.completed);
+          return { ...s, done: !isDone, completed: !isDone };
+        }
+        return s;
+      }),
     );
   };
 
@@ -583,13 +594,13 @@ export default function IssueEditPage() {
                     <label className="flex items-center gap-2 min-w-0 cursor-pointer flex-1">
                       <input
                         type="checkbox"
-                        checked={task.done}
+                        checked={Boolean(task.done || task.completed)}
                         onChange={() => handleToggleSubtask(task.id)}
                         className="w-3.5 h-3.5 rounded text-[#0F766E] focus:ring-[#0F766E]"
                       />
                       <span
                         className={`text-xs ${
-                          task.done
+                          task.done || task.completed
                             ? "line-through text-slate-400"
                             : "text-slate-800 font-medium"
                         } break-all`}
