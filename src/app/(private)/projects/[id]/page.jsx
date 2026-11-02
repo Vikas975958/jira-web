@@ -546,6 +546,7 @@ export default function ProjectDetailsPage() {
     planning: "bg-slate-100 text-slate-700 border-slate-300",
     active: "bg-emerald-50 text-emerald-700 border-emerald-300",
     on_hold: "bg-amber-50 text-amber-700 border-amber-300",
+    "on hold": "bg-amber-50 text-amber-700 border-amber-300",
     completed: "bg-teal-50 text-[#0F766E] border-teal-300",
     archived: "bg-slate-100 text-slate-500 border-slate-300",
   };
@@ -604,10 +605,10 @@ export default function ProjectDetailsPage() {
                   </h1>
                   <span
                     className={`px-2 py-0.2 rounded-md text-[10px] font-semibold uppercase tracking-wider border ${
-                      statusBadgeColors[status] || statusBadgeColors.active
+                      statusBadgeColors[status?.toLowerCase()] || statusBadgeColors[status?.toLowerCase()?.replace(/_/g, " ")] || statusBadgeColors.active
                     }`}
                   >
-                    {status}
+                    {(status || "active").replace(/_/g, " ")}
                   </span>
                 </div>
                 <p className="text-xs text-slate-500">

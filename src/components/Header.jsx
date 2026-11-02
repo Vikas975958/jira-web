@@ -500,7 +500,7 @@ export default function Header({ onCreateIssueClick }) {
                             </div>
                           </div>
                           <span className="text-[9px] font-semibold uppercase px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 shrink-0">
-                            {p.status || "active"}
+                            {(p.status || "active").replace(/_/g, " ")}
                           </span>
                         </button>
                       ))}
@@ -531,7 +531,7 @@ export default function Header({ onCreateIssueClick }) {
                             </p>
                           </div>
                           <span className="text-[9px] font-semibold uppercase px-1.5 py-0.2 rounded bg-slate-100 text-slate-500 shrink-0">
-                            {t.status || "todo"}
+                            {(t.status || "todo").replace(/[-_]/g, " ")}
                           </span>
                         </button>
                       ))}

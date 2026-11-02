@@ -1046,6 +1046,7 @@ function OrganizationDashboardContent({
                         active:
                           "bg-emerald-100 text-emerald-800 border-emerald-200",
                         on_hold: "bg-amber-100 text-amber-800 border-amber-200",
+                        "on hold": "bg-amber-100 text-amber-800 border-amber-200",
                         completed: "bg-teal-100 text-teal-800 border-teal-200",
                       };
 
@@ -1149,10 +1150,10 @@ function OrganizationDashboardContent({
                           <td className="py-3 px-3">
                             <span
                               className={`px-2.5 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wider border ${
-                                statusBadges[p.status] || statusBadges.active
+                                statusBadges[p.status?.toLowerCase()] || statusBadges[p.status?.toLowerCase()?.replace(/_/g, " ")] || statusBadges.active
                               }`}
                             >
-                              {p.status}
+                              {(p.status || "active").replace(/_/g, " ")}
                             </span>
                           </td>
 
@@ -2714,7 +2715,7 @@ function MemberTasksView({ membership, user, onRefresh }) {
                                   : "bg-slate-100 text-slate-700 border border-slate-200"
                             }`}
                           >
-                            {proj.status?.replace("_", " ") || "active"}
+                            {proj.status?.replace(/_/g, " ") || "active"}
                           </span>
                         </div>
 

@@ -21,6 +21,10 @@ export const slugify = (text = "") => {
     .replace(/-+$/, ""); // Trim - from end of text
 };
 
+export const isValidUUID = (id) =>
+  typeof id === "string" &&
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id.trim());
+
 const inFlightUserOrgs = new Map();
 const userOrgsCache = new Map();
 
@@ -1085,41 +1089,55 @@ export const organizationService = {
    * @returns {Promise<Array>}
    */
   async getMemberRequests(organizationId, context = {}) {
-    if (!organizationId) return [];
+    const cleanOrgId =
+      typeof organizationId === "object" ? organizationId?.id : organizationId;
+    if (!cleanOrgId || !isValidUUID(cleanOrgId)) return [];
+
     const { currentUserId, currentUserRole } = context;
 
     if (currentUserRole === MEMBER_ROLE) return [];
 
-    let query = supabase
-      .from("request_member")
-      .select("*")
-      .eq("organization_id", organizationId);
+    const validUserId = isValidUUID(currentUserId) ? currentUserId : null;
 
-    // If manager, show only requests created/invited by them. Owner sees all requests.
-    if (currentUserRole === MANAGER_ROLE && currentUserId) {
-      query = query.or(`requested_by.eq.${currentUserId},invited_by.eq.${currentUserId}`);
-    }
+    try {
+      let query = supabase
+        .from("request_member")
+        .select("*")
+        .eq("organization_id", cleanOrgId);
 
-    const { data, error } = await query.order("created_at", { ascending: false });
+      // If manager, show only requests created/invited by them. Owner sees all requests.
+      if (currentUserRole === MANAGER_ROLE && validUserId) {
+        query = query.or(`requested_by.eq.${validUserId},invited_by.eq.${validUserId}`);
+      }
 
-    if (error) {
-      console.error("getMemberRequests error:", error);
+      const { data, error } = await query.order("created_at", { ascending: false });
+
+      if (error) {
+        if (process.env.NODE_ENV === "development" && (error?.message || error?.code)) {
+          console.warn("getMemberRequests notice:", error.message || error.code || error);
+        }
+        return [];
+      }
+
+      let results = (data || []).map((r) => ({
+        ...r,
+        status: r.status === "approved" ? "pending" : r.status,
+      }));
+
+      // Strict in-memory check to ensure managers only see requests created/invited by themselves
+      if (currentUserRole === MANAGER_ROLE && validUserId) {
+        results = results.filter(
+          (r) => r.requested_by === validUserId || r.invited_by === validUserId
+        );
+      }
+
+      return results;
+    } catch (err) {
+      if (process.env.NODE_ENV === "development" && err?.name !== "AbortError") {
+        console.warn("getMemberRequests notice:", err?.message || err);
+      }
       return [];
     }
-
-    let results = (data || []).map((r) => ({
-      ...r,
-      status: r.status === "approved" ? "pending" : r.status,
-    }));
-
-    // Strict in-memory check to ensure managers only see requests created/invited by themselves
-    if (currentUserRole === MANAGER_ROLE && currentUserId) {
-      results = results.filter(
-        (r) => r.requested_by === currentUserId || r.invited_by === currentUserId
-      );
-    }
-
-    return results;
   },
 
   // ============================================================
@@ -1252,41 +1270,55 @@ export const organizationService = {
    * @returns {Promise<Array>}
    */
   async getManagerRequests(organizationId, context = {}) {
-    if (!organizationId) return [];
+    const cleanOrgId =
+      typeof organizationId === "object" ? organizationId?.id : organizationId;
+    if (!cleanOrgId || !isValidUUID(cleanOrgId)) return [];
+
     const { currentUserId, currentUserRole } = context;
 
     // Managers and members should NEVER see manager requests or listings!
     if (currentUserRole === MEMBER_ROLE || currentUserRole === MANAGER_ROLE) return [];
 
-    let query = supabase
-      .from("request_manager")
-      .select("*")
-      .eq("organization_id", organizationId);
+    const validUserId = isValidUUID(currentUserId) ? currentUserId : null;
 
-    // If owner, show only requests created/invited by them
-    if (currentUserRole === OWNER_ROLE && currentUserId) {
-      query = query.or(`requested_by.eq.${currentUserId},invited_by.eq.${currentUserId}`);
-    }
+    try {
+      let query = supabase
+        .from("request_manager")
+        .select("*")
+        .eq("organization_id", cleanOrgId);
 
-    const { data, error } = await query.order("created_at", { ascending: false });
+      // If owner, show only requests created/invited by them
+      if (currentUserRole === OWNER_ROLE && validUserId) {
+        query = query.or(`requested_by.eq.${validUserId},invited_by.eq.${validUserId}`);
+      }
 
-    if (error) {
-      console.error("getManagerRequests error:", error);
+      const { data, error } = await query.order("created_at", { ascending: false });
+
+      if (error) {
+        if (process.env.NODE_ENV === "development" && (error?.message || error?.code)) {
+          console.warn("getManagerRequests notice:", error.message || error.code || error);
+        }
+        return [];
+      }
+
+      let results = (data || []).map((r) => ({
+        ...r,
+        status: r.status === "approved" ? "pending" : r.status,
+      }));
+
+      if (currentUserRole === OWNER_ROLE && validUserId) {
+        results = results.filter(
+          (r) => r.requested_by === validUserId || r.invited_by === validUserId
+        );
+      }
+
+      return results;
+    } catch (err) {
+      if (process.env.NODE_ENV === "development" && err?.name !== "AbortError") {
+        console.warn("getManagerRequests notice:", err?.message || err);
+      }
       return [];
     }
-
-    let results = (data || []).map((r) => ({
-      ...r,
-      status: r.status === "approved" ? "pending" : r.status,
-    }));
-
-    if (currentUserRole === OWNER_ROLE && currentUserId) {
-      results = results.filter(
-        (r) => r.requested_by === currentUserId || r.invited_by === currentUserId
-      );
-    }
-
-    return results;
   },
 
   /**
@@ -1296,12 +1328,14 @@ export const organizationService = {
    * @returns {Promise<Array>}
    */
   async getAllRequests(organizationId, context = {}, force = false) {
-    if (!organizationId) return [];
+    const cleanOrgId =
+      typeof organizationId === "object" ? organizationId?.id : organizationId;
+    if (!cleanOrgId || !isValidUUID(cleanOrgId)) return [];
     const { currentUserId, currentUserRole } = context;
 
     if (currentUserRole === MEMBER_ROLE) return [];
 
-    const cacheKey = `${organizationId}:${currentUserId || ""}:${currentUserRole || ""}`;
+    const cacheKey = `${cleanOrgId}:${currentUserId || ""}:${currentUserRole || ""}`;
 
     if (!force) {
       const cached = allRequestsCache.get(cacheKey);
@@ -1316,7 +1350,7 @@ export const organizationService = {
     const fetchPromise = (async () => {
       // If manager, strictly return only member requests created by this manager
       if (currentUserRole === MANAGER_ROLE) {
-        const members = await this.getMemberRequests(organizationId, context);
+        const members = await this.getMemberRequests(cleanOrgId, context);
         return members
           .filter(
             (item) =>
@@ -1332,8 +1366,8 @@ export const organizationService = {
       }
 
       const [members, managers] = await Promise.all([
-        this.getMemberRequests(organizationId, context),
-        this.getManagerRequests(organizationId, context),
+        this.getMemberRequests(cleanOrgId, context),
+        this.getManagerRequests(cleanOrgId, context),
       ]);
 
       const formattedMembers = members.map((item) => ({

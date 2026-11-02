@@ -65,6 +65,7 @@ export default function Sidebar() {
     planning: "bg-slate-100 text-slate-700 border-slate-200",
     active: "bg-emerald-50 text-emerald-700 border-emerald-200",
     on_hold: "bg-amber-50 text-amber-700 border-amber-200",
+    "on hold": "bg-amber-50 text-amber-700 border-amber-200",
     completed: "bg-teal-50 text-[#0F766E] border-teal-200",
     archived: "bg-slate-100 text-slate-500 border-slate-200",
   };
@@ -399,7 +400,7 @@ export default function Sidebar() {
                             <span className="font-semibold text-slate-100">{project.name}</span>
                             {project.status && (
                               <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-800 text-teal-300 font-medium uppercase tracking-wider border border-slate-700/50">
-                                {(project.status || "active").replace("_", " ")}
+                                {(project.status || "active").replace(/_/g, " ")}
                               </span>
                             )}
                             <span className="text-[10px] text-teal-300 flex items-center gap-0.5">
@@ -441,11 +442,12 @@ export default function Sidebar() {
                       <div className="flex items-center gap-1.5 shrink-0 ml-2">
                         <span
                           className={`text-[9px] px-1.5 py-0.2 rounded-md font-semibold uppercase tracking-wider ${
-                            projectStatusBadge[project.status] ||
+                            projectStatusBadge[project.status?.toLowerCase()] ||
+                            projectStatusBadge[project.status?.toLowerCase()?.replace(/_/g, " ")] ||
                             projectStatusBadge.active
                           }`}
                         >
-                          {project.status || "active"}
+                          {(project.status || "active").replace(/_/g, " ")}
                         </span>
                         {totalTeam > 0 && (
                           <span
