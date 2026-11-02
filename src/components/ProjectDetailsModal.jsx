@@ -168,6 +168,7 @@ export default function ProjectDetailsModal({
     planning: "bg-slate-100 text-slate-700 border-slate-200",
     active: "bg-emerald-100 text-emerald-800 border-emerald-200",
     on_hold: "bg-amber-100 text-amber-800 border-amber-200",
+    "on hold": "bg-amber-100 text-amber-800 border-amber-200",
     completed: "bg-teal-100 text-teal-800 border-teal-200",
   };
 
@@ -196,10 +197,10 @@ export default function ProjectDetailsModal({
                 <div className="flex items-center gap-2 mt-0.5">
                   <span
                     className={`px-2 py-0.2 rounded-md text-[10px] font-semibold uppercase tracking-wider border ${
-                      statusBadgeColors[status] || statusBadgeColors.active
+                      statusBadgeColors[status?.toLowerCase()] || statusBadgeColors[status?.toLowerCase()?.replace(/_/g, " ")] || statusBadgeColors.active
                     }`}
                   >
-                    {status}
+                    {(status || "active").replace(/_/g, " ")}
                   </span>
                   <span className="text-[11px] text-slate-400">
                     Created: {new Date(project.created_at || Date.now()).toLocaleDateString()}
@@ -273,7 +274,7 @@ export default function ProjectDetailsModal({
                     ]}
                   />
                 ) : (
-                  <span className="text-xs font-semibold text-slate-800 capitalize">{status}</span>
+                  <span className="text-xs font-semibold text-slate-800 capitalize">{(status || "active").replace(/_/g, " ")}</span>
                 )}
               </div>
             </div>

@@ -268,6 +268,7 @@ function ProjectsDirectoryContent() {
     planning: "bg-slate-100 text-slate-700 border-slate-200",
     active: "bg-emerald-50 text-emerald-700 border-emerald-200",
     on_hold: "bg-amber-50 text-amber-700 border-amber-200",
+    "on hold": "bg-amber-50 text-amber-700 border-amber-200",
     completed: "bg-teal-50 text-[#0F766E] border-teal-200",
     archived: "bg-slate-100 text-slate-500 border-slate-200",
   };
@@ -533,11 +534,12 @@ function ProjectsDirectoryContent() {
                       </div>
                       <span
                         className={`text-[9px] px-2 py-0.5 rounded-md font-semibold uppercase tracking-wider shrink-0 border ${
-                          projectStatusBadge[proj.status] ||
+                          projectStatusBadge[proj.status?.toLowerCase()] ||
+                          projectStatusBadge[proj.status?.toLowerCase()?.replace(/_/g, " ")] ||
                           projectStatusBadge.active
                         }`}
                       >
-                        {(proj.status || "active").replace("_", " ")}
+                        {(proj.status || "active").replace(/_/g, " ")}
                       </span>
                     </div>
 
