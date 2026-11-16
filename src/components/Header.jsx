@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import React, {
+  useState,
+  useRef,
+  useEffect,
+  useCallback,
+  useMemo,
+} from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSelector, useDispatch } from "react-redux";
@@ -36,6 +42,7 @@ import authService from "@/services/auth.service";
 import { emptyStore } from "@/store/rootReducer";
 import { getNameInitials, formatTaskKey } from "@/utils/commonFunction";
 import { MEMBER_ROLE } from "@/utils/constants";
+import { useDebounce } from "@/hooks/useDebounce";
 
 export default function Header({ onCreateIssueClick }) {
   const router = useRouter();
@@ -61,10 +68,12 @@ export default function Header({ onCreateIssueClick }) {
   const [searchTasks, setSearchTasks] = useState([]);
   const [isLoadingSearch, setIsLoadingSearch] = useState(false);
 
+  // Debounced query — API fires 400ms after the user stops typing
+  const debouncedSearchQuery = useDebounce(searchQuery, 400);
+
   const dropdownRef = useRef(null);
   const searchContainerRef = useRef(null);
   const searchInputRef = useRef(null);
-  const hasLoadedSearchDataRef = useRef(false);
 
   const activeOrg =
     currentOrg?.organizations ||
@@ -72,38 +81,63 @@ export default function Header({ onCreateIssueClick }) {
     organizations?.[0]?.organizations ||
     organizations?.[0];
   const orgId = activeOrg?.id;
-  const userRole = currentOrg?.role || organizations?.[0]?.role || user?.role || MEMBER_ROLE;
+  const userRole =
+    currentOrg?.role || organizations?.[0]?.role || user?.role || MEMBER_ROLE;
 
-  // Lazily load projects and tasks for quick search when focused or queried
-  const loadSearchData = useCallback(async () => {
-    if (!orgId || hasLoadedSearchDataRef.current) return;
-    try {
-      setIsLoadingSearch(true);
-      const [projs, tsks] = await Promise.all([
-        projectService.getProjects({
-          organizationId: orgId,
-          userId: user?.id,
-          userRole,
-          limit: 30,
-        }),
-        taskService.getTasks({
-          organizationId: orgId,
-          userId: user?.id,
-          userRole,
-          userName: user?.full_name || user?.name || "",
-          userEmail: user?.email || "",
-          limit: 50,
-        }),
-      ]);
-      setSearchProjects(projs || []);
-      setSearchTasks(tsks || []);
-      hasLoadedSearchDataRef.current = true;
-    } catch (e) {
-      console.error("Failed to load search data:", e);
-    } finally {
-      setIsLoadingSearch(false);
-    }
-  }, [orgId, user?.id, userRole, user?.full_name, user?.name, user?.email]);
+  // API search — fires whenever debouncedSearchQuery or orgId changes
+  const runSearch = useCallback(
+    async (query) => {
+      if (!orgId) return;
+      try {
+        setIsLoadingSearch(true);
+        const trimmed = (query || "").trim();
+
+        if (trimmed) {
+          // Targeted DB search: only fetch rows matching the query
+          const [projs, tsks] = await Promise.all([
+            projectService.searchProjects({
+              organizationId: orgId,
+              query: trimmed,
+              limit: 5,
+            }),
+            taskService.searchTasks({
+              organizationId: orgId,
+              query: trimmed,
+              limit: 8,
+            }),
+          ]);
+          setSearchProjects(projs || []);
+          setSearchTasks(tsks || []);
+        } else {
+          // Empty query — load recent projects for quick-launch suggestions
+          const projs = await projectService.getProjects({
+            organizationId: orgId,
+            userId: user?.id,
+            userRole,
+            limit: 5,
+          });
+          setSearchProjects(projs || []);
+          setSearchTasks([]);
+        }
+      } catch (e) {
+        console.error("Search API error:", e);
+      } finally {
+        setIsLoadingSearch(false);
+      }
+    },
+    [orgId, user?.id, userRole],
+  );
+
+  // Trigger API search whenever debounced query changes
+  useEffect(() => {
+    if (!isSearchOpen) return;
+    runSearch(debouncedSearchQuery);
+  }, [debouncedSearchQuery, isSearchOpen, runSearch]);
+
+  // Also load recent items when the search panel first opens
+  const loadSearchData = useCallback(() => {
+    runSearch("");
+  }, [runSearch]);
 
   // Global Keyboard Shortcuts (Ctrl+K, Cmd+K, '/', '?', 'G+T', 'G+D', 'G+P')
   useEffect(() => {
@@ -118,7 +152,10 @@ export default function Header({ onCreateIssueClick }) {
         activeEl?.isContentEditable;
 
       // Ctrl+K or '/' — open search
-      if ((e.key === "k" && (e.ctrlKey || e.metaKey)) || (e.key === "/" && !isInput)) {
+      if (
+        (e.key === "k" && (e.ctrlKey || e.metaKey)) ||
+        (e.key === "/" && !isInput)
+      ) {
         e.preventDefault();
         searchInputRef.current?.focus();
         setIsSearchOpen(true);
@@ -149,7 +186,9 @@ export default function Header({ onCreateIssueClick }) {
         if (e.key === "g" || e.key === "G") {
           gPressed = true;
           clearTimeout(gTimer);
-          gTimer = setTimeout(() => { gPressed = false; }, 1500);
+          gTimer = setTimeout(() => {
+            gPressed = false;
+          }, 1500);
           return;
         }
 
@@ -262,49 +301,45 @@ export default function Header({ onCreateIssueClick }) {
     router.push(href);
   };
 
-  // Filtered Results
+  // Results come directly from API — just expose them with sensible names
   const trimmed = searchQuery.trim().toLowerCase();
 
-  const matchingProjects = useMemo(() => {
-    if (!trimmed) return searchProjects.slice(0, 3);
-    return searchProjects
-      .filter(
-        (p) =>
-          p.name?.toLowerCase().includes(trimmed) ||
-          p.description?.toLowerCase().includes(trimmed)
-      )
-      .slice(0, 4);
-  }, [searchProjects, trimmed]);
+  // Projects: API already returns matched results, slice for display
+  const matchingProjects = useMemo(
+    () => searchProjects.slice(0, 5),
+    [searchProjects],
+  );
 
-  const matchingTasks = useMemo(() => {
-    if (!trimmed) return [];
-    return searchTasks
-      .filter((t) => {
-        const displayKey = formatTaskKey(t, searchProjects).toLowerCase();
-        return (
-          displayKey.includes(trimmed) ||
-          t.title?.toLowerCase().includes(trimmed) ||
-          t.id?.toLowerCase().includes(trimmed) ||
-          t.assignee?.toLowerCase().includes(trimmed) ||
-          t.description?.toLowerCase().includes(trimmed)
-        );
-      })
-      .slice(0, 5);
-  }, [searchTasks, searchProjects, trimmed]);
+  // Tasks: API already filtered, pass through
+  const matchingTasks = useMemo(
+    () => searchTasks.slice(0, 8),
+    [searchTasks],
+  );
 
+  // Members: still filtered client-side (small list from context)
   const matchingMembers = useMemo(() => {
     if (!trimmed) return [];
     const list = members.filter(
       (m) =>
         (m.full_name || m.name)?.toLowerCase().includes(trimmed) ||
         m.email?.toLowerCase().includes(trimmed) ||
-        (m.role || m.intended_role)?.toLowerCase().includes(trimmed)
+        (m.role || m.intended_role)?.toLowerCase().includes(trimmed),
     );
 
     if (user?.id) {
       list.sort((a, b) => {
-        const aIsMe = (a.user_id === user.id || a.id === user.id || a.profiles?.id === user.id) ? 1 : 0;
-        const bIsMe = (b.user_id === user.id || b.id === user.id || b.profiles?.id === user.id) ? 1 : 0;
+        const aIsMe =
+          a.user_id === user.id ||
+          a.id === user.id ||
+          a.profiles?.id === user.id
+            ? 1
+            : 0;
+        const bIsMe =
+          b.user_id === user.id ||
+          b.id === user.id ||
+          b.profiles?.id === user.id
+            ? 1
+            : 0;
         return bIsMe - aIsMe;
       });
     }
@@ -313,11 +348,36 @@ export default function Header({ onCreateIssueClick }) {
   }, [members, trimmed, user?.id]);
 
   const quickPages = [
-    { title: "Dashboard", href: "/dashboard", icon: FiGrid, desc: "Workspace activity & metrics" },
-    { title: "Tasks Board", href: "/tasks", icon: FiLayout, desc: "Kanban board & issue tracking" },
-    { title: "Projects", href: "/projects", icon: FiFolder, desc: "Workspace project directory" },
-    { title: "Team Management", href: "/team", icon: FiUsers, desc: "Members & role assignments" },
-    { title: "Settings", href: "/settings", icon: FiSettings, desc: "Workspace configurations" },
+    {
+      title: "Dashboard",
+      href: "/dashboard",
+      icon: FiGrid,
+      desc: "Workspace activity & metrics",
+    },
+    {
+      title: "Tasks Board",
+      href: "/tasks",
+      icon: FiLayout,
+      desc: "Kanban board & issue tracking",
+    },
+    {
+      title: "Projects",
+      href: "/projects",
+      icon: FiFolder,
+      desc: "Workspace project directory",
+    },
+    {
+      title: "Team Management",
+      href: "/team",
+      icon: FiUsers,
+      desc: "Members & role assignments",
+    },
+    {
+      title: "Settings",
+      href: "/settings",
+      icon: FiSettings,
+      desc: "Workspace configurations",
+    },
   ];
 
   const matchingPages = useMemo(() => {
@@ -325,7 +385,7 @@ export default function Header({ onCreateIssueClick }) {
     return quickPages.filter(
       (p) =>
         p.title.toLowerCase().includes(trimmed) ||
-        p.desc.toLowerCase().includes(trimmed)
+        p.desc.toLowerCase().includes(trimmed),
     );
   }, [trimmed]);
 
@@ -440,7 +500,7 @@ export default function Header({ onCreateIssueClick }) {
                             </div>
                           </div>
                           <span className="text-[9px] font-semibold uppercase px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 shrink-0">
-                            {p.status || "active"}
+                            {(p.status || "active").replace(/_/g, " ")}
                           </span>
                         </button>
                       ))}
@@ -471,7 +531,7 @@ export default function Header({ onCreateIssueClick }) {
                             </p>
                           </div>
                           <span className="text-[9px] font-semibold uppercase px-1.5 py-0.2 rounded bg-slate-100 text-slate-500 shrink-0">
-                            {t.status || "todo"}
+                            {(t.status || "todo").replace(/[-_]/g, " ")}
                           </span>
                         </button>
                       ))}
@@ -495,16 +555,23 @@ export default function Header({ onCreateIssueClick }) {
                         >
                           <div className="flex items-center gap-2 min-w-0">
                             <div className="w-6 h-6 rounded-full bg-slate-200 text-slate-700 font-bold text-[10px] flex items-center justify-center shrink-0">
-                              {(m.full_name || m.name || m.email || "U").charAt(0).toUpperCase()}
+                              {(m.full_name || m.name || m.email || "U")
+                                .charAt(0)
+                                .toUpperCase()}
                             </div>
                             <div className="min-w-0">
                               <div className="flex items-center gap-1">
                                 <p className="font-semibold text-slate-800 truncate group-hover:text-[#0F766E]">
                                   {m.full_name || m.name || m.email}
                                 </p>
-                                {user?.id && (m.user_id === user.id || m.id === user.id || m.profiles?.id === user.id) && (
-                                  <span className="text-[9px] font-semibold text-[#0F766E]">(You)</span>
-                                )}
+                                {user?.id &&
+                                  (m.user_id === user.id ||
+                                    m.id === user.id ||
+                                    m.profiles?.id === user.id) && (
+                                    <span className="text-[9px] font-semibold text-[#0F766E]">
+                                      (You)
+                                    </span>
+                                  )}
                               </div>
                               <p className="text-[10px] text-slate-400 truncate font-mono">
                                 {m.email}
@@ -552,9 +619,12 @@ export default function Header({ onCreateIssueClick }) {
                 {/* No Matches Found */}
                 {!hasResults && trimmed && !isLoadingSearch && (
                   <div className="p-6 text-center space-y-1.5">
-                    <p className="text-slate-700 font-semibold">No results found</p>
+                    <p className="text-slate-700 font-semibold">
+                      No results found
+                    </p>
                     <p className="text-[11px] text-slate-400">
-                      No projects, issues, or members matching &ldquo;{searchQuery}&rdquo;
+                      No projects, issues, or members matching &ldquo;
+                      {searchQuery}&rdquo;
                     </p>
                   </div>
                 )}
@@ -567,10 +637,14 @@ export default function Header({ onCreateIssueClick }) {
                   onClick={handleSearchSubmit}
                   className="flex items-center gap-1.5 text-[#0F766E] hover:underline font-semibold cursor-pointer"
                 >
-                  <span>Search board for &ldquo;{searchQuery || "..."}&rdquo;</span>
+                  <span>
+                    Search board for &ldquo;{searchQuery || "..."}&rdquo;
+                  </span>
                   <FiArrowRight className="w-3 h-3" />
                 </button>
-                <span className="text-[10px] text-slate-400 font-mono">ESC to close</span>
+                <span className="text-[10px] text-slate-400 font-mono">
+                  ESC to close
+                </span>
               </div>
             </div>
           )}
@@ -595,13 +669,18 @@ export default function Header({ onCreateIssueClick }) {
                       limit: 25,
                     });
                     const now = new Date();
-                    const overdue = (tasks || []).filter((t) => {
-                      if (!t.due_date || t.status === "done") return false;
-                      return new Date(t.due_date) < now;
-                    }).slice(0, 5);
+                    const overdue = (tasks || [])
+                      .filter((t) => {
+                        if (!t.due_date || t.status === "done") return false;
+                        return new Date(t.due_date) < now;
+                      })
+                      .slice(0, 5);
                     const recentlyUpdated = (tasks || [])
                       .filter((t) => t.status !== "done" && t.updated_at)
-                      .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))
+                      .sort(
+                        (a, b) =>
+                          new Date(b.updated_at) - new Date(a.updated_at),
+                      )
                       .slice(0, 3);
                     const notifList = [
                       ...overdue.map((t) => ({
@@ -647,7 +726,9 @@ export default function Header({ onCreateIssueClick }) {
               <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-slate-50">
                 <div className="flex items-center gap-2">
                   <FiBell className="w-3.5 h-3.5 text-slate-500" />
-                  <span className="text-xs font-bold text-slate-800">Notifications</span>
+                  <span className="text-xs font-bold text-slate-800">
+                    Notifications
+                  </span>
                   {notifUnreadCount > 0 && (
                     <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-red-100 text-red-700 font-semibold">
                       {notifUnreadCount} overdue
@@ -667,8 +748,12 @@ export default function Header({ onCreateIssueClick }) {
                 {notifications.length === 0 ? (
                   <div className="px-4 py-8 text-center space-y-2">
                     <FiCheckCircle className="w-8 h-8 text-emerald-400 mx-auto" />
-                    <p className="text-xs font-semibold text-slate-600">All caught up!</p>
-                    <p className="text-[11px] text-slate-400">No overdue tasks or pending activity.</p>
+                    <p className="text-xs font-semibold text-slate-600">
+                      All caught up!
+                    </p>
+                    <p className="text-[11px] text-slate-400">
+                      No overdue tasks or pending activity.
+                    </p>
                   </div>
                 ) : (
                   notifications.map((n) => (
@@ -682,9 +767,13 @@ export default function Header({ onCreateIssueClick }) {
                       className="w-full text-left px-4 py-3 hover:bg-slate-50 transition-colors cursor-pointer group"
                     >
                       <div className="flex items-start gap-2.5">
-                        <div className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 mt-0.5 ${
-                          n.type === "overdue" ? "bg-red-50 text-red-600" : "bg-blue-50 text-blue-600"
-                        }`}>
+                        <div
+                          className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 mt-0.5 ${
+                            n.type === "overdue"
+                              ? "bg-red-50 text-red-600"
+                              : "bg-blue-50 text-blue-600"
+                          }`}
+                        >
                           {n.type === "overdue" ? (
                             <FiAlertTriangle className="w-3 h-3" />
                           ) : (
@@ -695,13 +784,16 @@ export default function Header({ onCreateIssueClick }) {
                           <p className="text-xs font-semibold text-slate-800 truncate group-hover:text-[#0F766E]">
                             {n.title}
                           </p>
-                          <p className={`text-[10px] mt-0.5 font-medium ${
-                            n.type === "overdue" ? "text-red-600" : "text-slate-500"
-                          }`}>
+                          <p
+                            className={`text-[10px] mt-0.5 font-medium ${
+                              n.type === "overdue"
+                                ? "text-red-600"
+                                : "text-slate-500"
+                            }`}
+                          >
                             {n.type === "overdue"
                               ? `⚠ Overdue since ${new Date(n.dueDate).toLocaleDateString()}`
-                              : `Updated recently • ${n.status}`
-                            }
+                              : `Updated recently • ${n.status}`}
                           </p>
                         </div>
                         <FiArrowRight className="w-3 h-3 text-slate-300 group-hover:text-[#0F766E] shrink-0 mt-1" />
@@ -712,7 +804,9 @@ export default function Header({ onCreateIssueClick }) {
               </div>
 
               <div className="px-4 py-2.5 border-t border-slate-100 bg-slate-50 flex items-center justify-between">
-                <span className="text-[10px] text-slate-400">Tasks assigned to you</span>
+                <span className="text-[10px] text-slate-400">
+                  Tasks assigned to you
+                </span>
                 <Link
                   href="/tasks"
                   onClick={() => setNotificationsOpen(false)}
@@ -812,13 +906,17 @@ export default function Header({ onCreateIssueClick }) {
       {showShortcutsModal && (
         <div
           className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4"
-          onClick={(e) => { if (e.target === e.currentTarget) setShowShortcutsModal(false); }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowShortcutsModal(false);
+          }}
         >
           <div className="bg-white rounded-xl shadow-2xl border border-slate-200 w-full max-w-md animate-scaleUp">
             <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
               <div className="flex items-center gap-2">
                 <FiCommand className="w-4 h-4 text-[#0F766E]" />
-                <h2 className="text-sm font-bold text-slate-900">Keyboard Shortcuts</h2>
+                <h2 className="text-sm font-bold text-slate-900">
+                  Keyboard Shortcuts
+                </h2>
               </div>
               <button
                 type="button"
@@ -830,30 +928,50 @@ export default function Header({ onCreateIssueClick }) {
             </div>
             <div className="p-5 space-y-4">
               {[
-                { category: "Navigation", shortcuts: [
-                  { keys: ["/", "Ctrl+K"], desc: "Open global search" },
-                  { keys: ["Esc"], desc: "Close search / modal" },
-                ]},
-                { category: "Tasks & Issues", shortcuts: [
-                  { keys: ["G", "T"], desc: "Go to Tasks board" },
-                  { keys: ["G", "P"], desc: "Go to Projects" },
-                  { keys: ["G", "D"], desc: "Go to Dashboard" },
-                ]},
-                { category: "Interface", shortcuts: [
-                  { keys: ["?"], desc: "Show this shortcuts panel" },
-                ]},
+                {
+                  category: "Navigation",
+                  shortcuts: [
+                    { keys: ["/", "Ctrl+K"], desc: "Open global search" },
+                    { keys: ["Esc"], desc: "Close search / modal" },
+                  ],
+                },
+                {
+                  category: "Tasks & Issues",
+                  shortcuts: [
+                    { keys: ["G", "T"], desc: "Go to Tasks board" },
+                    { keys: ["G", "P"], desc: "Go to Projects" },
+                    { keys: ["G", "D"], desc: "Go to Dashboard" },
+                  ],
+                },
+                {
+                  category: "Interface",
+                  shortcuts: [
+                    { keys: ["?"], desc: "Show this shortcuts panel" },
+                  ],
+                },
               ].map((section) => (
                 <div key={section.category}>
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">{section.category}</p>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">
+                    {section.category}
+                  </p>
                   <div className="space-y-1.5">
                     {section.shortcuts.map((s, i) => (
-                      <div key={i} className="flex items-center justify-between">
+                      <div
+                        key={i}
+                        className="flex items-center justify-between"
+                      >
                         <span className="text-xs text-slate-600">{s.desc}</span>
                         <div className="flex items-center gap-1">
                           {s.keys.map((k, ki) => (
                             <span key={ki}>
-                              <kbd className="text-[10px] bg-slate-100 border border-slate-300 text-slate-700 px-1.5 py-0.5 rounded font-mono shadow-sm">{k}</kbd>
-                              {ki < s.keys.length - 1 && <span className="text-[10px] text-slate-400 mx-0.5">then</span>}
+                              <kbd className="text-[10px] bg-slate-100 border border-slate-300 text-slate-700 px-1.5 py-0.5 rounded font-mono shadow-sm">
+                                {k}
+                              </kbd>
+                              {ki < s.keys.length - 1 && (
+                                <span className="text-[10px] text-slate-400 mx-0.5">
+                                  then
+                                </span>
+                              )}
                             </span>
                           ))}
                         </div>
@@ -864,7 +982,13 @@ export default function Header({ onCreateIssueClick }) {
               ))}
             </div>
             <div className="px-5 pb-4">
-              <p className="text-[10px] text-slate-400 text-center">Press <kbd className="text-[10px] bg-slate-100 border border-slate-200 px-1 rounded font-mono">Esc</kbd> or click outside to close</p>
+              <p className="text-[10px] text-slate-400 text-center">
+                Press{" "}
+                <kbd className="text-[10px] bg-slate-100 border border-slate-200 px-1 rounded font-mono">
+                  Esc
+                </kbd>{" "}
+                or click outside to close
+              </p>
             </div>
           </div>
         </div>

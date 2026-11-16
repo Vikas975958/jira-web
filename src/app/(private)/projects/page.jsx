@@ -28,6 +28,7 @@ import EditProjectModal from "@/components/EditProjectModal";
 import { useOrganization } from "@/context/OrganizationContext";
 import { MEMBER_ROLE, OWNER_ROLE, MANAGER_ROLE } from "@/utils/constants";
 import { getPinnedProjectIds, togglePinProject } from "@/utils/pinnedProjects";
+import { useDebounce } from "@/hooks/useDebounce";
 
 function ProjectsDirectoryContent() {
   const router = useRouter();
@@ -67,7 +68,8 @@ function ProjectsDirectoryContent() {
   const [pageSize, setPageSize] = useState(initialLimit);
 
   const [searchInput, setSearchInput] = useState(initialSearch);
-  const [searchQuery, setSearchQuery] = useState(initialSearch);
+  // Debounced value — API query fires 400ms after the user stops typing
+  const searchQuery = useDebounce(searchInput, 400);
   const [statusFilter, setStatusFilter] = useState(initialStatus);
   const [showPinnedOnly, setShowPinnedOnly] = useState(false);
   const [pinnedProjectIds, setPinnedProjectIds] = useState([]);
@@ -104,40 +106,16 @@ function ProjectsDirectoryContent() {
     const qSearch = searchParams.get("search") || "";
     if (qSearch !== searchInput) {
       setSearchInput(qSearch);
-      setSearchQuery(qSearch);
     }
   }, [searchParams]);
 
-  // Sync page from URL query
+  // Sync URL when debounced search query settles
   useEffect(() => {
-    const qPage = searchParams.get("page");
-    if (qPage) {
-      const p = Math.max(1, parseInt(qPage, 10));
-      if (p !== page) setPage(p);
-    } else {
+    if ((searchParams.get("search") || "") !== (searchQuery || "")) {
       setPage(1);
+      updateUrlParams({ search: searchQuery, page: "1" });
     }
-  }, [searchParams]);
-
-  // Sync limit from URL query
-  useEffect(() => {
-    const qLimit = searchParams.get("limit");
-    if (qLimit && qLimit !== pageSize) {
-      setPageSize(qLimit);
-    }
-  }, [searchParams]);
-
-  // Debounce search input
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setSearchQuery(searchInput);
-      if ((searchParams.get("search") || "") !== (searchInput || "")) {
-        setPage(1);
-        updateUrlParams({ search: searchInput, page: "1" });
-      }
-    }, 350);
-    return () => clearTimeout(timer);
-  }, [searchInput, searchParams, updateUrlParams]);
+  }, [searchQuery]);
 
   const handlePageChange = (newPage) => {
     setPage(newPage);
@@ -160,7 +138,6 @@ function ProjectsDirectoryContent() {
   const handleClearAllFilters = () => {
     setStatusFilter("all");
     setSearchInput("");
-    setSearchQuery("");
     setShowPinnedOnly(false);
     setPage(1);
     updateUrlParams({ status: "all", search: "", page: "1" });
@@ -291,6 +268,7 @@ function ProjectsDirectoryContent() {
     planning: "bg-slate-100 text-slate-700 border-slate-200",
     active: "bg-emerald-50 text-emerald-700 border-emerald-200",
     on_hold: "bg-amber-50 text-amber-700 border-amber-200",
+    "on hold": "bg-amber-50 text-amber-700 border-amber-200",
     completed: "bg-teal-50 text-[#0F766E] border-teal-200",
     archived: "bg-slate-100 text-slate-500 border-slate-200",
   };
@@ -490,12 +468,7 @@ function ProjectsDirectoryContent() {
           ) : searchQuery || statusFilter !== "all" ? (
             <button
               type="button"
-              onClick={() => {
-                setSearchInput("");
-                setSearchQuery("");
-                setStatusFilter("all");
-                setPage(1);
-              }}
+              onClick={handleClearAllFilters}
               className="btn-secondary px-4 py-2 text-xs font-semibold cursor-pointer"
             >
               <span>Clear Filters</span>
@@ -561,11 +534,12 @@ function ProjectsDirectoryContent() {
                       </div>
                       <span
                         className={`text-[9px] px-2 py-0.5 rounded-md font-semibold uppercase tracking-wider shrink-0 border ${
-                          projectStatusBadge[proj.status] ||
+                          projectStatusBadge[proj.status?.toLowerCase()] ||
+                          projectStatusBadge[proj.status?.toLowerCase()?.replace(/_/g, " ")] ||
                           projectStatusBadge.active
                         }`}
                       >
-                        {(proj.status || "active").replace("_", " ")}
+                        {(proj.status || "active").replace(/_/g, " ")}
                       </span>
                     </div>
 
