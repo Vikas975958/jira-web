@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, {
+  useState,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useMemo,
+} from "react";
 import {
   FiArrowLeft,
   FiSearch,
@@ -10,8 +16,11 @@ import {
   FiUser,
   FiClock,
   FiMessageSquare,
+  FiEdit2,
+  FiMoreVertical,
 } from "react-icons/fi";
 import { LuCheckCheck } from "react-icons/lu";
+import { toast } from "react-toastify";
 import { getNameInitials } from "@/utils/commonFunction";
 import { MANAGER_ROLE, OWNER_ROLE } from "@/utils/constants";
 import ChatMessageInput from "./ChatMessageInput";
@@ -21,6 +30,10 @@ export default function ChatConversationArea({
   messages = [],
   currentUserId,
   onSendMessage,
+  onEditMessage,
+  hasMoreMessages = false,
+  isLoadingOlderMessages = false,
+  onLoadOlderMessages,
   onBackClick,
   isLoadingMessages = false,
   isSending = false,
@@ -28,7 +41,19 @@ export default function ChatConversationArea({
 }) {
   const [inChatSearch, setInChatSearch] = useState("");
   const [showSearch, setShowSearch] = useState(false);
+
+  // Edit Message States
+  const [editingMessageId, setEditingMessageId] = useState(null);
+  const [editingText, setEditingText] = useState("");
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const editInputRef = useRef(null);
+
+  // Scroll Container & Pagination Refs
+  const scrollContainerRef = useRef(null);
   const messagesEndRef = useRef(null);
+  const isInitialLoadRef = useRef(true);
+  const prependedScrollInfoRef = useRef(null);
+  const isNearBottomRef = useRef(true);
 
   const otherUser = conversation?.otherUser || {
     full_name: "Workspace Member",
@@ -36,10 +61,125 @@ export default function ChatConversationArea({
     role: "member",
   };
 
-  // Auto-scroll to bottom on message load or new message
+  // Reset states when switching conversation
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+    isInitialLoadRef.current = true;
+    prependedScrollInfoRef.current = null;
+    isNearBottomRef.current = true;
+    setEditingMessageId(null);
+    setEditingText("");
+    setInChatSearch("");
+    setShowSearch(false);
+  }, [conversation?.id]);
+
+  // Focus textarea when entering edit mode
+  useEffect(() => {
+    if (editingMessageId && editInputRef.current) {
+      editInputRef.current.focus();
+      const len = editInputRef.current.value.length;
+      editInputRef.current.setSelectionRange(len, len);
+    }
+  }, [editingMessageId]);
+
+  // Scroll Position Management (Infinite Scroll preservation & auto-scroll)
+  useLayoutEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    // 1. If older messages were loaded and prepended: preserve scroll position
+    if (prependedScrollInfoRef.current) {
+      const { scrollHeight: oldHeight, scrollTop: oldTop } =
+        prependedScrollInfoRef.current;
+      const newHeight = container.scrollHeight;
+      const heightDelta = newHeight - oldHeight;
+      if (heightDelta > 0) {
+        container.scrollTop = oldTop + heightDelta;
+      }
+      prependedScrollInfoRef.current = null;
+      return;
+    }
+
+    // 2. Initial load for conversation: scroll to bottom
+    if (isInitialLoadRef.current && messages.length > 0 && !isLoadingMessages) {
+      container.scrollTop = container.scrollHeight;
+      isInitialLoadRef.current = false;
+      return;
+    }
+
+    // 3. Sent by me or user is near bottom: scroll to bottom
+    const lastMsg = messages[messages.length - 1];
+    const isSentByMe = lastMsg && lastMsg.sender_id === currentUserId;
+    if (isSentByMe || isNearBottomRef.current) {
+      container.scrollTop = container.scrollHeight;
+    }
+  }, [messages, isLoadingMessages, currentUserId]);
+
+  // Scroll event handler for reverse infinite scroll
+  const handleScroll = (e) => {
+    const container = e.currentTarget;
+    if (!container) return;
+
+    // Track if user is near bottom (within 100px)
+    const distanceToBottom =
+      container.scrollHeight - container.scrollTop - container.clientHeight;
+    isNearBottomRef.current = distanceToBottom < 100;
+
+    // Scrolled near top: trigger pagination for older messages
+    if (
+      container.scrollTop <= 60 &&
+      hasMoreMessages &&
+      !isLoadingOlderMessages &&
+      !isInitialLoadRef.current &&
+      onLoadOlderMessages
+    ) {
+      prependedScrollInfoRef.current = {
+        scrollHeight: container.scrollHeight,
+        scrollTop: container.scrollTop,
+      };
+      onLoadOlderMessages();
+    }
+  };
+
+  // Start Editing
+  const handleStartEdit = (msg) => {
+    setEditingMessageId(msg.id);
+    setEditingText(msg.message || "");
+  };
+
+  // Cancel Editing
+  const handleCancelEdit = () => {
+    setEditingMessageId(null);
+    setEditingText("");
+    setIsSavingEdit(false);
+  };
+
+  // Save Editing
+  const handleSaveEdit = async (msg) => {
+    if (isSavingEdit) return;
+    const trimmed = editingText.trim();
+    if (!trimmed) {
+      toast.error("Message cannot be empty");
+      return;
+    }
+
+    if (trimmed === msg.message) {
+      handleCancelEdit();
+      return;
+    }
+
+    try {
+      setIsSavingEdit(true);
+      if (onEditMessage) {
+        await onEditMessage({ messageId: msg.id, newMessage: trimmed });
+      }
+      setEditingMessageId(null);
+      setEditingText("");
+    } catch (err) {
+      // Error handled by parent or toast
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
 
   // Group messages by Date (Today, Yesterday, or formatted date)
   const groupedMessages = useMemo(() => {
@@ -82,7 +222,9 @@ export default function ChatConversationArea({
     return groupedMessages
       .map((g) => ({
         date: g.date,
-        messages: g.messages.filter((m) => (m.message || "").toLowerCase().includes(q)),
+        messages: g.messages.filter((m) =>
+          (m.message || "").toLowerCase().includes(q)
+        ),
       }))
       .filter((g) => g.messages.length > 0);
   }, [groupedMessages, inChatSearch]);
@@ -165,7 +307,9 @@ export default function ChatConversationArea({
               {otherUser.email && (
                 <>
                   <span className="text-slate-300">•</span>
-                  <span className="text-slate-400 truncate">{otherUser.email}</span>
+                  <span className="text-slate-400 truncate">
+                    {otherUser.email}
+                  </span>
                 </>
               )}
             </div>
@@ -209,8 +353,31 @@ export default function ChatConversationArea({
         </div>
       </div>
 
-      {/* Messages Feed Area */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/40">
+      {/* Messages Feed Area with Reverse Infinite Scroll */}
+      <div
+        ref={scrollContainerRef}
+        onScroll={handleScroll}
+        className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/40"
+      >
+        {/* Top Loading Indicator for Older Messages */}
+        {isLoadingOlderMessages && (
+          <div className="flex items-center justify-center py-2 shrink-0">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/90 border border-slate-200 text-slate-500 text-xs shadow-2xs">
+              <div className="w-3.5 h-3.5 border-2 border-slate-300 border-t-[#0F766E] rounded-full animate-spin" />
+              <span>Loading older messages...</span>
+            </div>
+          </div>
+        )}
+
+        {/* Start of Conversation Notice */}
+        {!hasMoreMessages && messages.length > 0 && !isLoadingMessages && (
+          <div className="flex items-center justify-center py-2 text-[11px] text-slate-400 select-none">
+            <span>
+              This is the start of your message history with {otherUser.full_name}
+            </span>
+          </div>
+        )}
+
         {isLoadingMessages ? (
           <div className="h-full flex flex-col items-center justify-center space-y-2 text-slate-400 text-xs">
             <div className="w-6 h-6 border-2 border-slate-300 border-t-[#0F766E] rounded-full animate-spin" />
@@ -229,7 +396,17 @@ export default function ChatConversationArea({
               {/* Messages in Group */}
               {group.messages.map((msg) => {
                 const isMe = msg.sender_id === currentUserId;
+                const isEditingThis = editingMessageId === msg.id;
                 const timeStr = formatMessageTime(msg.created_at);
+                const isEdited = Boolean(
+                  msg.is_edited ||
+                    (msg.updated_at &&
+                      msg.created_at &&
+                      Math.abs(
+                        new Date(msg.updated_at).getTime() -
+                          new Date(msg.created_at).getTime()
+                      ) > 2000)
+                );
 
                 return (
                   <div
@@ -245,33 +422,137 @@ export default function ChatConversationArea({
                       </div>
                     )}
 
-                    {/* Message Bubble */}
-                    <div
-                      className={`max-w-[78%] sm:max-w-md px-3.5 py-2 rounded-2xl text-xs sm:text-sm leading-relaxed shadow-2xs transition-all ${
-                        isMe
-                          ? "bg-[#0F766E] text-white rounded-br-xs"
-                          : "bg-white text-slate-800 border border-slate-200/80 rounded-bl-xs"
-                      }`}
-                    >
-                      <p className="whitespace-pre-wrap break-words">{msg.message}</p>
+                    {/* Edit button on hover for sender's own message */}
+                    {isMe && !isEditingThis && (
+                      <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 self-center shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => handleStartEdit(msg)}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer shadow-2xs border border-transparent hover:border-slate-200"
+                          title="Edit message"
+                        >
+                          <FiEdit2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    )}
 
+                    {/* Message Bubble or Inline Edit Card */}
+                    {isEditingThis ? (
+                      <div className="w-full max-w-[85%] sm:max-w-lg bg-white rounded-2xl border-2 border-teal-600/40 shadow-md p-2.5 space-y-2">
+                        <div className="flex items-center justify-between text-[11px] font-semibold text-teal-800 pb-1 border-b border-slate-100">
+                          <span className="flex items-center gap-1.5">
+                            <FiEdit2 className="w-3.5 h-3.5 text-teal-600" />
+                            Edit Message
+                          </span>
+                          <button
+                            type="button"
+                            onClick={handleCancelEdit}
+                            className="text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
+                            title="Cancel (Esc)"
+                          >
+                            <FiX className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                        <textarea
+                          ref={editInputRef}
+                          value={editingText}
+                          onChange={(e) => setEditingText(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" && !e.shiftKey) {
+                              e.preventDefault();
+                              handleSaveEdit(msg);
+                            } else if (e.key === "Escape") {
+                              e.preventDefault();
+                              handleCancelEdit();
+                            }
+                          }}
+                          disabled={isSavingEdit}
+                          rows={Math.min(
+                            6,
+                            Math.max(2, editingText.split("\n").length)
+                          )}
+                          className="w-full text-xs sm:text-sm text-slate-800 bg-slate-50/70 border border-slate-200 rounded-xl p-2.5 focus:outline-hidden focus:ring-2 focus:ring-[#0F766E]/30 focus:border-[#0F766E] resize-none"
+                          placeholder="Edit your message..."
+                        />
+                        <div className="flex items-center justify-between gap-2 pt-1 text-[11px]">
+                          <span className="text-[10px] text-slate-400 hidden sm:inline">
+                            Press{" "}
+                            <kbd className="px-1 py-0.5 bg-slate-100 rounded text-[9px] border border-slate-200">
+                              Enter
+                            </kbd>{" "}
+                            to save •{" "}
+                            <kbd className="px-1 py-0.5 bg-slate-100 rounded text-[9px] border border-slate-200">
+                              Esc
+                            </kbd>{" "}
+                            to cancel
+                          </span>
+                          <div className="flex items-center gap-2 ml-auto">
+                            <button
+                              type="button"
+                              onClick={handleCancelEdit}
+                              disabled={isSavingEdit}
+                              className="px-2.5 py-1 text-xs font-medium text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleSaveEdit(msg)}
+                              disabled={isSavingEdit || !editingText.trim()}
+                              className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#0F766E] hover:bg-[#0d645e] disabled:opacity-50 text-white text-xs font-semibold rounded-lg shadow-2xs transition-colors cursor-pointer"
+                            >
+                              {isSavingEdit ? (
+                                <div className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                              ) : (
+                                <FiCheck className="w-3.5 h-3.5" />
+                              )}
+                              <span>Save</span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
                       <div
-                        className={`flex items-center justify-end gap-1 mt-1 text-[9px] ${
-                          isMe ? "text-teal-100" : "text-slate-400"
+                        className={`max-w-[78%] sm:max-w-md px-3.5 py-2 rounded-2xl text-xs sm:text-sm leading-relaxed shadow-2xs transition-all ${
+                          isMe
+                            ? "bg-[#0F766E] text-white rounded-br-xs"
+                            : "bg-white text-slate-800 border border-slate-200/80 rounded-bl-xs"
                         }`}
                       >
-                        <span>{timeStr}</span>
-                        {isMe && (
-                          <span title={msg.is_read ? "Read" : "Sent"}>
-                            {msg.is_read ? (
-                              <LuCheckCheck className="w-3 h-3 text-teal-200 stroke-2" />
-                            ) : (
-                              <FiCheck className="w-2.5 h-2.5 text-teal-200" />
-                            )}
-                          </span>
-                        )}
+                        <p className="whitespace-pre-wrap break-words">
+                          {msg.message}
+                        </p>
+
+                        <div
+                          className={`flex items-center justify-end gap-1.5 mt-1 text-[9px] ${
+                            isMe ? "text-teal-100" : "text-slate-400"
+                          }`}
+                        >
+                          {isEdited && (
+                            <span
+                              className="italic opacity-85 select-none"
+                              title={`Edited ${
+                                msg.updated_at
+                                  ? new Date(msg.updated_at).toLocaleTimeString()
+                                  : ""
+                              }`}
+                            >
+                              (edited)
+                            </span>
+                          )}
+                          <span>{timeStr}</span>
+                          {isMe && (
+                            <span title={msg.is_read ? "Read" : "Sent"}>
+                              {msg.is_read ? (
+                                <LuCheckCheck className="w-3 h-3 text-teal-200 stroke-2" />
+                              ) : (
+                                <FiCheck className="w-2.5 h-2.5 text-teal-200" />
+                              )}
+                            </span>
+                          )}
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </div>
                 );
               })}
@@ -287,7 +568,8 @@ export default function ChatConversationArea({
                 Start the conversation with {otherUser.full_name}
               </p>
               <p className="text-[11px] text-slate-400 max-w-xs leading-relaxed">
-                Send a private message to collaborate on projects, discuss tasks, and sync in real time.
+                Send a private message to collaborate on projects, discuss
+                tasks, and sync in real time.
               </p>
             </div>
           </div>

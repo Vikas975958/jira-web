@@ -44,6 +44,11 @@ export default function ChatboardPage() {
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [isSending, setIsSending] = useState(false);
 
+  // Message Pagination States (Infinite Scroll)
+  const [hasMoreMessages, setHasMoreMessages] = useState(false);
+  const [isLoadingOlderMessages, setIsLoadingOlderMessages] = useState(false);
+  const isLoadingOlderRef = useRef(false);
+
   // Search State for Sidebar
   const [searchQuery, setSearchQuery] = useState("");
   const [onlineUserIds, setOnlineUserIds] = useState([]);
@@ -107,16 +112,26 @@ export default function ChatboardPage() {
     loadConversations();
   }, [loadConversations]);
 
-  // Load Messages for Active Conversation
+  // Load Messages for Active Conversation (Initial Batch)
   const loadMessages = useCallback(async (conversationId) => {
     if (!conversationId) {
       setMessages([]);
+      setHasMoreMessages(false);
+      setIsLoadingOlderMessages(false);
+      isLoadingOlderRef.current = false;
       return;
     }
     try {
       setIsLoadingMessages(true);
-      const data = await chatService.getMessages(conversationId);
-      setMessages(data || []);
+      isLoadingOlderRef.current = false;
+      const res = await chatService.getMessages({
+        conversationId,
+        limit: 30,
+      });
+      const initialMsgs = res?.messages || (Array.isArray(res) ? res : []);
+      setMessages(initialMsgs);
+      setHasMoreMessages(Boolean(res?.hasMore));
+
       // Mark incoming messages as read
       if (currentUserId) {
         await chatService.markMessagesAsRead({
@@ -132,6 +147,102 @@ export default function ChatboardPage() {
       setIsLoadingMessages(false);
     }
   }, [currentUserId]);
+
+  // Load Older Messages (Reverse Infinite Scroll Pagination)
+  const loadOlderMessages = useCallback(async () => {
+    if (
+      !activeConversation?.id ||
+      isLoadingOlderRef.current ||
+      !hasMoreMessages
+    ) {
+      return;
+    }
+
+    const oldestMessage = messages[0];
+    if (!oldestMessage?.created_at) return;
+
+    try {
+      isLoadingOlderRef.current = true;
+      setIsLoadingOlderMessages(true);
+
+      const res = await chatService.getMessages({
+        conversationId: activeConversation.id,
+        limit: 30,
+        beforeTimestamp: oldestMessage.created_at,
+      });
+
+      if (res?.messages && res.messages.length > 0) {
+        setMessages((prev) => {
+          const existingIds = new Set(prev.map((m) => m.id));
+          const newOlder = res.messages.filter((m) => !existingIds.has(m.id));
+          return [...newOlder, ...prev];
+        });
+      }
+
+      setHasMoreMessages(Boolean(res?.hasMore));
+    } catch (err) {
+      console.error("loadOlderMessages error:", err);
+    } finally {
+      setIsLoadingOlderMessages(false);
+      isLoadingOlderRef.current = false;
+    }
+  }, [activeConversation?.id, hasMoreMessages, messages]);
+
+  // Edit Message Handler
+  const handleEditMessage = useCallback(
+    async ({ messageId, newMessage }) => {
+      if (!messageId || !newMessage?.trim() || !currentUserId || !activeConversation?.id) {
+        return;
+      }
+
+      try {
+        const updated = await chatService.editMessage({
+          messageId,
+          newMessage: newMessage.trim(),
+          senderId: currentUserId,
+          conversationId: activeConversation.id,
+        });
+
+        // Immediately reflect changes in UI
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === messageId
+              ? {
+                  ...m,
+                  ...updated,
+                  message: newMessage.trim(),
+                  is_edited: true,
+                  updated_at: updated?.updated_at || new Date().toISOString(),
+                }
+              : m
+          )
+        );
+
+        // Update conversation preview if edited message was the latest
+        setConversations((prev) =>
+          prev.map((c) => {
+            if (c.id === activeConversation.id) {
+              const isLatest = messages[messages.length - 1]?.id === messageId;
+              if (isLatest) {
+                return {
+                  ...c,
+                  last_message_text: newMessage.trim(),
+                };
+              }
+            }
+            return c;
+          })
+        );
+
+        return updated;
+      } catch (err) {
+        console.error("handleEditMessage error:", err);
+        toast.error("Failed to edit message. Please try again.");
+        throw err;
+      }
+    },
+    [activeConversation?.id, currentUserId, messages]
+  );
 
   // Setup Realtime Subscription for Active Conversation
   useEffect(() => {
@@ -271,6 +382,9 @@ export default function ChatboardPage() {
 
       setActiveConversation(conv);
       setIsMobileChatOpen(true);
+      setHasMoreMessages(false);
+      setIsLoadingOlderMessages(false);
+      isLoadingOlderRef.current = false;
 
       if (typeof window !== "undefined") {
         window.__WORKGRID_ACTIVE_CONVERSATION_ID__ = conv.id ? String(conv.id) : null;
@@ -497,6 +611,10 @@ export default function ChatboardPage() {
               messages={messages}
               currentUserId={currentUserId}
               onSendMessage={handleSendMessage}
+              onEditMessage={handleEditMessage}
+              hasMoreMessages={hasMoreMessages}
+              isLoadingOlderMessages={isLoadingOlderMessages}
+              onLoadOlderMessages={loadOlderMessages}
               onBackClick={() => {
                 setIsMobileChatOpen(false);
                 if (typeof window !== "undefined") {

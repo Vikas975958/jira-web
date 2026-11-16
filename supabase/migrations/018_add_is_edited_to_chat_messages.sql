@@ -8,3 +8,4 @@ ALTER TABLE public.chat_messages
 
 CREATE INDEX IF NOT EXISTS idx_chat_messages_is_edited
   ON public.chat_messages(is_edited);
+

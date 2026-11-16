@@ -117,32 +117,138 @@ export const chatService = {
   },
 
   /**
-   * Fetch messages for a specific conversation.
-   * @param {string} conversationId
-   * @param {number} [limit=100]
-   * @returns {Promise<Array>} List of messages
+   * Fetch paginated messages for a specific conversation.
+   * Fetches latest messages first (reverse chronological) and returns them in ascending order.
+   * Supports both object params and legacy positional arguments.
+   * @param {Object|string} arg1 - { conversationId, limit, beforeTimestamp } or conversationId string
+   * @param {number} [arg2=30] - limit if arg1 is string
+   * @param {string|null} [arg3=null] - beforeTimestamp if arg1 is string
+   * @returns {Promise<{ messages: Array, hasMore: boolean }>}
    */
-  async getMessages(conversationId, limit = 100) {
-    if (!conversationId) return [];
+  async getMessages(arg1, arg2 = 30, arg3 = null) {
+    let conversationId;
+    let limit = 30;
+    let beforeTimestamp = null;
+
+    if (typeof arg1 === "object" && arg1 !== null) {
+      conversationId = arg1.conversationId;
+      limit = arg1.limit || 30;
+      beforeTimestamp = arg1.beforeTimestamp || null;
+    } else {
+      conversationId = arg1;
+      limit = typeof arg2 === "number" ? arg2 : 30;
+      beforeTimestamp = arg3 || null;
+    }
+
+    if (!conversationId) return { messages: [], hasMore: false };
 
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from("chat_messages")
         .select("*")
         .eq("conversation_id", conversationId)
-        .order("created_at", { ascending: true })
+        .order("created_at", { ascending: false })
         .limit(limit);
+
+      if (beforeTimestamp) {
+        query = query.lt("created_at", beforeTimestamp);
+      }
+
+      const { data, error } = await query;
 
       if (error) {
         console.error("chatService.getMessages error:", error);
-        return [];
+        return { messages: [], hasMore: false };
       }
 
-      return data || [];
+      const raw = data || [];
+      const hasMore = raw.length === limit;
+      // Reverse to chronological order (oldest to newest)
+      const messages = [...raw].reverse();
+
+      return { messages, hasMore };
     } catch (err) {
       console.error("chatService.getMessages unexpected error:", err);
-      return [];
+      return { messages: [], hasMore: false };
     }
+  },
+
+  /**
+   * Edit an existing message sent by the user.
+   * @param {Object} params
+   * @param {string} params.messageId
+   * @param {string} params.newMessage
+   * @param {string} params.senderId
+   * @param {string} [params.conversationId]
+   * @returns {Promise<Object>} Updated message
+   */
+  async editMessage({ messageId, newMessage, senderId, conversationId }) {
+    if (!messageId || !newMessage?.trim() || !senderId) {
+      throw new Error("Missing required fields to edit message");
+    }
+
+    const trimmedMsg = newMessage.trim();
+    const now = new Date().toISOString();
+
+    let updatePayload = {
+      message: trimmedMsg,
+      updated_at: now,
+      is_edited: true,
+    };
+
+    let { data: updatedMsg, error } = await supabase
+      .from("chat_messages")
+      .update(updatePayload)
+      .eq("id", messageId)
+      .eq("sender_id", senderId)
+      .select()
+      .maybeSingle();
+
+    // Fallback if is_edited column is not in remote schema
+    if (error && error.message && error.message.includes("is_edited")) {
+      delete updatePayload.is_edited;
+      const res = await supabase
+        .from("chat_messages")
+        .update(updatePayload)
+        .eq("id", messageId)
+        .eq("sender_id", senderId)
+        .select()
+        .maybeSingle();
+      updatedMsg = res.data;
+      error = res.error;
+    }
+
+    if (error) {
+      console.error("chatService.editMessage error:", error);
+      throw error;
+    }
+
+    // If conversationId is provided, update conversation preview if this was the latest message
+    if (conversationId) {
+      try {
+        const { data: latestMsg } = await supabase
+          .from("chat_messages")
+          .select("id")
+          .eq("conversation_id", conversationId)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (latestMsg && latestMsg.id === messageId) {
+          await supabase
+            .from("chat_conversations")
+            .update({
+              last_message_text: trimmedMsg.substring(0, 200),
+              updated_at: now,
+            })
+            .eq("id", conversationId);
+        }
+      } catch (convErr) {
+        console.warn("Could not update conversation last_message preview:", convErr);
+      }
+    }
+
+    return updatedMsg;
   },
 
   /**
