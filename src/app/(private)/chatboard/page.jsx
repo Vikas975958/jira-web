@@ -85,10 +85,12 @@ export default function ChatboardPage() {
   }, [orgId, currentUserId]);
 
   // Load Conversations and Unread Counts
-  const loadConversations = useCallback(async () => {
+  const loadConversations = useCallback(async (showLoading = false) => {
     if (!orgId || !currentUserId) return;
     try {
-      setIsLoadingConversations(true);
+      if (showLoading) {
+        setIsLoadingConversations(true);
+      }
       const [convs, unreads] = await Promise.all([
         chatService.getConversations({
           organizationId: orgId,
@@ -104,12 +106,14 @@ export default function ChatboardPage() {
     } catch (err) {
       console.error("loadConversations error:", err);
     } finally {
-      setIsLoadingConversations(false);
+      if (showLoading) {
+        setIsLoadingConversations(false);
+      }
     }
   }, [orgId, currentUserId]);
 
   useEffect(() => {
-    loadConversations();
+    loadConversations(true);
   }, [loadConversations]);
 
   // Load Messages for Active Conversation (Initial Batch)
@@ -326,7 +330,7 @@ export default function ChatboardPage() {
             }));
           }
 
-          // Refresh or re-order conversations
+          // Refresh or re-order conversations in-place without flashing
           setConversations((prev) => {
             const index = prev.findIndex((c) => c.id === newMsg.conversation_id);
             if (index !== -1) {
@@ -339,12 +343,27 @@ export default function ChatboardPage() {
               const remaining = prev.filter((_, idx) => idx !== index);
               return [updated, ...remaining];
             } else {
-              loadConversations();
+              // Silently fetch in background only if a completely new conversation arrived
+              loadConversations(false);
               return prev;
             }
           });
         } else if (notification.type === "CONVERSATION_UPDATED") {
-          loadConversations();
+          const updatedRow = notification.data;
+          if (updatedRow?.id) {
+            setConversations((prev) => {
+              const index = prev.findIndex((c) => c.id === updatedRow.id);
+              if (index !== -1) {
+                const updated = {
+                  ...prev[index],
+                  ...updatedRow,
+                };
+                const remaining = prev.filter((_, idx) => idx !== index);
+                return [updated, ...remaining];
+              }
+              return [updatedRow, ...prev];
+            });
+          }
         }
       }
     );

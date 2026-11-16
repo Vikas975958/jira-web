@@ -141,7 +141,11 @@ export default function ChatConversationArea({
   };
 
   // Start Editing
-  const handleStartEdit = (msg) => {
+  const handleStartEdit = (e, msg) => {
+    if (e && typeof e.stopPropagation === "function") {
+      e.stopPropagation();
+      e.preventDefault();
+    }
     setEditingMessageId(msg.id);
     setEditingText(msg.message || "");
   };
@@ -234,6 +238,24 @@ export default function ChatConversationArea({
     try {
       const d = new Date(dateStr);
       return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    } catch (e) {
+      return "";
+    }
+  };
+
+  const formatHeaderTime = (dateStr) => {
+    if (!dateStr) return "";
+    try {
+      const d = new Date(dateStr);
+      const now = new Date();
+      const isToday = d.toDateString() === now.toDateString();
+      const time = d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+      if (isToday) return time;
+      const datePart = d.toLocaleDateString(undefined, {
+        month: "short",
+        day: "numeric",
+      });
+      return `${datePart}, ${time}`;
     } catch (e) {
       return "";
     }
@@ -385,177 +407,197 @@ export default function ChatConversationArea({
           </div>
         ) : filteredGroups.length > 0 ? (
           filteredGroups.map((group, groupIdx) => (
-            <div key={groupIdx} className="space-y-3">
-              {/* Date Group Header Divider */}
-              <div className="flex items-center justify-center">
-                <span className="px-2.5 py-0.5 rounded-full bg-slate-100 border border-slate-200/80 text-[10px] font-semibold text-slate-500 shadow-2xs">
+            <div key={groupIdx} className="space-y-2">
+              {/* Clean Date Divider */}
+              <div className="flex items-center justify-center my-4">
+                <span className="text-xs font-medium text-slate-400 select-none">
                   {group.date}
                 </span>
               </div>
 
-              {/* Messages in Group */}
-              {group.messages.map((msg) => {
-                const isMe = msg.sender_id === currentUserId;
-                const isEditingThis = editingMessageId === msg.id;
-                const timeStr = formatMessageTime(msg.created_at);
-                const isEdited = Boolean(
-                  msg.is_edited ||
-                    (msg.updated_at &&
-                      msg.created_at &&
-                      Math.abs(
-                        new Date(msg.updated_at).getTime() -
-                          new Date(msg.created_at).getTime()
-                      ) > 2000)
-                );
+              {/* Messages in Group with Smart Spacing & Burst Grouping */}
+              <div className="space-y-1">
+                {group.messages.map((msg, msgIdx) => {
+                  const isMe = msg.sender_id === currentUserId;
+                  const isEditingThis = editingMessageId === msg.id;
+                  const isEdited = Boolean(msg.is_edited === true);
 
-                return (
-                  <div
-                    key={msg.id}
-                    className={`flex items-end gap-2 group ${
-                      isMe ? "justify-end" : "justify-start"
-                    }`}
-                  >
-                    {/* Other User Avatar (on received message) */}
-                    {!isMe && (
-                      <div className="w-7 h-7 rounded-lg bg-teal-50 text-[#0F766E] border border-teal-200/80 flex items-center justify-center font-bold text-[10px] shrink-0 uppercase mb-0.5">
-                        {getNameInitials(otherUser.full_name)}
-                      </div>
-                    )}
+                  // Burst grouping: check if consecutive message from same sender within 5 mins
+                  const prevMsg = group.messages[msgIdx - 1];
+                  const isSameSenderAsPrev =
+                    prevMsg &&
+                    prevMsg.sender_id === msg.sender_id &&
+                    new Date(msg.created_at) - new Date(prevMsg.created_at) < 5 * 60 * 1000;
+                  const isFirstInBurst = !isSameSenderAsPrev;
 
-                    {/* Edit button on hover for sender's own message */}
-                    {isMe && !isEditingThis && (
-                      <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 self-center shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => handleStartEdit(msg)}
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer shadow-2xs border border-transparent hover:border-slate-200"
-                          title="Edit message"
-                        >
-                          <FiEdit2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    )}
+                  // Spacing: larger margin between different bursts, tight margin within same burst
+                  const spacingClass =
+                    msgIdx === 0 ? "" : isFirstInBurst ? "mt-4" : "mt-1";
 
-                    {/* Message Bubble or Inline Edit Card */}
-                    {isEditingThis ? (
-                      <div className="w-full max-w-[85%] sm:max-w-lg bg-white rounded-2xl border-2 border-teal-600/40 shadow-md p-2.5 space-y-2">
-                        <div className="flex items-center justify-between text-[11px] font-semibold text-teal-800 pb-1 border-b border-slate-100">
-                          <span className="flex items-center gap-1.5">
-                            <FiEdit2 className="w-3.5 h-3.5 text-teal-600" />
-                            Edit Message
-                          </span>
-                          <button
-                            type="button"
-                            onClick={handleCancelEdit}
-                            className="text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
-                            title="Cancel (Esc)"
-                          >
-                            <FiX className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                        <textarea
-                          ref={editInputRef}
-                          value={editingText}
-                          onChange={(e) => setEditingText(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter" && !e.shiftKey) {
-                              e.preventDefault();
-                              handleSaveEdit(msg);
-                            } else if (e.key === "Escape") {
-                              e.preventDefault();
-                              handleCancelEdit();
-                            }
-                          }}
-                          disabled={isSavingEdit}
-                          rows={Math.min(
-                            6,
-                            Math.max(2, editingText.split("\n").length)
+                  return (
+                    <div key={msg.id} className={`${spacingClass}`}>
+                      {/* Received Message Layout */}
+                      {!isMe ? (
+                        <div className="flex items-start gap-2.5 group">
+                          {/* Circular Avatar on first message of burst; empty spacer on consecutive */}
+                          {isFirstInBurst ? (
+                            <div className="w-8 h-8 rounded-full bg-slate-700 text-white flex items-center justify-center font-bold text-xs uppercase shadow-2xs shrink-0 select-none mt-0.5">
+                              {getNameInitials(otherUser.full_name)}
+                            </div>
+                          ) : (
+                            <div className="w-8 shrink-0" />
                           )}
-                          className="w-full text-xs sm:text-sm text-slate-800 bg-slate-50/70 border border-slate-200 rounded-xl p-2.5 focus:outline-hidden focus:ring-2 focus:ring-[#0F766E]/30 focus:border-[#0F766E] resize-none"
-                          placeholder="Edit your message..."
-                        />
-                        <div className="flex items-center justify-between gap-2 pt-1 text-[11px]">
-                          <span className="text-[10px] text-slate-400 hidden sm:inline">
-                            Press{" "}
-                            <kbd className="px-1 py-0.5 bg-slate-100 rounded text-[9px] border border-slate-200">
-                              Enter
-                            </kbd>{" "}
-                            to save •{" "}
-                            <kbd className="px-1 py-0.5 bg-slate-100 rounded text-[9px] border border-slate-200">
-                              Esc
-                            </kbd>{" "}
-                            to cancel
-                          </span>
-                          <div className="flex items-center gap-2 ml-auto">
-                            <button
-                              type="button"
-                              onClick={handleCancelEdit}
-                              disabled={isSavingEdit}
-                              className="px-2.5 py-1 text-xs font-medium text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
-                            >
-                              Cancel
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleSaveEdit(msg)}
-                              disabled={isSavingEdit || !editingText.trim()}
-                              className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#0F766E] hover:bg-[#0d645e] disabled:opacity-50 text-white text-xs font-semibold rounded-lg shadow-2xs transition-colors cursor-pointer"
-                            >
-                              {isSavingEdit ? (
-                                <div className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                              ) : (
-                                <FiCheck className="w-3.5 h-3.5" />
-                              )}
-                              <span>Save</span>
-                            </button>
+
+                          {/* Message Content Container */}
+                          <div className="flex-1 min-w-0 max-w-[80%] sm:max-w-xl">
+                            {/* Header: Sender Name + Timestamp (Only on first in burst) */}
+                            {isFirstInBurst && (
+                              <div className="flex items-baseline gap-2 mb-1 pl-0.5">
+                                <span className="text-[13px] font-semibold text-slate-900 leading-none">
+                                  {otherUser.full_name}
+                                </span>
+                                <span className="text-[11px] text-slate-400 font-normal leading-none">
+                                  {formatHeaderTime(msg.created_at)}
+                                </span>
+                                {isEdited && (
+                                  <span className="text-[11px] text-slate-400 font-normal leading-none">
+                                    • Edited
+                                  </span>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Bubble */}
+                            <div className="inline-block bg-slate-100 text-slate-800 px-4 py-2 rounded-2xl rounded-tl-xs text-[13.5px] leading-relaxed shadow-2xs">
+                              <p className="whitespace-pre-wrap break-words">{msg.message}</p>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ) : (
-                      <div
-                        className={`max-w-[78%] sm:max-w-md px-3.5 py-2 rounded-2xl text-xs sm:text-sm leading-relaxed shadow-2xs transition-all ${
-                          isMe
-                            ? "bg-[#0F766E] text-white rounded-br-xs"
-                            : "bg-white text-slate-800 border border-slate-200/80 rounded-bl-xs"
-                        }`}
-                      >
-                        <p className="whitespace-pre-wrap break-words">
-                          {msg.message}
-                        </p>
+                      ) : (
+                        /* Sent Message Layout */
+                        <div className="flex flex-col items-end group">
+                          {/* Header: Timestamp + Read receipt (Only on first in burst) */}
+                          {isFirstInBurst && (
+                            <div className="flex items-center justify-end gap-1.5 mb-1 pr-1 text-[11px] text-slate-400 font-normal">
+                              <span>{formatHeaderTime(msg.created_at)}</span>
+                              {isEdited && <span>• Edited</span>}
+                              <span title={msg.is_read ? "Read" : "Sent"} className="ml-0.5">
+                                {msg.is_read ? (
+                                  <LuCheckCheck className="w-3.5 h-3.5 text-teal-600 stroke-2" />
+                                ) : (
+                                  <FiCheck className="w-3 h-3 text-slate-400" />
+                                )}
+                              </span>
+                            </div>
+                          )}
 
-                        <div
-                          className={`flex items-center justify-end gap-1.5 mt-1 text-[9px] ${
-                            isMe ? "text-teal-100" : "text-slate-400"
-                          }`}
-                        >
-                          {isEdited && (
-                            <span
-                              className="italic opacity-85 select-none"
-                              title={`Edited ${
-                                msg.updated_at
-                                  ? new Date(msg.updated_at).toLocaleTimeString()
-                                  : ""
-                              }`}
-                            >
-                              (edited)
-                            </span>
-                          )}
-                          <span>{timeStr}</span>
-                          {isMe && (
-                            <span title={msg.is_read ? "Read" : "Sent"}>
-                              {msg.is_read ? (
-                                <LuCheckCheck className="w-3 h-3 text-teal-200 stroke-2" />
-                              ) : (
-                                <FiCheck className="w-2.5 h-2.5 text-teal-200" />
-                              )}
-                            </span>
-                          )}
+                          {/* Bubble row with hover action */}
+                          <div className="flex items-center justify-end gap-1 max-w-[80%] sm:max-w-xl">
+                            {/* Hover Edit Action */}
+                            {!isEditingThis && (
+                              <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleStartEdit(e, msg)}
+                                  className="p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                                  title="Edit message"
+                                >
+                                  <FiEdit2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            )}
+
+                            {/* Edit Card or Sent Bubble */}
+                            {isEditingThis ? (
+                              <div className="w-full bg-white rounded-2xl border-2 border-teal-600/40 shadow-md p-2.5 space-y-2">
+                                <div className="flex items-center justify-between text-[11px] font-semibold text-teal-800 pb-1 border-b border-slate-100">
+                                  <span className="flex items-center gap-1.5">
+                                    <FiEdit2 className="w-3.5 h-3.5 text-teal-600" />
+                                    Edit Message
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={handleCancelEdit}
+                                    className="text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
+                                    title="Cancel (Esc)"
+                                  >
+                                    <FiX className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                                <textarea
+                                  ref={editInputRef}
+                                  value={editingText}
+                                  onChange={(e) => setEditingText(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter" && !e.shiftKey) {
+                                      e.preventDefault();
+                                      handleSaveEdit(msg);
+                                    } else if (e.key === "Escape") {
+                                      e.preventDefault();
+                                      handleCancelEdit();
+                                    }
+                                  }}
+                                  disabled={isSavingEdit}
+                                  rows={Math.min(
+                                    6,
+                                    Math.max(2, editingText.split("\n").length)
+                                  )}
+                                  className="w-full text-xs sm:text-sm text-slate-800 bg-slate-50/70 border border-slate-200 rounded-xl p-2.5 focus:outline-hidden focus:ring-2 focus:ring-[#0F766E]/30 focus:border-[#0F766E] resize-none"
+                                  placeholder="Edit your message..."
+                                />
+                                <div className="flex items-center justify-between gap-2 pt-1 text-[11px]">
+                                  <span className="text-[10px] text-slate-400 hidden sm:inline">
+                                    Press{" "}
+                                    <kbd className="px-1 py-0.5 bg-slate-100 rounded text-[9px] border border-slate-200">
+                                      Enter
+                                    </kbd>{" "}
+                                    to save •{" "}
+                                    <kbd className="px-1 py-0.5 bg-slate-100 rounded text-[9px] border border-slate-200">
+                                      Esc
+                                    </kbd>{" "}
+                                    to cancel
+                                  </span>
+                                  <div className="flex items-center gap-2 ml-auto">
+                                    <button
+                                      type="button"
+                                      onClick={handleCancelEdit}
+                                      disabled={isSavingEdit}
+                                      className="px-2.5 py-1 text-xs font-medium text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                                    >
+                                      Cancel
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleSaveEdit(msg)}
+                                      disabled={isSavingEdit || !editingText.trim()}
+                                      className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#0F766E] hover:bg-[#0d645e] disabled:opacity-50 text-white text-xs font-semibold rounded-lg shadow-2xs transition-colors cursor-pointer"
+                                    >
+                                      {isSavingEdit ? (
+                                        <div className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                                      ) : (
+                                        <FiCheck className="w-3.5 h-3.5" />
+                                      )}
+                                      <span>Save</span>
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            ) : (
+                              <div
+                                onDoubleClick={(e) => handleStartEdit(e, msg)}
+                                title="Double-click to edit"
+                                className="inline-block bg-[#0F766E] text-white px-4 py-2 rounded-2xl rounded-tr-xs text-[13.5px] leading-relaxed shadow-2xs cursor-pointer select-text text-left"
+                              >
+                                <p className="whitespace-pre-wrap break-words">{msg.message}</p>
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           ))
         ) : (

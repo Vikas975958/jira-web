@@ -107,9 +107,7 @@ export default function ChatSidebar({
               <h2 className="text-sm font-bold text-slate-900 leading-tight">
                 Direct Messages
               </h2>
-              <p className="text-[10px] text-slate-500 font-medium">
-                1-to-1 Team & Manager Chat
-              </p>
+          
             </div>
           </div>
 
@@ -137,7 +135,7 @@ export default function ChatSidebar({
           <span>Team Members ({memberList.length})</span>
         </div>
 
-        {isLoading ? (
+        {isLoading && memberList.length === 0 ? (
           <div className="py-8 text-center text-xs text-slate-400 space-y-2">
             <div className="w-5 h-5 border-2 border-slate-300 border-t-[#0F766E] rounded-full animate-spin mx-auto" />
             <p>Loading team members...</p>
@@ -158,7 +156,7 @@ export default function ChatSidebar({
                 key={member.user_id}
                 type="button"
                 onClick={() => onStartChatWithUser(member)}
-                className={`w-full flex items-center gap-2.5 p-2 rounded-xl text-left transition-all cursor-pointer relative group ${
+                className={`w-full flex items-center gap-2.5 p-2 rounded-xl text-left transition-colors cursor-pointer relative group ${
                   isSelected
                     ? "bg-teal-50/90 border border-teal-200 shadow-2xs ring-1 ring-teal-600/10"
                     : "hover:bg-slate-50 border border-transparent"
