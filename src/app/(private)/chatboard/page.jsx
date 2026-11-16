@@ -248,6 +248,44 @@ export default function ChatboardPage() {
     };
   }, [currentUserId, loadConversations]);
 
+  // Open conversation and sync active global state immediately
+  const handleOpenConversation = useCallback(
+    (conv) => {
+      if (!conv) {
+        setActiveConversation(null);
+        if (typeof window !== "undefined") {
+          window.__WORKGRID_ACTIVE_CONVERSATION_ID__ = null;
+          window.__WORKGRID_ACTIVE_CHAT_USER_ID__ = null;
+          window.__WORKGRID_IS_MOBILE_CHAT_OPEN__ = false;
+        }
+        return;
+      }
+
+      const otherId =
+        conv.otherUserId ||
+        conv.otherUser?.user_id ||
+        conv.otherUser?.id ||
+        (String(conv.user1_id).toLowerCase() === String(currentUserId).toLowerCase()
+          ? conv.user2_id
+          : conv.user1_id);
+
+      setActiveConversation(conv);
+      setIsMobileChatOpen(true);
+
+      if (typeof window !== "undefined") {
+        window.__WORKGRID_ACTIVE_CONVERSATION_ID__ = conv.id ? String(conv.id) : null;
+        window.__WORKGRID_ACTIVE_CHAT_USER_ID__ = otherId ? String(otherId) : null;
+        window.__WORKGRID_IS_MOBILE_CHAT_OPEN__ = true;
+        window.dispatchEvent(
+          new CustomEvent("chat-conversation-opened", {
+            detail: { userId: otherId, conversationId: conv.id },
+          })
+        );
+      }
+    },
+    [currentUserId]
+  );
+
   // Start or Open Conversation with a specific user
   const handleStartChatWithUser = useCallback(
     async (targetUser) => {
@@ -290,27 +328,93 @@ export default function ChatboardPage() {
           return [enrichedConv, ...prev];
         });
 
-        setActiveConversation(enrichedConv);
-        setIsMobileChatOpen(true);
+        handleOpenConversation(enrichedConv);
       } catch (err) {
         console.error("handleStartChatWithUser error:", err);
         toast.error("Could not initiate chat conversation. Please try again.");
       }
     },
-    [orgId, currentUserId]
+    [orgId, currentUserId, handleOpenConversation]
   );
 
-  // Handle URL `userId` parameter auto-open
+  // Sync currently open conversation target user for smart notification suppression
   useEffect(() => {
-    if (queryUserId && members.length > 0 && currentUserId && !activeConversation) {
+    if (typeof window !== "undefined") {
+      if (!activeConversation) {
+        window.__WORKGRID_ACTIVE_CONVERSATION_ID__ = null;
+        window.__WORKGRID_ACTIVE_CHAT_USER_ID__ = null;
+        window.__WORKGRID_IS_MOBILE_CHAT_OPEN__ = false;
+        return;
+      }
+      const otherId =
+        activeConversation.otherUserId ||
+        activeConversation.otherUser?.user_id ||
+        activeConversation.otherUser?.id ||
+        (String(activeConversation.user1_id).toLowerCase() === String(currentUserId).toLowerCase()
+          ? activeConversation.user2_id
+          : activeConversation.user1_id);
+
+      window.__WORKGRID_ACTIVE_CONVERSATION_ID__ = activeConversation.id ? String(activeConversation.id) : null;
+      window.__WORKGRID_ACTIVE_CHAT_USER_ID__ = otherId ? String(otherId) : null;
+      window.__WORKGRID_IS_MOBILE_CHAT_OPEN__ = Boolean(isMobileChatOpen);
+
+      window.dispatchEvent(
+        new CustomEvent("chat-conversation-opened", {
+          detail: { userId: otherId, conversationId: activeConversation.id },
+        })
+      );
+    }
+    return () => {
+      if (typeof window !== "undefined") {
+        window.__WORKGRID_ACTIVE_CONVERSATION_ID__ = null;
+        window.__WORKGRID_ACTIVE_CHAT_USER_ID__ = null;
+      }
+    };
+  }, [activeConversation, currentUserId, isMobileChatOpen]);
+
+  // Handle URL `userId` parameter auto-open or switch
+  useEffect(() => {
+    if (queryUserId && members.length > 0 && currentUserId) {
+      const currentOtherId =
+        activeConversation?.otherUserId ||
+        (activeConversation?.user1_id === currentUserId
+          ? activeConversation?.user2_id
+          : activeConversation?.user1_id);
+
+      if (currentOtherId !== queryUserId) {
+        const targetMember = members.find(
+          (m) => (m.user_id || m.id || m.profiles?.id) === queryUserId
+        );
+        if (targetMember) {
+          handleStartChatWithUser(targetMember);
+        }
+      }
+    }
+  }, [queryUserId, members, currentUserId, activeConversation, handleStartChatWithUser]);
+
+  // Handle direct custom event to open chat with user (from notification or external triggers)
+  useEffect(() => {
+    const handleOpenChatUserEvent = (e) => {
+      const targetId = e?.detail?.userId;
+      if (!targetId || !members.length) return;
       const targetMember = members.find(
-        (m) => (m.user_id || m.id || m.profiles?.id) === queryUserId
+        (m) => (m.user_id || m.id || m.profiles?.id) === targetId
       );
       if (targetMember) {
         handleStartChatWithUser(targetMember);
       }
+    };
+
+    if (typeof window !== "undefined") {
+      window.addEventListener("open-chat-user", handleOpenChatUserEvent);
     }
-  }, [queryUserId, members, currentUserId, activeConversation, handleStartChatWithUser]);
+
+    return () => {
+      if (typeof window !== "undefined") {
+        window.removeEventListener("open-chat-user", handleOpenChatUserEvent);
+      }
+    };
+  }, [members, handleStartChatWithUser]);
 
   // Send Message Handler
   const handleSendMessage = async (text) => {
@@ -369,10 +473,7 @@ export default function ChatboardPage() {
           <ChatSidebar
             conversations={conversations}
             activeConversation={activeConversation}
-            onSelectConversation={(conv) => {
-              setActiveConversation(conv);
-              setIsMobileChatOpen(true);
-            }}
+            onSelectConversation={handleOpenConversation}
             teamMembers={members}
             unreadCounts={unreadCounts}
             currentUserId={currentUserId}
@@ -396,7 +497,12 @@ export default function ChatboardPage() {
               messages={messages}
               currentUserId={currentUserId}
               onSendMessage={handleSendMessage}
-              onBackClick={() => setIsMobileChatOpen(false)}
+              onBackClick={() => {
+                setIsMobileChatOpen(false);
+                if (typeof window !== "undefined") {
+                  window.__WORKGRID_IS_MOBILE_CHAT_OPEN__ = false;
+                }
+              }}
               isLoadingMessages={isLoadingMessages}
               isSending={isSending}
               isOtherUserOnline={onlineUserIds.includes(

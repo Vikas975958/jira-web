@@ -4,6 +4,7 @@ import React from "react";
 import { usePathname } from "next/navigation";
 import Header from "@/components/Header";
 import Sidebar from "@/components/Sidebar";
+import ChatNotificationPopup from "@/components/ChatNotificationPopup";
 import {
   OrganizationProvider,
   useOrganization,
@@ -45,6 +46,9 @@ function PrivateLayoutContent({ children }) {
           {children}
         </main>
       </div>
+
+      {/* Global Google Chat Style Realtime Notifications */}
+      {showNav && <ChatNotificationPopup />}
     </div>
   );
 }
