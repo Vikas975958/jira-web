@@ -468,7 +468,7 @@ export default function Header({ onCreateIssueClick }) {
 
           {/* Interactive Search Results Dropdown */}
           {isSearchOpen && (
-            <div className="absolute left-0 mt-1.5 w-80 sm:w-96 max-h-[460px] bg-white rounded-lg shadow-xl border border-slate-200 z-50 overflow-hidden flex flex-col text-xs animate-fadeIn">
+            <div className="absolute right-0 sm:left-0 sm:right-auto mt-1.5 w-[calc(100vw-24px)] sm:w-96 max-w-[420px] max-h-[460px] bg-white rounded-lg shadow-xl border border-slate-200 z-50 overflow-hidden flex flex-col text-xs animate-fadeIn">
               <div className="flex-1 overflow-y-auto divide-y divide-slate-100">
                 {/* 1. Projects Section */}
                 {matchingProjects.length > 0 && (
@@ -722,7 +722,7 @@ export default function Header({ onCreateIssueClick }) {
 
           {/* Notifications Panel */}
           {notificationsOpen && (
-            <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-lg shadow-xl border border-slate-200 z-50 overflow-hidden animate-fadeIn">
+            <div className="absolute right-0 mt-2 w-[calc(100vw-24px)] sm:w-96 max-w-[400px] bg-white rounded-lg shadow-xl border border-slate-200 z-50 overflow-hidden animate-fadeIn">
               <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-slate-50">
                 <div className="flex items-center gap-2">
                   <FiBell className="w-3.5 h-3.5 text-slate-500" />

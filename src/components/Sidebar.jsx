@@ -279,38 +279,39 @@ export default function Sidebar() {
     return unseenMembers.reduce((sum, m) => sum + (m.unreadCount || 0), 0);
   }, [unseenMembers]);
 
+  // On mobile drawers, always display the expanded sidebar even if desktop is collapsed
+  const effectiveCollapsed = isCollapsed && !isMobileOpen;
+
   return (
     <>
       <aside
-        className={`relative border-r border-slate-200/80 bg-white flex flex-col justify-between select-none shrink-0 h-full ${
-          isCollapsed ? "overflow-visible" : "overflow-hidden"
-        } transition-all duration-200 ease-in-out z-40
-          ${isCollapsed ? "w-16" : "w-60 lg:w-64"}
+        className={`relative border-r border-slate-200/80 bg-white flex flex-col justify-between select-none shrink-0 h-full transition-all duration-200 ease-in-out
+          ${effectiveCollapsed ? "overflow-visible" : "overflow-hidden"}
           ${
             isMobileOpen
-              ? "fixed inset-y-0 left-0 shadow-2xl translate-x-0 w-64 flex"
-              : "hidden md:flex"
+              ? "fixed inset-y-0 left-0 shadow-2xl translate-x-0 !w-64 z-50 flex"
+              : `hidden md:flex z-30 ${effectiveCollapsed ? "md:w-16" : "md:w-60 lg:md:w-64"}`
           }
         `}
       >
-        <div className={`p-3 space-y-4 flex-1 ${isCollapsed ? "overflow-visible" : "overflow-y-auto"}`}>
+        <div className={`p-3 space-y-4 flex-1 ${effectiveCollapsed ? "overflow-visible" : "overflow-y-auto"}`}>
           {/* Active Workspace Header */}
           {activeOrg && (
             <div
               className={`rounded-lg bg-slate-50 border border-slate-200/70 flex items-center transition-all ${
-                isCollapsed ? "p-1.5 justify-center" : "px-2.5 py-2 justify-between gap-2"
+                effectiveCollapsed ? "p-1.5 justify-center" : "px-2.5 py-2 justify-between gap-2"
               }`}
             >
               <div className="flex items-center gap-2.5 min-w-0">
                 <div
                   className="w-7 h-7 rounded-lg bg-[#0F766E] text-white font-bold text-xs flex items-center justify-center shrink-0 cursor-pointer relative group"
                   title={`${activeOrg.name} (${userRole === OWNER_ROLE ? "Workspace Owner" : userRole})`}
-                  onClick={() => isCollapsed && toggleSidebar()}
+                  onClick={() => effectiveCollapsed && toggleSidebar()}
                 >
                   {activeOrg.name?.charAt(0)?.toUpperCase() || "W"}
 
                   {/* Tooltip for Workspace */}
-                  {isCollapsed && (
+                  {effectiveCollapsed && (
                     <div className="absolute left-full ml-2.5 top-1/2 -translate-y-1/2 opacity-0 pointer-events-none group-hover:opacity-100 transition-all duration-150 flex items-center z-50 drop-shadow-xl">
                       <div className="w-2 h-2 bg-slate-900 rotate-45 -mr-1 shrink-0 z-10" />
                       <div className="bg-slate-900 text-white text-xs px-2.5 py-1.5 rounded-md flex items-center gap-2 whitespace-nowrap border border-slate-700/60 shadow-xl">
@@ -322,7 +323,7 @@ export default function Sidebar() {
                     </div>
                   )}
                 </div>
-                {!isCollapsed && (
+                {!effectiveCollapsed && (
                   <div className="min-w-0">
                     <p className="text-xs font-bold text-slate-900 truncate">
                       {activeOrg.name}
@@ -335,7 +336,7 @@ export default function Sidebar() {
               </div>
 
               {/* Desktop Collapse Button */}
-              {!isCollapsed && (
+              {!effectiveCollapsed && (
                 <button
                   type="button"
                   onClick={toggleSidebar}
@@ -366,7 +367,7 @@ export default function Sidebar() {
                 pathname === item.path ||
                 (item.path === "/tasks" && pathname?.startsWith("/tasks"));
 
-              if (isCollapsed) {
+              if (effectiveCollapsed) {
                 return (
                   <Link
                     key={item.name}
@@ -435,7 +436,7 @@ export default function Sidebar() {
 
           {/* PROJECTS Section - Only shows pinned projects */}
           <div className="space-y-1">
-            {!isCollapsed ? (
+            {!effectiveCollapsed ? (
               <div className="flex items-center justify-between px-3 py-1 text-[11px] font-semibold text-slate-400 tracking-wider uppercase">
                 <div className="flex items-center gap-1.5" title="Pinned projects displayed in sidebar">
                   <span>Projects</span>
@@ -466,9 +467,9 @@ export default function Sidebar() {
 
             <div className="space-y-0.5">
               {loadingProjects ? (
-                <div className={`py-2 text-[11px] text-slate-400 flex items-center ${isCollapsed ? "justify-center" : "px-3 gap-2"}`}>
+                <div className={`py-2 text-[11px] text-slate-400 flex items-center ${effectiveCollapsed ? "justify-center" : "px-3 gap-2"}`}>
                   <span className="w-2.5 h-2.5 rounded-full border-2 border-slate-300 border-t-[#0F766E] animate-spin" />
-                  {!isCollapsed && <span>Loading projects...</span>}
+                  {!effectiveCollapsed && <span>Loading projects...</span>}
                 </div>
               ) : pinnedProjects && pinnedProjects.length > 0 ? (
                 pinnedProjects.map((project) => {
@@ -482,7 +483,7 @@ export default function Sidebar() {
                   const isCurrent = pathname === `/projects/${project.id}`;
                   const initial = (project.name || "P").trim().charAt(0).toUpperCase();
 
-                  if (isCollapsed) {
+                  if (effectiveCollapsed) {
                     return (
                       <Link
                         key={project.id}
@@ -584,7 +585,7 @@ export default function Sidebar() {
                   );
                 })
               ) : (
-                !isCollapsed && (
+                !effectiveCollapsed && (
                   <div className="px-3 py-2 text-[11px] text-slate-400 space-y-1 bg-slate-50/70 rounded-lg mx-1 my-0.5 border border-dashed border-slate-200">
                     <div className="flex items-center gap-1.5 font-medium text-slate-600">
                       <LuPin className="w-3 h-3 text-slate-400" />
@@ -606,7 +607,7 @@ export default function Sidebar() {
               )}
 
               {/* View All Projects Option */}
-              {isCollapsed ? (
+              {effectiveCollapsed ? (
                 <Link
                   href="/projects"
                   onClick={() => closeMobile()}

@@ -806,7 +806,7 @@ function TasksBoardContent() {
         {/* Header Action Controls & Backend Filters */}
         <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
           {/* Search box */}
-          <div className="relative flex-1 sm:w-44 md:w-48">
+          <div className="relative w-full sm:w-44 md:w-48">
             <FiSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
             <input
               type="text"
@@ -837,7 +837,7 @@ function TasksBoardContent() {
             onChange={(val) => handlePriorityChange(val || "all")}
             placeholder="Priority"
             allowClear
-            className="w-32 sm:w-36 h-8.5 text-xs"
+            className="w-[calc(50%-4px)] sm:w-32 md:w-36 h-8.5 text-xs"
             options={[
               { value: "urgent", label: "Urgent" },
               { value: "high", label: "High" },
@@ -854,7 +854,7 @@ function TasksBoardContent() {
             onChange={(val) => handleStatusChange(val || "all")}
             placeholder="Status"
             allowClear
-            className="w-32 sm:w-36 h-8.5 text-xs"
+            className="w-[calc(50%-4px)] sm:w-32 md:w-36 h-8.5 text-xs"
             options={[
               { value: "backlog", label: "Backlog" },
               { value: "todo", label: "To Do" },
@@ -869,7 +869,7 @@ function TasksBoardContent() {
             value={rangeValue}
             onChange={handleDateRangeChange}
             placeholder={["Start Date", "End Date"]}
-            className="h-8.5 text-xs w-56 sm:w-60"
+            className="h-8.5 text-xs w-full sm:w-56 md:w-60"
             allowClear
           />
 

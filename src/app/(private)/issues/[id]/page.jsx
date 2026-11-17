@@ -616,7 +616,7 @@ export default function IssueDetailPage() {
               </h1>
 
               {/* Git Branch Suggestion Toolbar */}
-              <div className="flex items-center justify-between gap-2 p-2 bg-slate-50 border border-slate-200/80 rounded-lg text-xs">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2 bg-slate-50 border border-slate-200/80 rounded-lg text-xs">
                 <div className="flex items-center gap-1.5 min-w-0 text-slate-600">
                   <FiGitBranch className="w-3.5 h-3.5 text-[#0F766E] shrink-0" />
                   <span className="text-[11px] font-semibold text-slate-500">
@@ -636,7 +636,7 @@ export default function IssueDetailPage() {
                     navigator.clipboard.writeText(`git checkout -b ${branch}`);
                     toast.info(`Copied: git checkout -b ${branch}`);
                   }}
-                  className="inline-flex items-center gap-1 text-[11px] text-slate-500 hover:text-slate-800 bg-white border border-slate-200 px-2 py-0.5 rounded shadow-2xs shrink-0 cursor-pointer"
+                  className="inline-flex items-center gap-1 text-[11px] text-slate-500 hover:text-slate-800 bg-white border border-slate-200 px-2 py-0.5 rounded shadow-2xs shrink-0 cursor-pointer self-start sm:self-auto"
                 >
                   <FiCopy className="w-3 h-3" />
                   <span>Copy Git cmd</span>

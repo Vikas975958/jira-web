@@ -618,7 +618,7 @@ export default function ProjectDetailsPage() {
             </div>
 
             {/* Quick Actions */}
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center flex-wrap gap-2">
               {/* Pin / Unpin Project from Sidebar */}
               <button
                 type="button"

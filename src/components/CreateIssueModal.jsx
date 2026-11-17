@@ -285,7 +285,7 @@ export default function CreateIssueModal({
           </div>
 
           {/* Priority & Status */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
                 Priority
@@ -323,7 +323,7 @@ export default function CreateIssueModal({
           </div>
 
           {/* Story Points & Assignee */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
                 Story Points

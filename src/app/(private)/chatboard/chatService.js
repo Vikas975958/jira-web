@@ -1291,13 +1291,13 @@ export const chatService = {
   async deleteGroup(groupId) {
     if (!groupId) throw new Error("Group ID is required");
 
-    // 1. Try atomic database RPC
+    // 1. Try atomic database RPC first (SECURITY DEFINER runs with elevated privileges)
     try {
       const { data, error } = await supabase.rpc("delete_chat_group", {
         p_group_id: groupId,
       });
 
-      if (!error && data) return data;
+      if (!error) return { success: true, data };
       if (error) {
         console.warn("delete_chat_group RPC returned error, attempting direct update:", error);
       }
@@ -1305,50 +1305,52 @@ export const chatService = {
       console.warn("delete_chat_group RPC invocation failed, fallback to direct query:", e);
     }
 
-    // 2. Direct soft-delete update
+    // 2. Direct soft-delete update WITHOUT .select()
+    // NOTE: Do NOT chain .select() here! Chaining .select() requests PostgREST to return
+    // the representation of the updated row. Since chat_groups SELECT RLS requires `is_active = true`,
+    // returning a row with `is_active = false` causes PostgREST to reject the update with
+    // "new row violates row-level security policy for table chat_groups".
     try {
-      const { data, error } = await supabase
+      const { error: updateErr } = await supabase
         .from("chat_groups")
         .update({
           is_active: false,
           updated_at: new Date().toISOString(),
         })
-        .eq("id", groupId)
-        .select();
+        .eq("id", groupId);
 
-      if (!error && data && data.length > 0) {
+      if (!updateErr) {
         // Also deactivate members
-        await supabase
-          .from("chat_group_members")
-          .update({
-            is_active: false,
-            left_at: new Date().toISOString(),
-          })
-          .eq("group_id", groupId)
-          .eq("is_active", true);
+        try {
+          await supabase
+            .from("chat_group_members")
+            .update({
+              is_active: false,
+              left_at: new Date().toISOString(),
+            })
+            .eq("group_id", groupId)
+            .eq("is_active", true);
+        } catch (_) {}
 
-        return { success: true, data };
+        return { success: true };
       }
-      if (error) {
-        console.warn("Soft delete failed, trying hard delete:", error);
-      }
+      console.warn("Soft delete failed, trying hard delete:", updateErr);
     } catch (e) {
       console.warn("Direct soft delete failed:", e);
     }
 
-    // 3. Direct hard-delete fallback
-    const { data: delData, error: delErr } = await supabase
+    // 3. Direct hard-delete fallback WITHOUT .select()
+    const { error: delErr } = await supabase
       .from("chat_groups")
       .delete()
-      .eq("id", groupId)
-      .select();
+      .eq("id", groupId);
 
     if (delErr) {
       console.error("Failed to delete group:", delErr);
       throw delErr;
     }
 
-    return { success: true, data: delData };
+    return { success: true };
   },
 
   /**

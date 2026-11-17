@@ -48,9 +48,9 @@ export default function SignInPage() {
   };
 
   return (
-    <div className="h-screen w-full flex bg-gradient-to-br from-slate-50 via-teal-50/30 to-slate-100 text-slate-800 overflow-hidden select-none">
+    <div className="min-h-screen w-full flex bg-gradient-to-br from-slate-50 via-teal-50/30 to-slate-100 text-slate-800 select-none">
       {/* Left Column: Sign In Form */}
-      <div className="w-full lg:w-1/2 h-full flex flex-col justify-between px-6 py-6 sm:px-10 lg:px-14 xl:px-16 overflow-hidden">
+      <div className="w-full lg:w-1/2 min-h-screen flex flex-col justify-between px-6 py-6 sm:px-10 lg:px-14 xl:px-16 overflow-y-auto">
         {/* Brand Header */}
         <div className="w-full max-w-[500px] mx-auto flex items-center justify-between shrink-0">
           <JiraLogo className="w-9 h-9" textColor="text-slate-900" />

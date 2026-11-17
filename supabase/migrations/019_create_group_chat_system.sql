@@ -196,8 +196,20 @@ CREATE POLICY "chat_groups_insert"
 CREATE POLICY "chat_groups_update"
   ON public.chat_groups FOR UPDATE
   TO authenticated
-  USING (public.is_group_admin(id, auth.uid()))
-  WITH CHECK (public.is_group_admin(id, auth.uid()));
+  USING (
+    public.is_group_admin(id, auth.uid()) OR auth.uid() = created_by
+  )
+  WITH CHECK (
+    public.is_group_admin(id, auth.uid()) OR auth.uid() = created_by
+  );
+
+DROP POLICY IF EXISTS "chat_groups_delete" ON public.chat_groups;
+CREATE POLICY "chat_groups_delete"
+  ON public.chat_groups FOR DELETE
+  TO authenticated
+  USING (
+    public.is_group_admin(id, auth.uid()) OR auth.uid() = created_by
+  );
 
 -- RLS for chat_group_members
 CREATE POLICY "chat_group_members_select"

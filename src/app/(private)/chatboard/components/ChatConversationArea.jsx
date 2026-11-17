@@ -347,16 +347,8 @@ export default function ChatConversationArea({
           ) : (
             /* 1-to-1 Conversation Header */
             <div className="flex items-center gap-2.5 min-w-0">
-              <div className="relative shrink-0">
-                <div className="w-9 h-9 rounded-xl bg-[#0F766E] text-white flex items-center justify-center font-bold text-xs uppercase shadow-2xs">
-                  {getNameInitials(otherUser.full_name)}
-                </div>
-                <span
-                  className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full ring-2 ring-white ${
-                    isOtherUserOnline ? "bg-emerald-500" : "bg-slate-300"
-                  }`}
-                  title={isOtherUserOnline ? "Online" : "Offline"}
-                />
+              <div className="w-9 h-9 rounded-xl bg-[#0F766E] text-white flex items-center justify-center font-bold text-xs uppercase shadow-2xs shrink-0">
+                {getNameInitials(otherUser.full_name)}
               </div>
 
               <div className="min-w-0">
