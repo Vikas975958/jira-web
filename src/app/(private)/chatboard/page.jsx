@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import React, { useState, useEffect, useCallback, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import { useSelector } from "react-redux";
 import { toast } from "react-toastify";
 import { useOrganization } from "@/context/OrganizationContext";
@@ -9,10 +9,11 @@ import chatService from "./chatService";
 import ChatSidebar from "./components/ChatSidebar";
 import ChatConversationArea from "./components/ChatConversationArea";
 import EmptyChatState from "./components/EmptyChatState";
+import CreateGroupModal from "./components/CreateGroupModal";
+import GroupDetailsModal from "./components/GroupDetailsModal";
 import { MEMBER_ROLE } from "@/utils/constants";
 
 export default function ChatboardPage() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const queryUserId = searchParams?.get("userId");
 
@@ -33,14 +34,22 @@ export default function ChatboardPage() {
     organizations?.[0]?.organizations ||
     organizations?.[0];
   const orgId = activeOrg?.id;
-  const userRole = currentOrg?.role || organizations?.[0]?.role || user?.role || MEMBER_ROLE;
 
-  // Conversations and Active Chat States
+  // 1-to-1 Conversations States
   const [conversations, setConversations] = useState([]);
-  const [activeConversation, setActiveConversation] = useState(null);
-  const [messages, setMessages] = useState([]);
   const [unreadCounts, setUnreadCounts] = useState({});
   const [isLoadingConversations, setIsLoadingConversations] = useState(true);
+
+  // Group Chat States
+  const [groups, setGroups] = useState([]);
+  const [groupUnreadCounts, setGroupUnreadCounts] = useState({});
+  const [isLoadingGroups, setIsLoadingGroups] = useState(true);
+  const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false);
+  const [isGroupDetailsOpen, setIsGroupDetailsOpen] = useState(false);
+
+  // Active Chat & Messages State (Unified for 1-to-1 and Groups)
+  const [activeConversation, setActiveConversation] = useState(null);
+  const [messages, setMessages] = useState([]);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [isSending, setIsSending] = useState(false);
 
@@ -49,7 +58,7 @@ export default function ChatboardPage() {
   const [isLoadingOlderMessages, setIsLoadingOlderMessages] = useState(false);
   const isLoadingOlderRef = useRef(false);
 
-  // Search State for Sidebar
+  // Search & Online Presence States
   const [searchQuery, setSearchQuery] = useState("");
   const [onlineUserIds, setOnlineUserIds] = useState([]);
 
@@ -59,6 +68,7 @@ export default function ChatboardPage() {
   // Realtime channel references
   const activeConversationChannelRef = useRef(null);
   const userChannelRef = useRef(null);
+  const userGroupChannelRef = useRef(null);
   const activeConvRef = useRef(activeConversation);
 
   useEffect(() => {
@@ -84,73 +94,133 @@ export default function ChatboardPage() {
     };
   }, [orgId, currentUserId]);
 
-  // Load Conversations and Unread Counts
-  const loadConversations = useCallback(async (showLoading = false) => {
-    if (!orgId || !currentUserId) return;
-    try {
-      if (showLoading) {
-        setIsLoadingConversations(true);
+  // Load 1-to-1 Conversations and Unread Counts
+  const loadConversations = useCallback(
+    async (showLoading = false) => {
+      if (!orgId || !currentUserId) return;
+      try {
+        if (showLoading) {
+          setIsLoadingConversations(true);
+        }
+        const [convs, unreads] = await Promise.all([
+          chatService.getConversations({
+            organizationId: orgId,
+            userId: currentUserId,
+          }),
+          chatService.getUnreadCounts({
+            userId: currentUserId,
+          }),
+        ]);
+
+        setConversations(convs || []);
+        setUnreadCounts(unreads || {});
+      } catch (err) {
+        console.error("loadConversations error:", err);
+      } finally {
+        if (showLoading) {
+          setIsLoadingConversations(false);
+        }
       }
-      const [convs, unreads] = await Promise.all([
-        chatService.getConversations({
+    },
+    [orgId, currentUserId]
+  );
+
+  // Load Groups and Group Unread Counts
+  const loadGroups = useCallback(
+    async (showLoading = false) => {
+      if (!orgId || !currentUserId) return;
+      try {
+        if (showLoading) {
+          setIsLoadingGroups(true);
+        }
+        const fetchedGroups = await chatService.getGroups({
           organizationId: orgId,
           userId: currentUserId,
-        }),
-        chatService.getUnreadCounts({
-          userId: currentUserId,
-        }),
-      ]);
+        });
 
-      setConversations(convs || []);
-      setUnreadCounts(unreads || {});
-    } catch (err) {
-      console.error("loadConversations error:", err);
-    } finally {
-      if (showLoading) {
-        setIsLoadingConversations(false);
+        setGroups(fetchedGroups || []);
+
+        if (fetchedGroups && fetchedGroups.length > 0) {
+          const groupIds = fetchedGroups.map((g) => g.id);
+          const grpUnreads = await chatService.getGroupUnreadCounts({
+            userId: currentUserId,
+            groupIds,
+          });
+          setGroupUnreadCounts(grpUnreads || {});
+        } else {
+          setGroupUnreadCounts({});
+        }
+      } catch (err) {
+        console.error("loadGroups error:", err);
+      } finally {
+        if (showLoading) {
+          setIsLoadingGroups(false);
+        }
       }
-    }
-  }, [orgId, currentUserId]);
+    },
+    [orgId, currentUserId]
+  );
 
   useEffect(() => {
     loadConversations(true);
-  }, [loadConversations]);
+    loadGroups(true);
+  }, [loadConversations, loadGroups]);
 
-  // Load Messages for Active Conversation (Initial Batch)
-  const loadMessages = useCallback(async (conversationId) => {
-    if (!conversationId) {
-      setMessages([]);
-      setHasMoreMessages(false);
-      setIsLoadingOlderMessages(false);
-      isLoadingOlderRef.current = false;
-      return;
-    }
-    try {
-      setIsLoadingMessages(true);
-      isLoadingOlderRef.current = false;
-      const res = await chatService.getMessages({
-        conversationId,
-        limit: 30,
-      });
-      const initialMsgs = res?.messages || (Array.isArray(res) ? res : []);
-      setMessages(initialMsgs);
-      setHasMoreMessages(Boolean(res?.hasMore));
-
-      // Mark incoming messages as read
-      if (currentUserId) {
-        await chatService.markMessagesAsRead({
-          conversationId,
-          userId: currentUserId,
-        });
-        // Clear unread count for this conversation
-        setUnreadCounts((prev) => ({ ...prev, [conversationId]: 0 }));
+  // Load Messages for Active Conversation or Group (Initial Batch)
+  const loadMessages = useCallback(
+    async (conv) => {
+      if (!conv?.id) {
+        setMessages([]);
+        setHasMoreMessages(false);
+        setIsLoadingOlderMessages(false);
+        isLoadingOlderRef.current = false;
+        return;
       }
-    } catch (err) {
-      console.error("loadMessages error:", err);
-    } finally {
-      setIsLoadingMessages(false);
-    }
-  }, [currentUserId]);
+      try {
+        setIsLoadingMessages(true);
+        isLoadingOlderRef.current = false;
+
+        let res;
+        if (conv.isGroup) {
+          res = await chatService.getGroupMessages({
+            groupId: conv.id,
+            limit: 30,
+          });
+        } else {
+          res = await chatService.getMessages({
+            conversationId: conv.id,
+            limit: 30,
+          });
+        }
+
+        const initialMsgs = res?.messages || (Array.isArray(res) ? res : []);
+        setMessages(initialMsgs);
+        setHasMoreMessages(Boolean(res?.hasMore));
+
+        // Mark incoming messages as read
+        if (currentUserId) {
+          if (conv.isGroup) {
+            await chatService.markGroupMessagesAsRead({
+              groupId: conv.id,
+              userId: currentUserId,
+            });
+            setGroupUnreadCounts((prev) => ({ ...prev, [conv.id]: 0 }));
+          } else {
+            await chatService.markMessagesAsRead({
+              conversationId: conv.id,
+              userId: currentUserId,
+            });
+            setUnreadCounts((prev) => ({ ...prev, [conv.id]: 0 }));
+          }
+        }
+      } catch (err) {
+        console.error("loadMessages error:", err);
+      } finally {
+        setIsLoadingMessages(false);
+      }
+    },
+    [currentUserId]
+  );
 
   // Load Older Messages (Reverse Infinite Scroll Pagination)
   const loadOlderMessages = useCallback(async () => {
@@ -169,11 +239,20 @@ export default function ChatboardPage() {
       isLoadingOlderRef.current = true;
       setIsLoadingOlderMessages(true);
 
-      const res = await chatService.getMessages({
-        conversationId: activeConversation.id,
-        limit: 30,
-        beforeTimestamp: oldestMessage.created_at,
-      });
+      let res;
+      if (activeConversation.isGroup) {
+        res = await chatService.getGroupMessages({
+          groupId: activeConversation.id,
+          limit: 30,
+          beforeTimestamp: oldestMessage.created_at,
+        });
+      } else {
+        res = await chatService.getMessages({
+          conversationId: activeConversation.id,
+          limit: 30,
+          beforeTimestamp: oldestMessage.created_at,
+        });
+      }
 
       if (res?.messages && res.messages.length > 0) {
         setMessages((prev) => {
@@ -190,22 +269,37 @@ export default function ChatboardPage() {
       setIsLoadingOlderMessages(false);
       isLoadingOlderRef.current = false;
     }
-  }, [activeConversation?.id, hasMoreMessages, messages]);
+  }, [activeConversation, hasMoreMessages, messages]);
 
-  // Edit Message Handler
+  // Edit Message Handler (Unified for 1-to-1 and Group Messages)
   const handleEditMessage = useCallback(
     async ({ messageId, newMessage }) => {
-      if (!messageId || !newMessage?.trim() || !currentUserId || !activeConversation?.id) {
+      if (
+        !messageId ||
+        !newMessage?.trim() ||
+        !currentUserId ||
+        !activeConversation?.id
+      ) {
         return;
       }
 
       try {
-        const updated = await chatService.editMessage({
-          messageId,
-          newMessage: newMessage.trim(),
-          senderId: currentUserId,
-          conversationId: activeConversation.id,
-        });
+        let updated;
+        if (activeConversation.isGroup) {
+          updated = await chatService.editGroupMessage({
+            messageId,
+            newMessage: newMessage.trim(),
+            senderId: currentUserId,
+            groupId: activeConversation.id,
+          });
+        } else {
+          updated = await chatService.editMessage({
+            messageId,
+            newMessage: newMessage.trim(),
+            senderId: currentUserId,
+            conversationId: activeConversation.id,
+          });
+        }
 
         // Immediately reflect changes in UI
         setMessages((prev) =>
@@ -223,20 +317,26 @@ export default function ChatboardPage() {
         );
 
         // Update conversation preview if edited message was the latest
-        setConversations((prev) =>
-          prev.map((c) => {
-            if (c.id === activeConversation.id) {
-              const isLatest = messages[messages.length - 1]?.id === messageId;
-              if (isLatest) {
-                return {
-                  ...c,
-                  last_message_text: newMessage.trim(),
-                };
-              }
-            }
-            return c;
-          })
-        );
+        const isLatest = messages[messages.length - 1]?.id === messageId;
+        if (isLatest) {
+          if (activeConversation.isGroup) {
+            setGroups((prev) =>
+              prev.map((g) =>
+                g.id === activeConversation.id
+                  ? { ...g, last_message_text: newMessage.trim() }
+                  : g
+              )
+            );
+          } else {
+            setConversations((prev) =>
+              prev.map((c) =>
+                c.id === activeConversation.id
+                  ? { ...c, last_message_text: newMessage.trim() }
+                  : c
+              )
+            );
+          }
+        }
 
         return updated;
       } catch (err) {
@@ -245,10 +345,10 @@ export default function ChatboardPage() {
         throw err;
       }
     },
-    [activeConversation?.id, currentUserId, messages]
+    [activeConversation, currentUserId, messages]
   );
 
-  // Setup Realtime Subscription for Active Conversation
+  // Setup Realtime Subscription for Active Conversation (1-to-1 or Group)
   useEffect(() => {
     if (activeConversationChannelRef.current) {
       activeConversationChannelRef.current.unsubscribe();
@@ -257,46 +357,87 @@ export default function ChatboardPage() {
 
     if (!activeConversation?.id) return;
 
-    loadMessages(activeConversation.id);
+    loadMessages(activeConversation);
 
-    const channel = chatService.subscribeToConversation(
-      activeConversation.id,
-      (newMsg) => {
-        setMessages((prev) => {
-          if (prev.some((m) => m.id === newMsg.id)) return prev;
-          return [...prev, newMsg];
-        });
-
-        // If I received this new message in the open chat, mark it read immediately
-        if (newMsg.recipient_id === currentUserId) {
-          chatService.markMessagesAsRead({
-            conversationId: activeConversation.id,
-            userId: currentUserId,
+    if (activeConversation.isGroup) {
+      // Group Realtime Subscription
+      const channel = chatService.subscribeToGroup(
+        activeConversation.id,
+        (newMsg) => {
+          setMessages((prev) => {
+            if (prev.some((m) => m.id === newMsg.id)) return prev;
+            return [...prev, newMsg];
           });
+
+          // If current user is viewing this group and received a message, mark as read
+          if (newMsg.sender_id !== currentUserId) {
+            chatService.markGroupMessagesAsRead({
+              groupId: activeConversation.id,
+              userId: currentUserId,
+            });
+          }
+
+          // Update last message in groups list
+          setGroups((prev) =>
+            prev.map((g) =>
+              g.id === activeConversation.id
+                ? {
+                    ...g,
+                    last_message_text: newMsg.message,
+                    last_message_at: newMsg.created_at,
+                    last_sender_id: newMsg.sender_id,
+                  }
+                : g
+            )
+          );
+        },
+        (updatedMsg) => {
+          setMessages((prev) =>
+            prev.map((m) => (m.id === updatedMsg.id ? updatedMsg : m))
+          );
         }
+      );
 
-        // Update conversation last message in list
-        setConversations((prev) =>
-          prev.map((c) =>
-            c.id === activeConversation.id
-              ? {
-                  ...c,
-                  last_message_text: newMsg.message,
-                  last_message_at: newMsg.created_at,
-                  last_sender_id: newMsg.sender_id,
-                }
-              : c
-          )
-        );
-      },
-      (updatedMsg) => {
-        setMessages((prev) =>
-          prev.map((m) => (m.id === updatedMsg.id ? updatedMsg : m))
-        );
-      }
-    );
+      activeConversationChannelRef.current = channel;
+    } else {
+      // 1-to-1 Realtime Subscription
+      const channel = chatService.subscribeToConversation(
+        activeConversation.id,
+        (newMsg) => {
+          setMessages((prev) => {
+            if (prev.some((m) => m.id === newMsg.id)) return prev;
+            return [...prev, newMsg];
+          });
 
-    activeConversationChannelRef.current = channel;
+          if (newMsg.recipient_id === currentUserId) {
+            chatService.markMessagesAsRead({
+              conversationId: activeConversation.id,
+              userId: currentUserId,
+            });
+          }
+
+          setConversations((prev) =>
+            prev.map((c) =>
+              c.id === activeConversation.id
+                ? {
+                    ...c,
+                    last_message_text: newMsg.message,
+                    last_message_at: newMsg.created_at,
+                    last_sender_id: newMsg.sender_id,
+                  }
+                : c
+            )
+          );
+        },
+        (updatedMsg) => {
+          setMessages((prev) =>
+            prev.map((m) => (m.id === updatedMsg.id ? updatedMsg : m))
+          );
+        }
+      );
+
+      activeConversationChannelRef.current = channel;
+    }
 
     return () => {
       if (activeConversationChannelRef.current) {
@@ -304,9 +445,9 @@ export default function ChatboardPage() {
         activeConversationChannelRef.current = null;
       }
     };
-  }, [activeConversation?.id, loadMessages, currentUserId]);
+  }, [activeConversation, loadMessages, currentUserId]);
 
-  // Realtime Subscription for incoming background messages/updates across all chats
+  // Realtime Subscription for Background 1-to-1 Chat Events
   useEffect(() => {
     if (!currentUserId) return;
 
@@ -322,17 +463,18 @@ export default function ChatboardPage() {
           const newMsg = notification.data;
           const currentActiveId = activeConvRef.current?.id;
 
-          // If the message is for a different conversation than the currently open one, increment unread
           if (newMsg.conversation_id !== currentActiveId) {
             setUnreadCounts((prev) => ({
               ...prev,
-              [newMsg.conversation_id]: (prev[newMsg.conversation_id] || 0) + 1,
+              [newMsg.conversation_id]:
+                (prev[newMsg.conversation_id] || 0) + 1,
             }));
           }
 
-          // Refresh or re-order conversations in-place without flashing
           setConversations((prev) => {
-            const index = prev.findIndex((c) => c.id === newMsg.conversation_id);
+            const index = prev.findIndex(
+              (c) => c.id === newMsg.conversation_id
+            );
             if (index !== -1) {
               const updated = {
                 ...prev[index],
@@ -343,7 +485,6 @@ export default function ChatboardPage() {
               const remaining = prev.filter((_, idx) => idx !== index);
               return [updated, ...remaining];
             } else {
-              // Silently fetch in background only if a completely new conversation arrived
               loadConversations(false);
               return prev;
             }
@@ -378,7 +519,34 @@ export default function ChatboardPage() {
     };
   }, [currentUserId, loadConversations]);
 
-  // Open conversation and sync active global state immediately
+  // Realtime Subscription for Group Updates & Membership Changes
+  useEffect(() => {
+    if (!currentUserId) return;
+
+    if (userGroupChannelRef.current) {
+      userGroupChannelRef.current.unsubscribe();
+      userGroupChannelRef.current = null;
+    }
+
+    const channel = chatService.subscribeToUserGroupUpdates(
+      currentUserId,
+      () => {
+        // Refresh groups in background when group info or membership changes
+        loadGroups(false);
+      }
+    );
+
+    userGroupChannelRef.current = channel;
+
+    return () => {
+      if (userGroupChannelRef.current) {
+        userGroupChannelRef.current.unsubscribe();
+        userGroupChannelRef.current = null;
+      }
+    };
+  }, [currentUserId, loadGroups]);
+
+  // Open 1-to-1 Conversation
   const handleOpenConversation = useCallback(
     (conv) => {
       if (!conv) {
@@ -395,19 +563,29 @@ export default function ChatboardPage() {
         conv.otherUserId ||
         conv.otherUser?.user_id ||
         conv.otherUser?.id ||
-        (String(conv.user1_id).toLowerCase() === String(currentUserId).toLowerCase()
+        (String(conv.user1_id).toLowerCase() ===
+        String(currentUserId).toLowerCase()
           ? conv.user2_id
           : conv.user1_id);
 
-      setActiveConversation(conv);
+      const formattedConv = {
+        ...conv,
+        isGroup: false,
+      };
+
+      setActiveConversation(formattedConv);
       setIsMobileChatOpen(true);
       setHasMoreMessages(false);
       setIsLoadingOlderMessages(false);
       isLoadingOlderRef.current = false;
 
       if (typeof window !== "undefined") {
-        window.__WORKGRID_ACTIVE_CONVERSATION_ID__ = conv.id ? String(conv.id) : null;
-        window.__WORKGRID_ACTIVE_CHAT_USER_ID__ = otherId ? String(otherId) : null;
+        window.__WORKGRID_ACTIVE_CONVERSATION_ID__ = conv.id
+          ? String(conv.id)
+          : null;
+        window.__WORKGRID_ACTIVE_CHAT_USER_ID__ = otherId
+          ? String(otherId)
+          : null;
         window.__WORKGRID_IS_MOBILE_CHAT_OPEN__ = true;
         window.dispatchEvent(
           new CustomEvent("chat-conversation-opened", {
@@ -419,10 +597,33 @@ export default function ChatboardPage() {
     [currentUserId]
   );
 
+  // Open Group Conversation
+  const handleOpenGroup = useCallback((grp) => {
+    if (!grp) return;
+
+    const groupConv = {
+      ...grp,
+      isGroup: true,
+    };
+
+    setActiveConversation(groupConv);
+    setIsMobileChatOpen(true);
+    setHasMoreMessages(false);
+    setIsLoadingOlderMessages(false);
+    isLoadingOlderRef.current = false;
+
+    if (typeof window !== "undefined") {
+      window.__WORKGRID_ACTIVE_CONVERSATION_ID__ = grp.id ? String(grp.id) : null;
+      window.__WORKGRID_ACTIVE_CHAT_USER_ID__ = null;
+      window.__WORKGRID_IS_MOBILE_CHAT_OPEN__ = true;
+    }
+  }, []);
+
   // Start or Open Conversation with a specific user
   const handleStartChatWithUser = useCallback(
     async (targetUser) => {
-      const targetUserId = targetUser.user_id || targetUser.id || targetUser.profiles?.id;
+      const targetUserId =
+        targetUser.user_id || targetUser.id || targetUser.profiles?.id;
       if (!targetUserId || !orgId || !currentUserId) return;
 
       if (targetUserId === currentUserId) {
@@ -437,9 +638,9 @@ export default function ChatboardPage() {
           otherUserId: targetUserId,
         });
 
-        // Ensure otherUser data is attached
         const enrichedConv = {
           ...conv,
+          isGroup: false,
           otherUserId: targetUserId,
           otherUser: {
             user_id: targetUserId,
@@ -453,7 +654,6 @@ export default function ChatboardPage() {
           },
         };
 
-        // Add to conversations list if not present
         setConversations((prev) => {
           if (prev.some((c) => c.id === conv.id)) {
             return prev.map((c) => (c.id === conv.id ? { ...c, ...conv } : c));
@@ -470,7 +670,7 @@ export default function ChatboardPage() {
     [orgId, currentUserId, handleOpenConversation]
   );
 
-  // Sync currently open conversation target user for smart notification suppression
+  // Sync window global state for active conversation
   useEffect(() => {
     if (typeof window !== "undefined") {
       if (!activeConversation) {
@@ -479,30 +679,36 @@ export default function ChatboardPage() {
         window.__WORKGRID_IS_MOBILE_CHAT_OPEN__ = false;
         return;
       }
-      const otherId =
-        activeConversation.otherUserId ||
-        activeConversation.otherUser?.user_id ||
-        activeConversation.otherUser?.id ||
-        (String(activeConversation.user1_id).toLowerCase() === String(currentUserId).toLowerCase()
-          ? activeConversation.user2_id
-          : activeConversation.user1_id);
 
-      window.__WORKGRID_ACTIVE_CONVERSATION_ID__ = activeConversation.id ? String(activeConversation.id) : null;
-      window.__WORKGRID_ACTIVE_CHAT_USER_ID__ = otherId ? String(otherId) : null;
-      window.__WORKGRID_IS_MOBILE_CHAT_OPEN__ = Boolean(isMobileChatOpen);
-
-      window.dispatchEvent(
-        new CustomEvent("chat-conversation-opened", {
-          detail: { userId: otherId, conversationId: activeConversation.id },
-        })
-      );
-    }
-    return () => {
-      if (typeof window !== "undefined") {
-        window.__WORKGRID_ACTIVE_CONVERSATION_ID__ = null;
+      if (activeConversation.isGroup) {
+        window.__WORKGRID_ACTIVE_CONVERSATION_ID__ = String(activeConversation.id);
         window.__WORKGRID_ACTIVE_CHAT_USER_ID__ = null;
+        window.__WORKGRID_IS_MOBILE_CHAT_OPEN__ = Boolean(isMobileChatOpen);
+      } else {
+        const otherId =
+          activeConversation.otherUserId ||
+          activeConversation.otherUser?.user_id ||
+          activeConversation.otherUser?.id ||
+          (String(activeConversation.user1_id).toLowerCase() ===
+          String(currentUserId).toLowerCase()
+            ? activeConversation.user2_id
+            : activeConversation.user1_id);
+
+        window.__WORKGRID_ACTIVE_CONVERSATION_ID__ = activeConversation.id
+          ? String(activeConversation.id)
+          : null;
+        window.__WORKGRID_ACTIVE_CHAT_USER_ID__ = otherId
+          ? String(otherId)
+          : null;
+        window.__WORKGRID_IS_MOBILE_CHAT_OPEN__ = Boolean(isMobileChatOpen);
+
+        window.dispatchEvent(
+          new CustomEvent("chat-conversation-opened", {
+            detail: { userId: otherId, conversationId: activeConversation.id },
+          })
+        );
       }
-    };
+    }
   }, [activeConversation, currentUserId, isMobileChatOpen]);
 
   // Handle URL `userId` parameter auto-open or switch
@@ -523,9 +729,15 @@ export default function ChatboardPage() {
         }
       }
     }
-  }, [queryUserId, members, currentUserId, activeConversation, handleStartChatWithUser]);
+  }, [
+    queryUserId,
+    members,
+    currentUserId,
+    activeConversation,
+    handleStartChatWithUser,
+  ]);
 
-  // Handle direct custom event to open chat with user (from notification or external triggers)
+  // Handle direct custom event to open chat with user
   useEffect(() => {
     const handleOpenChatUserEvent = (e) => {
       const targetId = e?.detail?.userId;
@@ -549,42 +761,73 @@ export default function ChatboardPage() {
     };
   }, [members, handleStartChatWithUser]);
 
-  // Send Message Handler
+  // Send Message Handler (Unified)
   const handleSendMessage = async (text) => {
-    if (!activeConversation?.id || !currentUserId || !text.trim() || isSending) return;
-
-    const otherUserId =
-      activeConversation.user1_id === currentUserId
-        ? activeConversation.user2_id
-        : activeConversation.user1_id;
+    if (
+      !activeConversation?.id ||
+      !currentUserId ||
+      !text.trim() ||
+      isSending
+    ) {
+      return;
+    }
 
     try {
       setIsSending(true);
 
-      const newMsg = await chatService.sendMessage({
-        conversationId: activeConversation.id,
-        senderId: currentUserId,
-        recipientId: otherUserId,
-        message: text,
-      });
+      if (activeConversation.isGroup) {
+        // Send to group
+        const newMsg = await chatService.sendGroupMessage({
+          groupId: activeConversation.id,
+          senderId: currentUserId,
+          message: text,
+        });
 
-      // Optimistic append if realtime takes a second
-      setMessages((prev) => {
-        if (prev.some((m) => m.id === newMsg.id)) return prev;
-        return [...prev, newMsg];
-      });
+        setMessages((prev) => {
+          if (prev.some((m) => m.id === newMsg.id)) return prev;
+          return [...prev, newMsg];
+        });
 
-      // Update conversation in list
-      setConversations((prev) => {
-        const remaining = prev.filter((c) => c.id !== activeConversation.id);
-        const updated = {
-          ...activeConversation,
-          last_message_text: newMsg.message,
-          last_message_at: newMsg.created_at,
-          last_sender_id: currentUserId,
-        };
-        return [updated, ...remaining];
-      });
+        setGroups((prev) => {
+          const remaining = prev.filter((g) => g.id !== activeConversation.id);
+          const updated = {
+            ...activeConversation,
+            last_message_text: newMsg.message,
+            last_message_at: newMsg.created_at,
+            last_sender_id: currentUserId,
+          };
+          return [updated, ...remaining];
+        });
+      } else {
+        // Send 1-to-1
+        const otherUserId =
+          activeConversation.user1_id === currentUserId
+            ? activeConversation.user2_id
+            : activeConversation.user1_id;
+
+        const newMsg = await chatService.sendMessage({
+          conversationId: activeConversation.id,
+          senderId: currentUserId,
+          recipientId: otherUserId,
+          message: text,
+        });
+
+        setMessages((prev) => {
+          if (prev.some((m) => m.id === newMsg.id)) return prev;
+          return [...prev, newMsg];
+        });
+
+        setConversations((prev) => {
+          const remaining = prev.filter((c) => c.id !== activeConversation.id);
+          const updated = {
+            ...activeConversation,
+            last_message_text: newMsg.message,
+            last_message_at: newMsg.created_at,
+            last_sender_id: currentUserId,
+          };
+          return [updated, ...remaining];
+        });
+      }
     } catch (err) {
       console.error("handleSendMessage error:", err);
       toast.error("Failed to send message. Please try again.");
@@ -593,11 +836,62 @@ export default function ChatboardPage() {
     }
   };
 
+  // Group Creation Callback
+  const handleCreateGroupSuccess = (newGroup) => {
+    setGroups((prev) => [newGroup, ...prev]);
+    handleOpenGroup(newGroup);
+  };
+
+  // Group Details Updates Callback
+  const handleGroupUpdated = (updatedGroup) => {
+    setGroups((prev) =>
+      prev.map((g) =>
+        g.id === updatedGroup.id ? { ...g, ...updatedGroup } : g
+      )
+    );
+    if (activeConversation?.id === updatedGroup.id) {
+      setActiveConversation((prev) => ({ ...prev, ...updatedGroup }));
+    }
+  };
+
+  // Leave Group Callback
+  const handleLeaveGroupSuccess = (groupId) => {
+    setGroups((prev) => prev.filter((g) => g.id !== groupId));
+    if (activeConversation?.id === groupId) {
+      setActiveConversation(null);
+      setMessages([]);
+      setIsMobileChatOpen(false);
+      if (typeof window !== "undefined") {
+        window.__WORKGRID_ACTIVE_CONVERSATION_ID__ = null;
+        window.__WORKGRID_IS_MOBILE_CHAT_OPEN__ = false;
+      }
+    }
+  };
+
+  // Delete Group Callback (Admin only)
+  const handleDeleteGroupSuccess = (groupId) => {
+    setGroups((prev) => prev.filter((g) => g.id !== groupId));
+    setGroupUnreadCounts((prev) => {
+      const next = { ...prev };
+      delete next[groupId];
+      return next;
+    });
+    if (activeConversation?.id === groupId) {
+      setActiveConversation(null);
+      setMessages([]);
+      setIsMobileChatOpen(false);
+      if (typeof window !== "undefined") {
+        window.__WORKGRID_ACTIVE_CONVERSATION_ID__ = null;
+        window.__WORKGRID_IS_MOBILE_CHAT_OPEN__ = false;
+      }
+    }
+  };
+
   return (
     <div className="h-full max-h-full flex flex-col bg-white overflow-hidden select-none">
       {/* Main 2-Column Chat Area */}
       <div className="flex-1 flex overflow-hidden min-h-0 relative">
-        {/* Left Column: Sidebar (Team Members & Direct Messages) */}
+        {/* Left Column: Sidebar (Direct & Group Tabs) */}
         <div
           className={`w-full md:w-80 shrink-0 h-full ${
             isMobileChatOpen ? "hidden md:flex" : "flex"
@@ -609,12 +903,18 @@ export default function ChatboardPage() {
             onSelectConversation={handleOpenConversation}
             teamMembers={members}
             unreadCounts={unreadCounts}
+            groups={groups}
+            groupUnreadCounts={groupUnreadCounts}
+            onSelectGroup={handleOpenGroup}
+            onOpenCreateGroup={() => setIsCreateGroupOpen(true)}
             currentUserId={currentUserId}
             onStartChatWithUser={handleStartChatWithUser}
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
             onlineUserIds={onlineUserIds}
-            isLoading={isLoadingConversations || loadingMembers}
+            isLoading={
+              isLoadingConversations || loadingMembers || isLoadingGroups
+            }
           />
         </div>
 
@@ -629,8 +929,10 @@ export default function ChatboardPage() {
               conversation={activeConversation}
               messages={messages}
               currentUserId={currentUserId}
+              allTeamMembers={members}
               onSendMessage={handleSendMessage}
               onEditMessage={handleEditMessage}
+              onOpenGroupDetails={() => setIsGroupDetailsOpen(true)}
               hasMoreMessages={hasMoreMessages}
               isLoadingOlderMessages={isLoadingOlderMessages}
               onLoadOlderMessages={loadOlderMessages}
@@ -642,11 +944,15 @@ export default function ChatboardPage() {
               }}
               isLoadingMessages={isLoadingMessages}
               isSending={isSending}
-              isOtherUserOnline={onlineUserIds.includes(
-                activeConversation.user1_id === currentUserId
-                  ? activeConversation.user2_id
-                  : activeConversation.user1_id
-              )}
+              isOtherUserOnline={
+                activeConversation.isGroup
+                  ? false
+                  : onlineUserIds.includes(
+                      activeConversation.user1_id === currentUserId
+                        ? activeConversation.user2_id
+                        : activeConversation.user1_id
+                    )
+              }
             />
           ) : (
             <EmptyChatState
@@ -655,6 +961,31 @@ export default function ChatboardPage() {
           )}
         </div>
       </div>
+
+      {/* Create Group Modal */}
+      <CreateGroupModal
+        isOpen={isCreateGroupOpen}
+        onClose={() => setIsCreateGroupOpen(false)}
+        teamMembers={members}
+        currentUserId={currentUserId}
+        orgId={orgId}
+        onCreateGroupSuccess={handleCreateGroupSuccess}
+      />
+
+      {/* Group Details Modal */}
+      {activeConversation?.isGroup && (
+        <GroupDetailsModal
+          isOpen={isGroupDetailsOpen}
+          onClose={() => setIsGroupDetailsOpen(false)}
+          group={activeConversation}
+          currentUserId={currentUserId}
+          allTeamMembers={members}
+          onGroupUpdated={handleGroupUpdated}
+          onMemberChanged={() => loadGroups(false)}
+          onLeaveGroup={handleLeaveGroupSuccess}
+          onDeleteGroup={handleDeleteGroupSuccess}
+        />
+      )}
     </div>
   );
 }

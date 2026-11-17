@@ -12,12 +12,9 @@ import {
   FiSearch,
   FiX,
   FiCheck,
-  FiShield,
-  FiUser,
-  FiClock,
   FiMessageSquare,
   FiEdit2,
-  FiMoreVertical,
+  FiUsers,
 } from "react-icons/fi";
 import { LuCheckCheck } from "react-icons/lu";
 import { toast } from "react-toastify";
@@ -29,8 +26,10 @@ export default function ChatConversationArea({
   conversation,
   messages = [],
   currentUserId,
+  allTeamMembers = [],
   onSendMessage,
   onEditMessage,
+  onOpenGroupDetails,
   hasMoreMessages = false,
   isLoadingOlderMessages = false,
   onLoadOlderMessages,
@@ -55,11 +54,31 @@ export default function ChatConversationArea({
   const prependedScrollInfoRef = useRef(null);
   const isNearBottomRef = useRef(true);
 
+  const isGroup = Boolean(conversation?.isGroup);
+
   const otherUser = conversation?.otherUser || {
     full_name: "Workspace Member",
     email: "",
     role: "member",
   };
+
+  // Lookup map for resolving sender details across team members
+  const senderLookup = useMemo(() => {
+    const map = new Map();
+    (allTeamMembers || []).forEach((m) => {
+      const id = m.user_id || m.id || m.profiles?.id;
+      if (id) {
+        map.set(id, {
+          user_id: id,
+          full_name: m.full_name || m.name || m.profiles?.full_name || "Teammate",
+          email: m.email || m.profiles?.email || "",
+          avatar_url: m.avatar_url || m.profiles?.avatar_url || null,
+          role: m.role || "member",
+        });
+      }
+    });
+    return map;
+  }, [allTeamMembers]);
 
   // Reset states when switching conversation
   useEffect(() => {
@@ -179,7 +198,7 @@ export default function ChatConversationArea({
       setEditingMessageId(null);
       setEditingText("");
     } catch (err) {
-      // Error handled by parent or toast
+      // Error handled by parent
     } finally {
       setIsSavingEdit(false);
     }
@@ -206,7 +225,7 @@ export default function ChatConversationArea({
       });
     };
 
-    messages.forEach((msg) => {
+    (messages || []).forEach((msg) => {
       const dayKey = getDayKey(msg.created_at);
       if (!currentGroup || currentGroup.date !== dayKey) {
         currentGroup = { date: dayKey, messages: [] };
@@ -218,48 +237,20 @@ export default function ChatConversationArea({
     return groups;
   }, [messages]);
 
-  // Filter messages if in-chat search query exists
+  // Filter messages if search active
   const filteredGroups = useMemo(() => {
-    if (!inChatSearch.trim()) return groupedMessages;
+    if (!inChatSearch?.trim()) return groupedMessages;
     const q = inChatSearch.toLowerCase().trim();
 
     return groupedMessages
       .map((g) => ({
-        date: g.date,
+        ...g,
         messages: g.messages.filter((m) =>
-          (m.message || "").toLowerCase().includes(q)
+          m.message?.toLowerCase().includes(q)
         ),
       }))
       .filter((g) => g.messages.length > 0);
   }, [groupedMessages, inChatSearch]);
-
-  const formatMessageTime = (dateStr) => {
-    if (!dateStr) return "";
-    try {
-      const d = new Date(dateStr);
-      return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-    } catch (e) {
-      return "";
-    }
-  };
-
-  const formatHeaderTime = (dateStr) => {
-    if (!dateStr) return "";
-    try {
-      const d = new Date(dateStr);
-      const now = new Date();
-      const isToday = d.toDateString() === now.toDateString();
-      const time = d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
-      if (isToday) return time;
-      const datePart = d.toLocaleDateString(undefined, {
-        month: "short",
-        day: "numeric",
-      });
-      return `${datePart}, ${time}`;
-    } catch (e) {
-      return "";
-    }
-  };
 
   const getRoleBadge = (role) => {
     switch (role) {
@@ -272,74 +263,144 @@ export default function ChatConversationArea({
     }
   };
 
+  // Format header timestamp (e.g., "11:04 AM" or "Nov 3, 4:58 PM")
+  const formatHeaderTime = (dateStr) => {
+    if (!dateStr) return "";
+    try {
+      const d = new Date(dateStr);
+      const today = new Date();
+      const isToday = d.toDateString() === today.toDateString();
+
+      const timeStr = d.toLocaleTimeString([], {
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+      });
+
+      if (isToday) return timeStr;
+
+      const dateStrShort = d.toLocaleDateString([], {
+        month: "short",
+        day: "numeric",
+      });
+
+      return `${dateStrShort}, ${timeStr}`;
+    } catch (e) {
+      return "";
+    }
+  };
+
   return (
-    <div className="flex-1 flex flex-col h-full bg-white select-none overflow-hidden relative">
+    <div className="w-full h-full flex flex-col bg-white overflow-hidden relative">
       {/* Conversation Top Header */}
-      <div className="px-4 py-2.5 bg-white border-b border-slate-200/80 flex items-center justify-between gap-3 shrink-0 shadow-2xs z-10">
+      <div className="p-3 border-b border-slate-200/80 flex items-center justify-between shrink-0 bg-white shadow-2xs z-10">
         <div className="flex items-center gap-3 min-w-0">
           {/* Mobile Back Button */}
-          <button
-            type="button"
-            onClick={onBackClick}
-            className="md:hidden p-1.5 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors shrink-0 cursor-pointer"
-            title="Back to conversations"
-          >
-            <FiArrowLeft className="w-5 h-5" />
-          </button>
+          {onBackClick && (
+            <button
+              type="button"
+              onClick={onBackClick}
+              className="md:hidden p-1.5 -ml-1 text-slate-500 hover:text-slate-900 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+            >
+              <FiArrowLeft className="w-5 h-5" />
+            </button>
+          )}
 
-          {/* Other User Avatar */}
-          <div className="relative shrink-0">
-            <div className="w-9 h-9 rounded-xl bg-teal-50 text-[#0F766E] border border-teal-200 flex items-center justify-center font-bold text-xs uppercase shadow-2xs">
-              {getNameInitials(otherUser.full_name)}
-            </div>
-            <span
-              className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full ring-2 ring-white transition-all ${
-                isOtherUserOnline ? "bg-emerald-500 shadow-xs" : "bg-slate-300"
-              }`}
-              title={isOtherUserOnline ? "Online" : "Offline"}
-            />
-          </div>
+          {isGroup ? (
+            /* Group Conversation Header */
+            <div
+              className="flex items-center gap-2.5 cursor-pointer group"
+              onClick={onOpenGroupDetails}
+              title="Click to view group details & members"
+            >
+              <div className="w-9 h-9 rounded-xl bg-teal-700 text-white flex items-center justify-center font-bold text-xs uppercase overflow-hidden shadow-2xs shrink-0 group-hover:opacity-90 transition-opacity">
+                {conversation.group_image ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={conversation.group_image}
+                    alt={conversation.name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  getNameInitials(conversation.name)
+                )}
+              </div>
 
-          {/* User Info & Role */}
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <h3 className="text-xs sm:text-sm font-bold text-slate-900 truncate">
-                {otherUser.full_name}
-              </h3>
-              <span
-                className={`text-[9px] px-1.5 py-0.2 rounded font-semibold uppercase tracking-wider border shrink-0 ${getRoleBadge(
-                  otherUser.role
-                )}`}
-              >
-                {otherUser.role}
-              </span>
-            </div>
-            <div className="flex items-center gap-1.5 text-[11px] truncate">
-              {isOtherUserOnline ? (
-                <span className="flex items-center gap-1 text-emerald-600 font-medium shrink-0">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                  Online
-                </span>
-              ) : (
-                <span className="flex items-center gap-1 text-slate-400 shrink-0">
-                  <span className="w-1.5 h-1.5 rounded-full bg-slate-300" />
-                  Offline
-                </span>
-              )}
-              {otherUser.email && (
-                <>
-                  <span className="text-slate-300">•</span>
-                  <span className="text-slate-400 truncate">
-                    {otherUser.email}
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-xs sm:text-sm font-bold text-slate-900 truncate">
+                    {conversation.name}
+                  </h3>
+                  <span className="text-[9px] px-1.5 py-0.2 rounded font-semibold uppercase tracking-wider border bg-teal-50 text-[#0F766E] border-teal-200/80 shrink-0">
+                    Group
                   </span>
-                </>
-              )}
+                </div>
+                <div className="flex items-center gap-1.5 text-[11px] text-slate-500">
+                  <span>{conversation.memberCount || 1} members</span>
+                  <span>•</span>
+                  <span className="text-[#0F766E] group-hover:underline font-medium">
+                    View Details
+                  </span>
+                </div>
+              </div>
             </div>
-          </div>
+          ) : (
+            /* 1-to-1 Conversation Header */
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="relative shrink-0">
+                <div className="w-9 h-9 rounded-xl bg-[#0F766E] text-white flex items-center justify-center font-bold text-xs uppercase shadow-2xs">
+                  {getNameInitials(otherUser.full_name)}
+                </div>
+                <span
+                  className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full ring-2 ring-white ${
+                    isOtherUserOnline ? "bg-emerald-500" : "bg-slate-300"
+                  }`}
+                  title={isOtherUserOnline ? "Online" : "Offline"}
+                />
+              </div>
+
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-xs sm:text-sm font-bold text-slate-900 truncate">
+                    {otherUser.full_name}
+                  </h3>
+                  <span
+                    className={`text-[9px] px-1.5 py-0.2 rounded font-semibold uppercase tracking-wider border shrink-0 ${getRoleBadge(
+                      otherUser.role
+                    )}`}
+                  >
+                    {otherUser.role}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5 text-[11px] truncate">
+                  {isOtherUserOnline ? (
+                    <span className="flex items-center gap-1 text-emerald-600 font-medium shrink-0">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                      Online
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1 text-slate-400 shrink-0">
+                      <span className="w-1.5 h-1.5 rounded-full bg-slate-300" />
+                      Offline
+                    </span>
+                  )}
+                  {otherUser.email && (
+                    <>
+                      <span className="text-slate-300">•</span>
+                      <span className="text-slate-400 truncate">
+                        {otherUser.email}
+                      </span>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Right actions (Search in conversation) */}
+        {/* Right actions */}
         <div className="flex items-center gap-1.5 shrink-0">
+          {/* In-chat search */}
           {showSearch ? (
             <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 shadow-2xs">
               <FiSearch className="w-3.5 h-3.5 text-slate-400 shrink-0" />
@@ -372,6 +433,18 @@ export default function ChatConversationArea({
               <FiSearch className="w-4 h-4" />
             </button>
           )}
+
+          {/* Group details button */}
+          {isGroup && onOpenGroupDetails && (
+            <button
+              type="button"
+              onClick={onOpenGroupDetails}
+              className="p-1.5 rounded-lg text-slate-500 hover:text-[#0F766E] hover:bg-teal-50 transition-colors cursor-pointer"
+              title="View group details & members"
+            >
+              <FiUsers className="w-4 h-4" />
+            </button>
+          )}
         </div>
       </div>
 
@@ -395,7 +468,8 @@ export default function ChatConversationArea({
         {!hasMoreMessages && messages.length > 0 && !isLoadingMessages && (
           <div className="flex items-center justify-center py-2 text-[11px] text-slate-400 select-none">
             <span>
-              This is the start of your message history with {otherUser.full_name}
+              This is the start of message history in{" "}
+              <strong>{isGroup ? conversation.name : otherUser.full_name}</strong>
             </span>
           </div>
         )}
@@ -415,14 +489,14 @@ export default function ChatConversationArea({
                 </span>
               </div>
 
-              {/* Messages in Group with Smart Spacing & Burst Grouping */}
+              {/* Messages in Group with Burst Grouping */}
               <div className="space-y-1">
                 {group.messages.map((msg, msgIdx) => {
                   const isMe = msg.sender_id === currentUserId;
                   const isEditingThis = editingMessageId === msg.id;
                   const isEdited = Boolean(msg.is_edited === true);
 
-                  // Burst grouping: check if consecutive message from same sender within 5 mins
+                  // Burst grouping
                   const prevMsg = group.messages[msgIdx - 1];
                   const isSameSenderAsPrev =
                     prevMsg &&
@@ -430,7 +504,13 @@ export default function ChatConversationArea({
                     new Date(msg.created_at) - new Date(prevMsg.created_at) < 5 * 60 * 1000;
                   const isFirstInBurst = !isSameSenderAsPrev;
 
-                  // Spacing: larger margin between different bursts, tight margin within same burst
+                  // Resolve sender info
+                  const msgSender = isGroup
+                    ? senderLookup.get(msg.sender_id) || msg.sender || {
+                        full_name: "Teammate",
+                      }
+                    : otherUser;
+
                   const spacingClass =
                     msgIdx === 0 ? "" : isFirstInBurst ? "mt-4" : "mt-1";
 
@@ -439,10 +519,18 @@ export default function ChatConversationArea({
                       {/* Received Message Layout */}
                       {!isMe ? (
                         <div className="flex items-start gap-2.5 group">
-                          {/* Circular Avatar on first message of burst; empty spacer on consecutive */}
                           {isFirstInBurst ? (
-                            <div className="w-8 h-8 rounded-full bg-slate-700 text-white flex items-center justify-center font-bold text-xs uppercase shadow-2xs shrink-0 select-none mt-0.5">
-                              {getNameInitials(otherUser.full_name)}
+                            <div className="w-8 h-8 rounded-full bg-slate-700 text-white flex items-center justify-center font-bold text-xs uppercase shadow-2xs shrink-0 select-none mt-0.5 overflow-hidden">
+                              {msgSender.avatar_url ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                  src={msgSender.avatar_url}
+                                  alt={msgSender.full_name}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                getNameInitials(msgSender.full_name)
+                              )}
                             </div>
                           ) : (
                             <div className="w-8 shrink-0" />
@@ -450,11 +538,10 @@ export default function ChatConversationArea({
 
                           {/* Message Content Container */}
                           <div className="flex-1 min-w-0 max-w-[80%] sm:max-w-xl">
-                            {/* Header: Sender Name + Timestamp (Only on first in burst) */}
                             {isFirstInBurst && (
                               <div className="flex items-baseline gap-2 mb-1 pl-0.5">
                                 <span className="text-[13px] font-semibold text-slate-900 leading-none">
-                                  {otherUser.full_name}
+                                  {msgSender.full_name}
                                 </span>
                                 <span className="text-[11px] text-slate-400 font-normal leading-none">
                                   {formatHeaderTime(msg.created_at)}
@@ -476,13 +563,21 @@ export default function ChatConversationArea({
                       ) : (
                         /* Sent Message Layout */
                         <div className="flex flex-col items-end group">
-                          {/* Header: Timestamp + Read receipt (Only on first in burst) */}
                           {isFirstInBurst && (
                             <div className="flex items-center justify-end gap-1.5 mb-1 pr-1 text-[11px] text-slate-400 font-normal">
                               <span>{formatHeaderTime(msg.created_at)}</span>
                               {isEdited && <span>• Edited</span>}
-                              <span title={msg.is_read ? "Read" : "Sent"} className="ml-0.5">
-                                {msg.is_read ? (
+                              <span
+                                title={
+                                  isGroup
+                                    ? "Sent to group"
+                                    : msg.is_read
+                                    ? "Read"
+                                    : "Sent"
+                                }
+                                className="ml-0.5"
+                              >
+                                {!isGroup && msg.is_read ? (
                                   <LuCheckCheck className="w-3.5 h-3.5 text-teal-600 stroke-2" />
                                 ) : (
                                   <FiCheck className="w-3 h-3 text-slate-400" />
@@ -493,7 +588,6 @@ export default function ChatConversationArea({
 
                           {/* Bubble row with hover action */}
                           <div className="flex items-center justify-end gap-1 max-w-[80%] sm:max-w-xl">
-                            {/* Hover Edit Action */}
                             {!isEditingThis && (
                               <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center shrink-0">
                                 <button
@@ -507,7 +601,6 @@ export default function ChatConversationArea({
                               </div>
                             )}
 
-                            {/* Edit Card or Sent Bubble */}
                             {isEditingThis ? (
                               <div className="w-full bg-white rounded-2xl border-2 border-teal-600/40 shadow-md p-2.5 space-y-2">
                                 <div className="flex items-center justify-between text-[11px] font-semibold text-teal-800 pb-1 border-b border-slate-100">
@@ -603,15 +696,22 @@ export default function ChatConversationArea({
         ) : (
           <div className="h-full flex flex-col items-center justify-center p-6 text-center space-y-3">
             <div className="w-12 h-12 rounded-2xl bg-teal-50 text-[#0F766E] flex items-center justify-center">
-              <FiMessageSquare className="w-6 h-6" />
+              {isGroup ? (
+                <FiUsers className="w-6 h-6" />
+              ) : (
+                <FiMessageSquare className="w-6 h-6" />
+              )}
             </div>
             <div className="space-y-1">
               <p className="text-xs sm:text-sm font-bold text-slate-800">
-                Start the conversation with {otherUser.full_name}
+                {isGroup
+                  ? `Welcome to ${conversation.name}`
+                  : `Start the conversation with ${otherUser.full_name}`}
               </p>
               <p className="text-[11px] text-slate-400 max-w-xs leading-relaxed">
-                Send a private message to collaborate on projects, discuss
-                tasks, and sync in real time.
+                {isGroup
+                  ? "Send messages to collaborate with all members of this group in real time."
+                  : "Send a private message to collaborate on projects, discuss tasks, and sync in real time."}
               </p>
             </div>
           </div>
@@ -624,7 +724,11 @@ export default function ChatConversationArea({
       <ChatMessageInput
         onSendMessage={onSendMessage}
         disabled={isSending}
-        placeholder={`Message ${otherUser.full_name}...`}
+        placeholder={
+          isGroup
+            ? `Message ${conversation.name}...`
+            : `Message ${otherUser.full_name}...`
+        }
       />
     </div>
   );
