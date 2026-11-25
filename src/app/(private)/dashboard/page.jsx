@@ -55,6 +55,7 @@ import ProjectDetailsModal from "@/components/ProjectDetailsModal";
 import DeleteConfirmModal from "@/components/DeleteConfirmModal";
 import JiraLogo from "@/components/JiraLogo";
 import TaskStatusControl from "@/components/TaskStatusControl";
+import AIChat from "@/components/AIChat";
 import { useOrganization } from "@/context/OrganizationContext";
 import { MEMBER_ROLE, MANAGER_ROLE, OWNER_ROLE } from "@/utils/constants";
 import { formatTaskKey } from "@/utils/commonFunction";
@@ -3062,15 +3063,18 @@ export default function DashboardPage() {
   // User has no organization: show prompt / Create Organization flow
   if (!orgMemberships || orgMemberships.length === 0) {
     return (
-      <NoOrganizationView
-        userName={user?.full_name || user?.name}
-        userEmail={user?.email}
-        userInvitations={userInvitations}
-        onCreateOrg={handleCreateOrg}
-        onLogout={handleLogout}
-        user={user}
-        onRefresh={handleRefreshAll}
-      />
+      <>
+        <NoOrganizationView
+          userName={user?.full_name || user?.name}
+          userEmail={user?.email}
+          userInvitations={userInvitations}
+          onCreateOrg={handleCreateOrg}
+          onLogout={handleLogout}
+          user={user}
+          onRefresh={handleRefreshAll}
+        />
+        <AIChat />
+      </>
     );
   }
 
@@ -3078,21 +3082,27 @@ export default function DashboardPage() {
   const activeUserRole = activeMembership?.role || user?.role || MEMBER_ROLE;
   if (activeUserRole === MEMBER_ROLE) {
     return (
-      <MemberTasksView
-        membership={activeMembership}
-        user={user}
-        onRefresh={handleRefreshAll}
-      />
+      <>
+        <MemberTasksView
+          membership={activeMembership}
+          user={user}
+          onRefresh={handleRefreshAll}
+        />
+        <AIChat />
+      </>
     );
   }
 
   // User has organization(s) and is Owner or Manager: show full Organization Dashboard
   return (
-    <OrganizationDashboardContent
-      membership={activeMembership}
-      members={members}
-      currentUserId={user?.id}
-      onRefresh={handleRefreshAll}
-    />
+    <>
+      <OrganizationDashboardContent
+        membership={activeMembership}
+        members={members}
+        currentUserId={user?.id}
+        onRefresh={handleRefreshAll}
+      />
+      <AIChat />
+    </>
   );
 }
